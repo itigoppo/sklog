@@ -1,0 +1,43 @@
+services:
+  web:
+    container_name: sklog_web
+    build:
+      context: .
+      dockerfile: ./docker/web/Dockerfile
+    ports:
+      - "18080:80"
+      - "18443:443"
+    volumes:
+      - ./:/home/itigoppo/git/sklog
+      - ./docker/logs/apache:/var/log/httpd
+      - ./docker/logs/php:/var/log/php-fpm
+    working_dir: /home/itigoppo/git/sklog/src
+    depends_on:
+      - mysql
+      - mail
+
+  mysql:
+    container_name: sklog_db
+    build:
+      context: .
+      dockerfile: ./docker/db/Dockerfile
+    volumes:
+      - ./docker/db/data:/var/lib/mysql
+      - ./docker/logs/db:/var/log/mysql
+    ports:
+      - "13306:3306"
+    environment:
+      TZ: "Asia/Tokyo"
+      MYSQL_DATABASE: "sklog"
+      MYSQL_ROOT_PASSWORD: "root"
+      MYSQL_USER: "user"
+      MYSQL_PASSWORD: "password"
+
+  mail:
+    container_name: sklog_mail
+    build:
+      context: .
+      dockerfile: ./docker/mail/Dockerfile
+    ports:
+      - "18025:8025"
+      - "11025:1025"
