@@ -163,6 +163,16 @@
         <!-- アプリパスワードの作り方トグル -->
         <x-app-password-guide />
 
+        <!-- 利用規約・プライバシーに関する同意 -->
+        <div class="flex items-start gap-2.5 pt-2">
+          <input type="checkbox" name="terms" id="terms"
+                 class="mt-0.5 h-4 w-4 rounded-sm border-slate-700/60 bg-slate-900/60 text-sky-500 focus:ring-sky-500 cursor-pointer"
+                 required>
+          <label for="terms" class="text-xs text-slate-400 leading-normal select-none">
+            本サービスにBlueskyの投稿データを保存・カレンダーとして公開（※Bluesky側の非公開アカウント設定と連動します）することに同意します。
+          </label>
+        </div>
+
         <!-- 送信ボタン -->
         <button type="submit" id="registerBtn"
                 class="w-full py-3.5 px-4 rounded-lg cursor-pointer bg-linear-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-semibold text-sm shadow-lg shadow-sky-950/50 hover:shadow-sky-500/10 focus:outline-none transition duration-300 transform active:scale-[0.98] flex items-center justify-center gap-2">

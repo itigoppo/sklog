@@ -58,6 +58,9 @@ class AuthController extends Controller
       'invite_code' => 'required|string',
       'handle' => 'required|string',
       'app_password' => 'required|string',
+      'terms' => 'accepted',
+    ], [
+      'terms.accepted' => 'サービス利用への同意が必要です。',
     ]);
 
     // 招待コードの検証
@@ -223,6 +226,22 @@ class AuthController extends Controller
 
       $isPrivate = BlueskyAccount::isPrivateFromProfile($profile);
 
+      // ハンドル名の変更を検知した場合
+      if ($bskyAccount->handle !== $handle) {
+        session([
+          'handle_change_pending' => [
+            'user_id' => $bskyAccount->user_id,
+            'old_handle' => $bskyAccount->handle,
+            'new_handle' => $handle,
+            'app_password' => $credentials['app_password'],
+            'profile' => $profile,
+            'is_private' => $isPrivate,
+            'throttle_key' => $throttleKey,
+          ]
+        ]);
+        return redirect()->route('login.confirm_handle_change');
+      }
+
       $user = $bskyAccount->user;
       $user->update(['name' => $profile['displayName'] ?? $handle]);
       $bskyAccount->update([
@@ -293,5 +312,93 @@ class AuthController extends Controller
     }
 
     return back()->with('success_resend', '管理者へ招待コードの再送リクエストを送信しました。メールが届くまでしばらくお待ちください。');
+  }
+
+  /**
+   * ハンドル名変更確認画面を表示します。
+   */
+  public function showConfirmHandleChange(Request $request)
+  {
+    if (Auth::check()) {
+      return redirect()->route('calendar.show', ['handle' => Auth::user()->blueskyAccount->handle]);
+    }
+
+    $pending = session('handle_change_pending');
+    if (!$pending) {
+      return redirect()->route('login');
+    }
+
+    return view('auth.confirm_handle_change', [
+      'oldHandle' => $pending['old_handle'],
+      'newHandle' => $pending['new_handle'],
+    ]);
+  }
+
+  /**
+   * ハンドル名変更確認の送信処理を行います。
+   */
+  public function confirmHandleChange(Request $request)
+  {
+    $pending = session('handle_change_pending');
+    if (!$pending) {
+      return redirect()->route('login');
+    }
+
+    $request->validate([
+      'action' => 'required|string|in:consent,delete,cancel',
+    ]);
+
+    $action = $request->input('action');
+    $throttleKey = $pending['throttle_key'];
+
+    if ($action === 'cancel') {
+      session()->forget('handle_change_pending');
+      return redirect()->route('login')->with('info', 'ログインをキャンセルしました。');
+    }
+
+    $user = User::find($pending['user_id']);
+    if (!$user) {
+      session()->forget('handle_change_pending');
+      return redirect()->route('login')->withErrors(['handle' => 'ユーザーが見つかりません。']);
+    }
+
+    if ($action === 'delete') {
+      DB::transaction(function () use ($user) {
+        $user->delete(); // 外部キー制約により、関連テーブルのレコードもカスケード削除されます
+      });
+
+      session()->forget('handle_change_pending');
+      return redirect()->route('login')->with('success', 'アカウントとすべてのカレンダーデータを完全に削除しました。');
+    }
+
+    if ($action === 'consent') {
+      $bskyAccount = $user->blueskyAccount;
+      $profile = $pending['profile'];
+      $newHandle = $pending['new_handle'];
+
+      $user->update(['name' => $profile['displayName'] ?? $newHandle]);
+      $bskyAccount->update([
+        'handle' => $newHandle,
+        'encrypted_app_password' => $pending['app_password'],
+        'avatar_url' => $profile['avatar'] ?? null,
+        'banner_url' => $profile['banner'] ?? null,
+        'description' => $profile['description'] ?? null,
+        'posts_count' => $profile['postsCount'] ?? 0,
+        'is_private' => $pending['is_private'],
+        'sync_error_type' => null,
+        'sync_error_message' => null,
+      ]);
+
+      // 試行制限カウントをクリア
+      \Illuminate\Support\Facades\RateLimiter::clear($throttleKey);
+      session()->forget('handle_change_pending');
+
+      Auth::login($user, true);
+
+      return redirect()->route('calendar.show', ['handle' => $newHandle])
+        ->with('success', 'ログインし、新しいハンドル名を引き継ぎました。');
+    }
+
+    return redirect()->route('login');
   }
 }

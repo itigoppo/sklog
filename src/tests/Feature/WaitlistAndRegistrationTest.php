@@ -156,6 +156,7 @@ class WaitlistAndRegistrationTest extends TestCase
       'invite_code' => 'INVALID-CODE-999',
       'handle' => 'test.bsky.social',
       'app_password' => 'secret_app_pass',
+      'terms' => '1',
     ]);
 
     $response->assertStatus(302);
@@ -179,6 +180,7 @@ class WaitlistAndRegistrationTest extends TestCase
       'invite_code' => 'USED-CODE-111',
       'handle' => 'test.bsky.social',
       'app_password' => 'secret_app_pass',
+      'terms' => '1',
     ]);
 
     $response->assertStatus(302);
@@ -214,6 +216,7 @@ class WaitlistAndRegistrationTest extends TestCase
       'invite_code' => 'VALID-CODE-222',
       'handle' => 'mismatch.bsky.social',
       'app_password' => 'secret_app_pass',
+      'terms' => '1',
     ]);
 
     $response->assertStatus(302);
@@ -266,6 +269,7 @@ class WaitlistAndRegistrationTest extends TestCase
       'invite_code' => 'VALID-CODE-777',
       'handle' => 'registrant.bsky.social',
       'app_password' => 'secret_app_pass',
+      'terms' => '1',
     ]);
 
     $response->assertStatus(302);
@@ -529,6 +533,7 @@ class WaitlistAndRegistrationTest extends TestCase
       'invite_code' => 'VALID-CODE-777',
       'handle' => 'new-handle.bsky.social',
       'app_password' => 'secret_app_pass',
+      'terms' => '1',
     ]);
 
     $response->assertStatus(302);
@@ -566,6 +571,7 @@ class WaitlistAndRegistrationTest extends TestCase
       'invite_code' => 'EXPIRED-CODE-999',
       'handle' => 'registrant.bsky.social',
       'app_password' => 'secret_app_pass',
+      'terms' => '1',
     ]);
 
     $response->assertStatus(302);
@@ -702,6 +708,21 @@ class WaitlistAndRegistrationTest extends TestCase
 
     $response->assertStatus(302);
     $response->assertSessionHasErrors(['invite_code' => '無効な招待コードです。']);
+  }
+
+  /**
+   * 同意チェックボックスが未チェックの場合に登録が拒否されること。
+   */
+  public function test_register_fails_without_terms_consent(): void
+  {
+    $response = $this->post('/register', [
+      'invite_code' => 'SOME-CODE-123',
+      'handle' => 'test.bsky.social',
+      'app_password' => 'secret_app_pass',
+    ]);
+
+    $response->assertStatus(302);
+    $response->assertSessionHasErrors(['terms']);
   }
 }
 

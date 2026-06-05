@@ -134,3 +134,14 @@ ln -s ../git/sklog/src/public sklog
 cd ~/git/sklog
 ./deploy.sh
 ```
+
+### 自動同期ジョブ（Cron）の設定
+
+Blueskyからの自動同期ジョブ（1時間に1回の自動同期など）を定期的に稼働させるため、本番サーバーの `cron` に以下のタスクスケジュール登録を行います。
+
+1. サーバー側で `crontab -e` を実行して編集画面を開きます。
+2. 以下の行を追加して保存します（ユーザーのホームディレクトリのパス等に合わせて適宜調整してください）。
+
+```cron
+* * * * * cd ~/git/sklog/src && php artisan schedule:run >> ~/git/sklog/cron.log 2>&1
+```
