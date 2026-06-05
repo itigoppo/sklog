@@ -60,6 +60,7 @@
                   'day' => $post->posted_at->format('d')
               ]) . '#post-' . $post->id,
               'author_name' => $post->user->name ?? $bskyAccount->handle,
+              'author_handle' => $bskyAccount->handle,
               'author_avatar' => $post->user->avatar_url ?? $bskyAccount->avatar_url,
           ];
       }
@@ -78,6 +79,7 @@
          data-fullsize="{{ $item['fullsize'] }}"
          data-avatar="{{ $item['author_avatar'] }}"
          data-author-name="{{ $item['author_name'] }}"
+         data-author-handle="{{ $item['author_handle'] }}"
          data-html-text="{{ $item['html_text'] }}"
          data-date="{{ $item['formatted_date'] }}"
          data-detail-url="{{ $item['detail_url'] }}"

@@ -1,18 +1,9 @@
+@push('modals')
 <!-- ギャラリー用拡大ライトボックスモーダル -->
-<div id="galleryModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 opacity-0 pointer-events-none transition-all duration-300" role="dialog" aria-modal="true">
-  <!-- 背景オーバーレイ -->
-  <div id="galleryModalBg" class="absolute inset-0 bg-slate-950/85 backdrop-blur-md transition-opacity duration-300"></div>
-
-  <!-- モーダル本体 -->
-  <div class="relative w-full max-w-5xl max-h-[85vh] md:h-[80vh] flex flex-col md:flex-row bg-slate-900/90 border border-slate-800 rounded-2xl overflow-y-auto md:overflow-hidden shadow-2xl z-10 transition-transform duration-300 scale-95">
-    
-    <!-- 閉じるボタン -->
-    <button id="galleryModalClose" class="fixed md:absolute top-4 right-4 md:top-4 md:right-4 z-50 md:z-20 p-2 rounded-full bg-slate-950/60 border border-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-800/80 transition duration-300 cursor-pointer active:scale-95" aria-label="閉じる">
-      <x-icon name="close" class="w-5 h-5" stroke-width="2.5" />
-    </button>
-
+<x-modal id="galleryModal" maxWidth="max-w-5xl" heightClass="max-h-[85vh] md:h-[80vh] overflow-y-auto md:overflow-hidden" :showClose="true">
+  <div class="flex flex-col md:flex-row h-full">
     <!-- 左側: 画像表示エリア -->
-    <div class="w-full md:flex-1 h-72 sm:h-96 md:h-auto bg-slate-950/80 flex items-center justify-center relative p-4 select-none shrink-0">
+    <div class="w-full md:flex-1 h-[45vh] md:h-auto bg-slate-950/80 flex items-center justify-center relative p-2 md:p-4 select-none shrink-0 border-b md:border-b-0 border-slate-800">
       <!-- ローディングスピナー -->
       <div id="galleryModalSpinner" class="absolute inset-0 items-center justify-center pointer-events-none hidden">
         <svg class="w-8 h-8 text-sky-500 animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -24,16 +15,16 @@
     </div>
 
     <!-- 右側: 投稿情報エリア -->
-    <div class="w-full md:w-85 lg:w-96 flex flex-col justify-between border-t md:border-t-0 md:border-l border-slate-800 p-6 bg-slate-900/40 backdrop-blur-xs overflow-visible md:overflow-y-auto">
+    <div class="w-full md:w-85 lg:w-96 flex flex-col justify-between md:border-l border-slate-800 p-4 md:p-6 bg-slate-900/40 backdrop-blur-xs overflow-visible md:overflow-y-auto">
       
       <!-- 上部コンテンツ: 投稿者 & 投稿本文 -->
-      <div class="space-y-5">
+      <div class="space-y-4 md:space-y-5">
         <!-- 投稿者プロフィール -->
         <div class="flex items-center gap-3">
           <img id="galleryModalAvatar" src="" alt="アバター" class="w-10 h-10 rounded-full border border-slate-800 object-cover">
           <div>
-            <h4 id="galleryModalAuthorName" class="text-sm font-bold text-slate-200"></h4>
-            <span class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">投稿主</span>
+            <h4 id="galleryModalAuthorName" class="text-sm font-bold text-slate-200 leading-none mb-1"></h4>
+            <span id="galleryModalAuthorHandle" class="text-[10px] text-sky-400 font-semibold block select-all"></span>
           </div>
         </div>
 
@@ -43,7 +34,7 @@
       </div>
 
       <!-- 下部コンテンツ: メタデータ & アクションボタン -->
-      <div class="mt-8 pt-5 border-t border-slate-800/60 space-y-4">
+      <div class="mt-6 md:mt-8 pt-4 md:pt-5 border-t border-slate-800/60 space-y-3.5">
         <!-- 投稿日時 -->
         <div class="flex items-center gap-2 text-xs text-slate-500 font-medium">
           <x-icon name="clock" class="w-3.5 h-3.5 text-slate-600" />
@@ -68,21 +59,23 @@
 
     </div>
   </div>
-</div>
+</x-modal>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const modal = document.getElementById('galleryModal');
-    const modalBg = document.getElementById('galleryModalBg');
-    const modalClose = document.getElementById('galleryModalClose');
+    if (!modal) return;
+
+    const modalClose = modal.querySelector('.modal-close-btn');
     const modalImage = document.getElementById('galleryModalImage');
     const modalAvatar = document.getElementById('galleryModalAvatar');
     const modalAuthorName = document.getElementById('galleryModalAuthorName');
+    const modalAuthorHandle = document.getElementById('galleryModalAuthorHandle');
     const modalText = document.getElementById('galleryModalText');
     const modalDate = document.getElementById('galleryModalDate');
     const modalDetailLink = document.getElementById('galleryModalDetailLink');
     const modalBskyLink = document.getElementById('galleryModalBskyLink');
-    const modalContainer = modal.querySelector('.relative');
+    const modalContainer = modal.querySelector('.modal-content-card');
 
     // ギャラリーの画像リンクを取得
     const setupGalleryLinks = () => {
@@ -98,6 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const fullsize = link.getAttribute('data-fullsize');
                 const avatar = link.getAttribute('data-avatar');
                 const name = link.getAttribute('data-author-name');
+                const handle = link.getAttribute('data-author-handle');
                 const htmlText = link.getAttribute('data-html-text');
                 const date = link.getAttribute('data-date');
                 const detailUrl = link.getAttribute('data-detail-url');
@@ -128,6 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 modalAvatar.src = avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80';
                 modalAuthorName.textContent = name;
+                modalAuthorHandle.textContent = handle ? '@' + handle : '';
                 modalText.innerHTML = htmlText || '';
                 modalDate.textContent = date;
                 modalDetailLink.href = detailUrl || '#';
@@ -139,14 +134,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     modalBskyLink.classList.add('hidden');
                 }
 
-                // モーダル表示
+                // モーダル表示 (MutationObserverが自動でスクロールロックする)
                 modal.classList.remove('opacity-0', 'pointer-events-none');
-                modalContainer.classList.remove('scale-95');
-                modalContainer.classList.add('scale-100');
-                if (typeof lockBodyScroll === 'function') {
-                    lockBodyScroll();
-                } else {
-                    document.body.classList.add('overflow-hidden');
+                if (modalContainer) {
+                    modalContainer.classList.remove('scale-95');
+                    modalContainer.classList.add('scale-100');
                 }
             });
         });
@@ -154,12 +146,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const closeModal = () => {
         modal.classList.add('opacity-0', 'pointer-events-none');
-        modalContainer.classList.remove('scale-100');
-        modalContainer.classList.add('scale-95');
-        if (typeof unlockBodyScroll === 'function') {
-            unlockBodyScroll();
-        } else {
-            document.body.classList.remove('overflow-hidden');
+        if (modalContainer) {
+            modalContainer.classList.remove('scale-100');
+            modalContainer.classList.add('scale-95');
         }
         
         // アニメーション完了後に画像を空にしてチラつきを防ぐ
@@ -173,15 +162,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 300);
     };
 
-    modalClose.addEventListener('click', closeModal);
-    modalBg.addEventListener('click', closeModal);
-
-    // ESCキーで閉じる
-    window.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && !modal.classList.contains('opacity-0')) {
-            closeModal();
-        }
-    });
+    if (modalClose) {
+        modalClose.addEventListener('click', closeModal);
+    }
 
     // 初期化
     setupGalleryLinks();
@@ -196,3 +179,5 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 </script>
+@endpush
+

@@ -229,37 +229,6 @@
     </div>
   </div>
 
-  <!-- ================= 画像拡大モーダル ================= -->
-  <div id="imageModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md items-center justify-center hidden opacity-0 transition-opacity duration-300">
-    <!-- 閉じるボタン -->
-    <button onclick="closeImageModal()" class="absolute top-6 right-6 p-3 rounded-full cursor-pointer bg-slate-900 border border-slate-700 text-white hover:bg-slate-800 transition duration-300 z-50 shadow-2xl">
-      <x-icon name="close" class="h-6 w-6" />
-    </button>
-    
-    <!-- 前へボタン -->
-    <button id="prevImageBtn" class="absolute left-6 p-3.5 rounded-full cursor-pointer bg-slate-900/80 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-white transition duration-300 z-50 shadow-2xl hidden">
-      <x-icon name="chevron-left" class="h-6 w-6" />
-    </button>
-
-    <!-- 次へボタン -->
-    <button id="nextImageBtn" class="absolute right-6 p-3.5 rounded-full cursor-pointer bg-slate-900/80 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-white transition duration-300 z-50 shadow-2xl hidden">
-      <x-icon name="chevron-right" class="h-6 w-6" />
-    </button>
-
-    <!-- 画像本体 -->
-    <div class="max-w-[85%] max-h-[85vh] overflow-hidden rounded-2xl border border-slate-850 shadow-2xl relative bg-slate-950/40 select-none flex items-center justify-center min-w-[200px] min-h-[200px]">
-      <!-- ローディングスピナー -->
-      <div id="modalImageSpinner" class="absolute inset-0 items-center justify-center pointer-events-none hidden">
-        <svg class="w-8 h-8 text-sky-500 animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-      </div>
-      <img id="modalImage" src="" alt="拡大画像" class="w-full h-full object-contain max-h-[85vh] rounded-2xl cursor-zoom-in opacity-0 transition-opacity duration-300">
-      <!-- インジケーター（1/3 などの枚数表示） -->
-      <div id="imageIndicator" class="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-slate-900/90 border border-slate-800 text-[10px] font-bold text-slate-300 tracking-wider hidden shadow-lg z-20"></div>
-    </div>
-  </div>
 
   <script>
     // 同期ローディング表示
@@ -277,14 +246,25 @@
 
     // スクロールロック制御（スタック管理）
     let bodyScrollLockCount = 0;
+    let scrollPosition = 0;
     function lockBodyScroll() {
       bodyScrollLockCount++;
-      document.body.classList.add('overflow-hidden');
+      if (bodyScrollLockCount === 1) {
+        scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+        document.body.style.overflow = 'hidden';
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${scrollPosition}px`;
+        document.body.style.width = '100%';
+      }
     }
     function unlockBodyScroll() {
       bodyScrollLockCount = Math.max(0, bodyScrollLockCount - 1);
       if (bodyScrollLockCount === 0) {
-        document.body.classList.remove('overflow-hidden');
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('position');
+        document.body.style.removeProperty('top');
+        document.body.style.removeProperty('width');
+        window.scrollTo(0, scrollPosition);
       }
     }
 
@@ -342,7 +322,7 @@
         modalImg.src = currentImages[currentIndex];
       }
 
-      // 画像プレビューリンクのクリックイベント
+      // 画像プレビューリンク of クリックイベント
       document.body.addEventListener('click', (e) => {
         const link = e.target.closest('.image-preview-link');
         if (link) {
@@ -356,14 +336,12 @@
 
           updateCarousel();
           
-          modal.classList.remove('hidden');
-          modal.classList.add('flex');
-          lockBodyScroll();
-          // アニメーションのために少し遅らせて opacity-100 にする
-          setTimeout(() => {
-            modal.classList.remove('opacity-0');
-            modal.classList.add('opacity-100');
-          }, 20);
+          modal.classList.remove('opacity-0', 'pointer-events-none');
+          const modalContainer = modal.querySelector('.modal-content-card');
+          if (modalContainer) {
+            modalContainer.classList.remove('scale-95');
+            modalContainer.classList.add('scale-100');
+          }
         }
       });
 
@@ -390,25 +368,26 @@
         }
       });
 
-      // モーダル背景クリックで閉じる
-      modal.addEventListener('click', (e) => {
-        if (e.target === modal || e.target.id === 'imageModal') {
-          closeImageModal();
-        }
-      });
+      // 閉じるボタンのイベント紐付け
+      const modalClose = modal.querySelector('.modal-close-btn');
+      if (modalClose) {
+        modalClose.addEventListener('click', closeImageModal);
+      }
     });
 
     function closeImageModal() {
       const modal = document.getElementById('imageModal');
       const modalImg = document.getElementById('modalImage');
-      modal.classList.remove('opacity-100');
-      modal.classList.add('opacity-0');
+      const modalContainer = modal.querySelector('.modal-content-card');
+      
+      modal.classList.add('opacity-0', 'pointer-events-none');
+      if (modalContainer) {
+        modalContainer.classList.remove('scale-100');
+        modalContainer.classList.add('scale-95');
+      }
       
       // アニメーション終了後に非表示にする
       setTimeout(() => {
-        modal.classList.remove('flex');
-        modal.classList.add('hidden');
-        unlockBodyScroll();
         modalImg.src = '';
         modalImg.classList.remove('opacity-100');
         modalImg.classList.add('opacity-0');
@@ -545,93 +524,40 @@
       }
     });
 
-    // ================= カスタム確認モーダル共通ロジック =================
-    document.addEventListener('DOMContentLoaded', () => {
-      const confirmModal = document.getElementById('custom-confirm-modal');
-      const confirmTitle = document.getElementById('confirm-modal-title');
-      const confirmMessage = document.getElementById('confirm-modal-message');
-      const confirmBtn = document.getElementById('confirm-modal-btn');
-      const cancelBtn = document.getElementById('confirm-modal-cancel');
-      let currentForm = null;
-
-      function closeModal() {
-        if (!confirmModal) return;
-        confirmModal.firstElementChild.classList.remove('scale-100');
-        confirmModal.firstElementChild.classList.add('scale-95');
-        confirmModal.classList.add('opacity-0', 'pointer-events-none');
-        unlockBodyScroll();
-        currentForm = null;
-      }
-
-      if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
-      if (confirmModal) {
-        confirmModal.addEventListener('click', (e) => {
-          if (e.target === confirmModal) closeModal();
-        });
-      }
-
-      if (confirmBtn) {
-        confirmBtn.addEventListener('click', () => {
-          if (currentForm) {
-            // イベント再発を防ぐためにクラスを一時的に削除してsubmitする
-            currentForm.dataset.confirmed = "true";
-            currentForm.submit();
-          }
-          closeModal();
-        });
-      }
-
-      // js-confirm-form クラスのついたフォームの送信イベントをキャッチ
-      document.body.addEventListener('submit', (e) => {
-        const form = e.target.closest('.js-confirm-form');
-        if (form && !form.dataset.confirmed) {
-          e.preventDefault();
-          currentForm = form;
-
-          // フォーム内または送信ボタンからカスタム設定を取得
-          const button = form.querySelector('button[type="submit"]') || form;
-          const message = button.getAttribute('data-confirm-message') || form.getAttribute('data-confirm-message') || '本当に実行しますか？';
-          const title = button.getAttribute('data-confirm-title') || form.getAttribute('data-confirm-title') || '確認';
-          const actionText = button.getAttribute('data-confirm-action') || form.getAttribute('data-confirm-action') || '実行する';
-          const btnColorClass = button.getAttribute('data-confirm-btn-color') || form.getAttribute('data-confirm-btn-color') || 'bg-sky-600 hover:bg-sky-500';
-
-          if (confirmTitle) confirmTitle.textContent = title;
-          if (confirmMessage) confirmMessage.innerHTML = message;
-          if (confirmBtn) {
-            confirmBtn.textContent = actionText;
-            confirmBtn.className = `px-4 py-2 rounded-lg text-xs font-bold text-white transition cursor-pointer active:scale-[0.98] ${btnColorClass}`;
-          }
-
-          if (confirmModal) {
-            confirmModal.classList.remove('opacity-0', 'pointer-events-none');
-            lockBodyScroll();
-            setTimeout(() => {
-              confirmModal.firstElementChild.classList.remove('scale-95');
-              confirmModal.firstElementChild.classList.add('scale-100');
-            }, 20);
-          }
-        }
-      });
-    });
   </script>
 
-  <!-- ================= カスタム確認モーダル ================= -->
-  <div id="custom-confirm-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md opacity-0 pointer-events-none transition-opacity duration-300">
-    <div class="glass-card rounded-2xl p-5 max-w-sm w-full mx-4 border border-slate-800/80 shadow-2xl transform scale-95 transition-transform duration-300">
-      <div class="mb-5">
-        <h3 id="confirm-modal-title" class="text-sm font-bold text-white tracking-wide">確認</h3>
-        <p id="confirm-modal-message" class="text-xs text-slate-400 mt-2 leading-relaxed wrap-break-words">本当に実行しますか？</p>
+  <x-confirm-modal />
+
+  <!-- ================= 画像拡大モーダル ================= -->
+  <x-modal id="imageModal" maxWidth="max-w-4xl" heightClass="h-[80vh] md:h-[75vh]" :showClose="true">
+    <!-- 前へボタン (カード内に absolute 配置して、画像の左右に重ねる) -->
+    <button id="prevImageBtn" class="absolute left-4 top-1/2 -translate-y-1/2 p-2.5 rounded-full cursor-pointer bg-slate-950/60 border border-slate-800/80 text-white hover:text-white hover:bg-slate-800/80 transition duration-300 z-30 shadow-2xl hidden" style="margin-top: -20px;">
+      <x-icon name="chevron-left" class="h-5 w-5" />
+    </button>
+
+    <!-- 次へボタン -->
+    <button id="nextImageBtn" class="absolute right-4 top-1/2 -translate-y-1/2 p-2.5 rounded-full cursor-pointer bg-slate-950/60 border border-slate-800/80 text-white hover:text-white hover:bg-slate-800/80 transition duration-300 z-30 shadow-2xl hidden" style="margin-top: -20px;">
+      <x-icon name="chevron-right" class="h-5 w-5" />
+    </button>
+
+    <!-- 画像表示エリア -->
+    <div class="flex-1 bg-slate-950/80 flex items-center justify-center relative p-6 select-none overflow-hidden">
+      <!-- ローディングスピナー -->
+      <div id="modalImageSpinner" class="absolute inset-0 items-center justify-center pointer-events-none hidden">
+        <svg class="w-8 h-8 text-sky-500 animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
       </div>
-      <div class="flex items-center justify-end gap-2.5">
-        <button id="confirm-modal-cancel" type="button" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer select-none">
-          キャンセル
-        </button>
-        <button id="confirm-modal-btn" type="button" class="px-4 py-2 rounded-lg text-xs font-bold text-white transition cursor-pointer active:scale-[0.98] select-none">
-          実行する
-        </button>
-      </div>
+      <img id="modalImage" src="" alt="拡大画像" class="max-w-full max-h-full object-contain rounded-lg shadow-lg opacity-0 transition-opacity duration-300 z-10 cursor-zoom-in">
+      <!-- インジケーター（1/3 などの枚数表示） -->
+      <div id="imageIndicator" class="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-slate-900/90 border border-slate-800 text-[10px] font-bold text-slate-300 tracking-wider hidden shadow-lg z-20"></div>
     </div>
-  </div>
+  </x-modal>
+
+  <!-- 子ビューから動的に挿入されるモーダル用のスタック -->
+  @stack('modals')
+
 
   <!-- ================= ページ上部スクロールボタン (Back to Top) ================= -->
   <button id="backToTopBtn" class="fixed bottom-22 lg:bottom-6 right-6 z-40 w-12 h-12 rounded-full glass-card border border-slate-800 hover:border-sky-500/50 flex items-center justify-center text-slate-400 hover:text-sky-400 shadow-xl opacity-0 pointer-events-none transition-all duration-300 transform translate-y-4 hover:scale-110 active:scale-95 cursor-pointer">
