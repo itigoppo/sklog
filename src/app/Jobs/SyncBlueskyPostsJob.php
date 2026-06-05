@@ -299,6 +299,8 @@ class SyncBlueskyPostsJob implements ShouldQueue
         'last_synced_at' => Carbon::now(),
         'sync_error_type' => null,
         'sync_error_message' => null,
+        'auth_failure_count' => 0,          // 成功時に認証エラーカウントをクリア
+        'is_auto_sync_enabled' => true,     // 同期成功時に自動同期を再有効化
       ]);
 
       Log::info("SyncJob: Successfully synced posts for user {$this->user->id} (@{$bskyAccount->handle})");
@@ -315,10 +317,23 @@ class SyncBlueskyPostsJob implements ShouldQueue
         $errorType = 'auth_failed';
       }
 
-      $bskyAccount->update([
+      $updateData = [
         'sync_error_type' => $errorType,
         'sync_error_message' => $errorMessage,
-      ]);
+      ];
+
+      // 認証エラー（auth_failed）の場合に失敗カウントをインクリメントし、3回連続で失敗した場合は自動同期を無効化
+      if ($errorType === 'auth_failed') {
+        $nextFailureCount = ($bskyAccount->auth_failure_count ?? 0) + 1;
+        $updateData['auth_failure_count'] = $nextFailureCount;
+
+        if ($nextFailureCount >= 3) {
+          $updateData['is_auto_sync_enabled'] = false;
+          Log::warning("SyncJob: Auto sync disabled for user {$this->user->id} due to consecutive authentication failures ({$nextFailureCount} times).");
+        }
+      }
+
+      $bskyAccount->update($updateData);
 
       // コントローラーでの手動同期時にエラーを通知するために再スロー
       throw $e;

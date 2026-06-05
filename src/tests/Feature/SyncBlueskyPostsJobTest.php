@@ -713,5 +713,87 @@ class SyncBlueskyPostsJobTest extends TestCase
     $this->assertTrue($this->account->is_archive_complete);
     $this->assertEquals(4, Post::where('user_id', $this->user->id)->count());
   }
+
+  public function test_sync_job_handles_consecutive_auth_failures_and_disables_auto_sync(): void
+  {
+    $blueskyService = Mockery::mock(BlueskyService::class);
+
+    // 認証エラーを返すようにモック（1回目、2回目、3回目）
+    $blueskyService->shouldReceive('authenticate')
+      ->times(3)
+      ->andThrow(new \Exception('Invalid identifier or password'));
+
+    $this->app->instance(BlueskyService::class, $blueskyService);
+
+    // 初期状態の確認
+    $this->account->refresh();
+    $this->assertTrue($this->account->is_auto_sync_enabled);
+    $this->assertEquals(0, $this->account->auth_failure_count);
+
+    // 1回目の失敗
+    try {
+      SyncBlueskyPostsJob::dispatchSync($this->user);
+    } catch (\Exception $e) {}
+    $this->account->refresh();
+    $this->assertTrue($this->account->is_auto_sync_enabled);
+    $this->assertEquals(1, $this->account->auth_failure_count);
+    $this->assertEquals('auth_failed', $this->account->sync_error_type);
+
+    // 2回目の失敗
+    try {
+      SyncBlueskyPostsJob::dispatchSync($this->user);
+    } catch (\Exception $e) {}
+    $this->account->refresh();
+    $this->assertTrue($this->account->is_auto_sync_enabled);
+    $this->assertEquals(2, $this->account->auth_failure_count);
+
+    // 3回目の失敗（ここで is_auto_sync_enabled が false になる）
+    try {
+      SyncBlueskyPostsJob::dispatchSync($this->user);
+    } catch (\Exception $e) {}
+    $this->account->refresh();
+    $this->assertFalse($this->account->is_auto_sync_enabled);
+    $this->assertEquals(3, $this->account->auth_failure_count);
+  }
+
+  public function test_sync_job_resets_auth_failure_count_on_success(): void
+  {
+    // あらかじめ失敗カウントを 2 に設定しておく
+    $this->account->update([
+      'auth_failure_count' => 2,
+    ]);
+
+    $blueskyService = Mockery::mock(BlueskyService::class);
+
+    $blueskyService->shouldReceive('authenticate')
+      ->once()
+      ->andReturn([
+        'accessJwt' => 'mock_token',
+        'did' => 'did:plc:test123456',
+      ]);
+
+    $blueskyService->shouldReceive('getProfile')
+      ->once()
+      ->andReturn([
+        'description' => 'テストプロフィールです',
+      ]);
+
+    $blueskyService->shouldReceive('getAuthorFeed')
+      ->once()
+      ->andReturn([
+        'feed' => [],
+        'cursor' => null,
+      ]);
+
+    $this->app->instance(BlueskyService::class, $blueskyService);
+
+    // ジョブを実行して成功させる
+    SyncBlueskyPostsJob::dispatchSync($this->user);
+
+    // 成功したためカウントが 0 にリセットされ、is_auto_sync_enabled は true のままであることを検証
+    $this->account->refresh();
+    $this->assertEquals(0, $this->account->auth_failure_count);
+    $this->assertTrue($this->account->is_auto_sync_enabled);
+  }
 }
 

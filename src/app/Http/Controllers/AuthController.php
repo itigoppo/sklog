@@ -252,6 +252,8 @@ class AuthController extends Controller
         'description' => $profile['description'] ?? null,
         'posts_count' => $profile['postsCount'] ?? 0,
         'is_private' => $isPrivate,
+        'is_auto_sync_enabled' => true, // ログイン成功時に自動同期を再有効化
+        'auth_failure_count' => 0,      // エラーカウントをリセット
         'sync_error_type' => null,      // ログイン成功時に認証エラーを即座にクリア
         'sync_error_message' => null,   // 同上
       ]);
@@ -385,6 +387,8 @@ class AuthController extends Controller
         'description' => $profile['description'] ?? null,
         'posts_count' => $profile['postsCount'] ?? 0,
         'is_private' => $pending['is_private'],
+        'is_auto_sync_enabled' => true, // 同意成功時に自動同期を再有効化
+        'auth_failure_count' => 0,      // エラーカウントをリセット
         'sync_error_type' => null,
         'sync_error_message' => null,
       ]);

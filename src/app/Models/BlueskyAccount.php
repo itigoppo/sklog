@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
   'is_archive_complete',
   'is_syncing',
   'is_auto_sync_enabled',
+  'auth_failure_count',
   'sync_error_type',
   'sync_error_message',
 ])]
@@ -56,6 +57,7 @@ class BlueskyAccount extends Model
       'is_archive_complete' => 'boolean',
       'is_syncing' => 'boolean',
       'is_auto_sync_enabled' => 'boolean',
+      'auth_failure_count' => 'integer',
     ];
   }
 
