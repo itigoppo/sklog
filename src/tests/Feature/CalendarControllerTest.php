@@ -1497,6 +1497,7 @@ class CalendarControllerTest extends TestCase
 
   /**
    * ログイン中のカレンダー所有者本人が、ポストをローカルで削除（論理削除）できることを検証。
+   * Bluesky上にポストが存在する場合は、論理削除（ソフトデリート）され、Undo可能なポストIDがセッションにセットされること。
    */
   public function test_owner_can_delete_post_locally(): void
   {
@@ -1511,22 +1512,122 @@ class CalendarControllerTest extends TestCase
       'posted_at' => Carbon::now(),
     ]);
 
+    // BlueskyService のモック (存在する想定)
+    $blueskyService = \Mockery::mock(\App\Services\BlueskyService::class);
+    $blueskyService->shouldReceive('authenticate')
+      ->once()
+      ->with($this->account->handle, $this->account->encrypted_app_password)
+      ->andReturn([
+        'accessJwt' => 'mock_jwt_token',
+        'did' => $this->account->did,
+      ]);
+    $blueskyService->shouldReceive('getPosts')
+      ->once()
+      ->with([$post->uri], 'mock_jwt_token')
+      ->andReturn([
+        'posts' => [
+          ['uri' => $post->uri]
+        ]
+      ]);
+    $this->app->instance(\App\Services\BlueskyService::class, $blueskyService);
+
     // 削除前の確認
-    $responseBefore = $this->get("/@test.bsky.social");
+    $responseBefore = $this->get("/test.bsky.social");
     $responseBefore->assertStatus(200);
     $responseBefore->assertSee('削除される予定のローカルつぶやき');
 
     // 削除リクエストの送信
-    $response = $this->delete("/@test.bsky.social/posts/{$post->id}/delete");
+    $response = $this->delete("/test.bsky.social/posts/{$post->id}/delete");
     $response->assertStatus(302); // リダイレクト
     $response->assertSessionHas('success');
+    $response->assertSessionHas('deleted_post_id', $post->id);
 
     // 削除後の確認（DBには論理削除で残るが、取得・表示されなくなる）
     $this->assertSoftDeleted('posts', ['id' => $post->id]);
 
-    $responseAfter = $this->get("/@test.bsky.social");
+    $responseAfter = $this->get("/test.bsky.social");
     $responseAfter->assertStatus(200);
     $responseAfter->assertDontSee('削除される予定のローカルつぶやき');
+  }
+
+  /**
+   * ポスト削除時、該当のポストがすでにBluesky上で削除されていた場合、物理削除されることを検証。
+   */
+  public function test_owner_delete_post_locally_force_deletes_when_missing_on_bluesky(): void
+  {
+    $this->actingAs($this->user);
+
+    $post = Post::create([
+      'user_id' => $this->user->id,
+      'uri' => 'at://did:plc:test123456/app.bsky.feed.post/to_delete_missing',
+      'cid' => 'ciddeletemissing',
+      'text' => 'すでにBluesky上で消えているつぶやき',
+      'raw_data' => ['post' => []],
+      'posted_at' => Carbon::now(),
+    ]);
+
+    // BlueskyService のモック (存在しない想定)
+    $blueskyService = \Mockery::mock(\App\Services\BlueskyService::class);
+    $blueskyService->shouldReceive('authenticate')
+      ->once()
+      ->with($this->account->handle, $this->account->encrypted_app_password)
+      ->andReturn([
+        'accessJwt' => 'mock_jwt_token',
+        'did' => $this->account->did,
+      ]);
+    $blueskyService->shouldReceive('getPosts')
+      ->once()
+      ->with([$post->uri], 'mock_jwt_token')
+      ->andReturn([
+        'posts' => [] // 空配列を返す
+      ]);
+    $this->app->instance(\App\Services\BlueskyService::class, $blueskyService);
+
+    // 削除リクエストの送信
+    $response = $this->delete("/test.bsky.social/posts/{$post->id}/delete");
+    $response->assertStatus(302);
+    $response->assertSessionHas('success');
+    $response->assertSessionMissing('deleted_post_id'); // Undo不可
+
+    // 物理削除されているため、DBに存在しないことをアサート
+    $this->assertDatabaseMissing('posts', ['id' => $post->id]);
+  }
+
+  /**
+   * ポスト削除時、Bluesky APIへの通信（認証やデータ取得）でエラーが発生した場合は、削除が中断されることを検証。
+   */
+  public function test_owner_delete_post_fails_when_bluesky_api_errors(): void
+  {
+    $this->actingAs($this->user);
+
+    $post = Post::create([
+      'user_id' => $this->user->id,
+      'uri' => 'at://did:plc:test123456/app.bsky.feed.post/to_delete_error',
+      'cid' => 'ciddeleteerror',
+      'text' => '通信エラー時のつぶやき',
+      'raw_data' => ['post' => []],
+      'posted_at' => Carbon::now(),
+    ]);
+
+    // BlueskyService のモック (認証で例外をスロー)
+    $blueskyService = \Mockery::mock(\App\Services\BlueskyService::class);
+    $blueskyService->shouldReceive('authenticate')
+      ->once()
+      ->with($this->account->handle, $this->account->encrypted_app_password)
+      ->andThrow(new \Exception('Connection timeout'));
+    $this->app->instance(\App\Services\BlueskyService::class, $blueskyService);
+
+    // 削除リクエストの送信
+    $response = $this->delete("/test.bsky.social/posts/{$post->id}/delete");
+    $response->assertStatus(302);
+    $response->assertSessionHas('error');
+    $this->assertStringContainsString('Blueskyとの通信に失敗したため、削除処理を中断しました', session('error'));
+
+    // DB上から削除されずに残っていることをアサート
+    $this->assertDatabaseHas('posts', [
+      'id' => $post->id,
+      'deleted_at' => null, // 削除されていない
+    ]);
   }
 
   /**

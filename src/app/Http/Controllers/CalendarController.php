@@ -633,7 +633,7 @@ class CalendarController extends Controller
   }
 
   /**
-   * ポストをローカルで削除（論理削除）します。
+   * ポストをローカルで削除（論理削除、またはBlueskyで消えている場合は物理削除）します。
    */
   public function destroy(string $handle, \App\Models\Post $post)
   {
@@ -645,15 +645,59 @@ class CalendarController extends Controller
       abort(403, 'この操作は許可されていません。');
     }
 
-    $post->delete();
+    $isDeletedOnBluesky = false;
+
+    // at:// で始まる本物の at-uri の場合のみ、Bluesky 側での存在チェックを行う
+    if (str_starts_with($post->uri, 'at://')) {
+      try {
+        $blueskyService = app(\App\Services\BlueskyService::class);
+        // レート制限やAPI接続安定のため、本人認証トークンを取得して呼び出す
+        $session = $blueskyService->authenticate($bskyAccount->handle, $bskyAccount->encrypted_app_password);
+        $token = $session['accessJwt'];
+        
+        $response = $blueskyService->getPosts([$post->uri], $token);
+        $posts = $response['posts'] ?? [];
+        
+        // posts 配列が空、または該当するURIのポストが含まれていない場合、Bluesky上ですでに削除されているとみなす
+        if (empty($posts)) {
+          $isDeletedOnBluesky = true;
+        } else {
+          // 念のためURIの一致も確認
+          $exists = false;
+          foreach ($posts as $p) {
+            if (($p['uri'] ?? null) === $post->uri) {
+              $exists = true;
+              break;
+            }
+          }
+          if (!$exists) {
+            $isDeletedOnBluesky = true;
+          }
+        }
+      } catch (\Exception $e) {
+        // 認証エラーやAPIエラー等の例外が発生した場合は、処理を中断してエラーを返す
+        \Illuminate\Support\Facades\Log::error("Post destroy Bluesky check failed: " . $e->getMessage());
+        return back()->with('error', 'Blueskyとの通信に失敗したため、削除処理を中断しました。しばらく時間をおいてから再度お試しください。');
+      }
+    }
+
+    if ($isDeletedOnBluesky) {
+      $post->forceDelete(); // 物理削除
+      $successMessage = '投稿をカレンダーから完全に削除しました（すでにBluesky上からも削除されています）。';
+      $deletedPostId = null; // Undo不可
+    } else {
+      $post->delete(); // 論理削除 (ソフトデリート)
+      $successMessage = '投稿をカレンダーから非表示にしました（※Bluesky側の投稿は削除されません）。';
+      $deletedPostId = $post->id;
+    }
 
     // キャッシュをクリアして統計やタグ一覧を再計算させる
     \Illuminate\Support\Facades\Cache::forget('user-tags:' . $user->id);
     \Illuminate\Support\Facades\Cache::forget('user-stats-summary:' . $user->id);
 
     return back()
-      ->with('success', '投稿をカレンダーから削除しました（※Bluesky側の投稿は削除されません）。')
-      ->with('deleted_post_id', $post->id);
+      ->with('success', $successMessage)
+      ->with('deleted_post_id', $deletedPostId);
   }
 
   /**
