@@ -20,7 +20,7 @@
       <!-- 非公開カレンダー用のマスクされたメタデータ -->
       <meta property="og:title" content="非公開のカレンダー | {{ config('app.name', 'SkLoG') }}">
       <meta property="og:description" content="このカレンダーは所有者本人にのみ公開されています。">
-      <meta property="og:image" content="{{ asset('favicon.svg') }}">
+      <meta property="og:image" content="{{ url('logo.png') }}">
     @else
       <!-- 公開カレンダー用のリッチメタデータ -->
       <meta property="og:title" content="{{ ($user->name ?? $bskyAccount->handle) }} のカレンダー | {{ config('app.name', 'SkLoG') }}">
@@ -28,13 +28,13 @@
       @if ($bskyAccount->avatar_url)
         <meta property="og:image" content="{{ $bskyAccount->avatar_url }}">
       @else
-        <meta property="og:image" content="{{ asset('favicon.svg') }}">
+        <meta property="og:image" content="{{ url('logo.png') }}">
       @endif
     @endif
     <meta property="og:url" content="{{ route('calendar.show', ['handle' => $bskyAccount->handle]) }}">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="{{ config('app.name', 'SkLoG') }}">
-    <meta name="twitter:card" content="summary">
+    <meta name="twitter:card" content="summary_large_image">
   @endif
 
   <style>
