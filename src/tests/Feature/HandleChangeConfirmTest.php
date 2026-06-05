@@ -135,7 +135,7 @@ class HandleChangeConfirmTest extends TestCase
     ]);
 
     $response->assertStatus(302);
-    $response->assertRedirect('/new-handle.bsky.social');
+    $response->assertRedirect('/profile/new-handle.bsky.social');
 
     // ログイン完了をアサート
     $this->assertAuthenticatedAs($user);

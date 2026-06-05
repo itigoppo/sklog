@@ -120,7 +120,7 @@
       <div class="p-3.5 rounded-xl bg-rose-500/5 border border-rose-500/15 text-[11px] text-rose-300/90 leading-relaxed space-y-1">
         <p class="font-bold">⚠️ 注意事項:</p>
         <p>• 削除されたデータはバックアップを含め、一切復元することができません。</p>
-        <p>• カレンダーURL（{{ '@' . $bskyAccount->handle }}）も即時無効となり、アクセス不可になります。</p>
+        <p>• カレンダーURL（{{ route('calendar.show', ['handle' => $bskyAccount->handle]) }}）も即時無効となり、アクセス不可になります。</p>
       </div>
 
       <form action="{{ route('calendar.settings.delete_account', ['handle' => $bskyAccount->handle]) }}" method="POST" class="js-confirm-form m-0"

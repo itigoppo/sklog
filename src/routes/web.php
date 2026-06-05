@@ -62,15 +62,15 @@ Route::middleware(\App\Http\Middleware\AdminAuth::class)->group(function () {
 // 固定ルートの衝突を防ぐため、定義順を最後に配置し、ドメイン名等のハンドルにマッチさせます。
 // =========================================================================
 
-$handlePattern = '@?[a-zA-Z0-9\.-]+';
+$handlePattern = '[a-zA-Z0-9\.-]+';
 
 // メインブログページ (全期間の最新順ページネーション表示)
-Route::get('/{handle}', [CalendarController::class, 'show'])
+Route::get('/profile/{handle}', [CalendarController::class, 'show'])
   ->where('handle', $handlePattern)
   ->name('calendar.show');
 
 // 個別アーカイブ・設定・ポスト管理のルーティンググループ
-Route::prefix('/{handle}')->where(['handle' => $handlePattern])->group(function () {
+Route::prefix('/profile/{handle}')->where(['handle' => $handlePattern])->group(function () {
   // 年ページ
   Route::get('/{year}', [CalendarController::class, 'showYear'])
     ->where('year', '[0-9]{4}')
