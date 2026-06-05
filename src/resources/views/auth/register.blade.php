@@ -6,6 +6,15 @@
   <title>新規登録 | {{ config('app.name', 'SkLoG') }}</title>
   <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
 
+  <!-- OGP (Open Graph Protocol) -->
+  <meta property="og:title" content="新規登録 | {{ config('app.name', 'SkLoG') }}">
+  <meta property="og:description" content="Blueskyカレンダーアーカイブ「{{ config('app.name', 'SkLoG') }}」のアカウント連携・新規登録ページです。">
+  <meta property="og:image" content="{{ url('logo.png') }}">
+  <meta property="og:url" content="{{ url('/register') }}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="{{ config('app.name', 'SkLoG') }}">
+  <meta name="twitter:card" content="summary_large_image">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Sans+JP:wght@300;400;700&display=swap" rel="stylesheet">
