@@ -6,6 +6,15 @@
   <title>{{ config('app.name', 'SkLoG') }}について | {{ config('app.name', 'SkLoG') }}</title>
   <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
   
+  <!-- OGP (Open Graph Protocol) -->
+  <meta property="og:title" content="{{ config('app.name', 'SkLoG') }}について | {{ config('app.name', 'SkLoG') }}">
+  <meta property="og:description" content="Blueskyカレンダーアーカイブ「{{ config('app.name', 'SkLoG') }}」の利用規約およびプライバシーポリシーのご案内ページです。">
+  <meta property="og:image" content="{{ url('logo.png') }}">
+  <meta property="og:url" content="{{ url('/about') }}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="{{ config('app.name', 'SkLoG') }}">
+  <meta name="twitter:card" content="summary_large_image">
+  
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

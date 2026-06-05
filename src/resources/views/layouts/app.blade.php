@@ -61,7 +61,13 @@
       $isOwnerOrDemo = $isOwner || $isDemo;
     @endphp
     @if (!$isOwnerOrDemo)
-      <meta name="robots" content="noindex, nofollow">
+      @php
+        $ua = request()->header('User-Agent', '');
+        $isSnsCrawler = (bool) preg_match('/(Twitterbot|BlueskyBot|facebookexternalhit|Discordbot|Slackbot|Slack-ImgProxy|TelegramBot|WhatsApp|LineBot)/i', $ua);
+      @endphp
+      @if (!$isSnsCrawler)
+        <meta name="robots" content="noindex, nofollow">
+      @endif
     @endif
   @endif
 
