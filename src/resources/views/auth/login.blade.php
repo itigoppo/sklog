@@ -164,10 +164,15 @@
         アカウントをお持ちでない方（参加申請はこちら）
       </a>
       <br>
-      <a href="/" class="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-sky-400 font-semibold transition duration-300 cursor-pointer">
-        <x-icon name="arrow-left" class="h-3.5 w-3.5" stroke-width="2.5" />
-        トップページへ戻る
-      </a>
+      <div class="flex items-center justify-center gap-4 text-xs font-semibold select-none">
+        <a href="{{ route('about') }}" class="text-slate-500 hover:text-sky-400 transition duration-300 cursor-pointer">
+          {{ config('app.name', 'SkLoG') }}について
+        </a>
+        <span class="text-slate-700">|</span>
+        <a href="/" class="text-slate-500 hover:text-sky-400 transition duration-300 cursor-pointer">
+          トップページへ戻る
+        </a>
+      </div>
     </div>
 
     @include('layouts._footer')

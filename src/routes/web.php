@@ -19,6 +19,9 @@ Route::get('/', function () {
   return view('welcome', compact('publicAccounts'));
 });
 
+// サービスについて・利用規約ページ
+Route::view('/about', 'about')->name('about');
+
 // 認証関連
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);

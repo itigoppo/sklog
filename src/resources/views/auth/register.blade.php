@@ -169,7 +169,7 @@
                  class="mt-0.5 h-4 w-4 rounded-sm border-slate-700/60 bg-slate-900/60 text-sky-500 focus:ring-sky-500 cursor-pointer"
                  required>
           <label for="terms" class="text-xs text-slate-400 leading-normal select-none">
-            本サービスにBlueskyの投稿データを保存・カレンダーとして公開（※Bluesky側の非公開アカウント設定と連動します）することに同意します。
+            本サービスへの投稿データの保存や公開条件等について、<a href="{{ route('about') }}" target="_blank" class="text-sky-400 hover:underline hover:text-sky-300 transition cursor-pointer">サービス利用にあたっての説明・注意点</a>を確認し、同意します。
           </label>
         </div>
 

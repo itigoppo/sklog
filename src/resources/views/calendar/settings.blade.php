@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', '設定 | ' . $bskyAccount->handle . ' のカレンダー | SkLoG')
+@section('title', '設定 | ' . $bskyAccount->handle . ' のカレンダー | ' . config('app.name', 'SkLoG'))
 
 @section('content')
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
