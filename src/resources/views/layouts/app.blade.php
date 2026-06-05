@@ -22,8 +22,8 @@
       <meta property="og:title" content="非公開のカレンダー | {{ config('app.name', 'SkLoG') }}">
       <meta property="og:description" content="このカレンダーは所有者本人にのみ公開されています。">
     @else
-      <!-- 公開カレンダー用のリッチメタデータ -->
-      <meta property="og:title" content="{{ ($user->name ?? $bskyAccount->handle) }} のカレンダー | {{ config('app.name', 'SkLoG') }}">
+       <!-- 公開カレンダー用のリッチメタデータ -->
+      <meta property="og:title" content="{{ ($user->name ?: '@' . $bskyAccount->handle) }} のカレンダー | {{ config('app.name', 'SkLoG') }}">
       <meta property="og:description" content="{{ $bskyAccount->description ? str($bskyAccount->description)->squish()->limit(120) : 'Blueskyの投稿をカレンダー形式でログ保存・公開しているアーカイブです。' }}">
     @endif
     <meta property="og:image" content="{{ url('logo.png') }}">
@@ -103,7 +103,7 @@
             <img src="{{ $bskyAccount->avatar_url }}" alt="Avatar" class="w-full h-full object-cover">
           @else
             <div class="w-full h-full flex items-center justify-center bg-linear-to-br from-sky-400 to-indigo-600 text-white text-4xl font-bold">
-              {{ mb_substr($user->name, 0, 1) }}
+              {{ mb_substr($user->name ?: $bskyAccount->handle, 0, 1) }}
             </div>
           @endif
         </a>
@@ -112,7 +112,7 @@
         <div class="md:pt-6 flex-1 min-w-0 w-full">
           <h2 class="text-2xl md:text-3xl font-extrabold text-white tracking-tight hover:text-sky-400 transition duration-300 leading-tight mb-2 text-center md:text-left">
             <a href="{{ route('calendar.show', ['handle' => $bskyAccount->handle]) }}" class="cursor-pointer">
-              {{ $user->name }}
+              {{ $user->name ?: '@' . $bskyAccount->handle }}
             </a>
           </h2>
           <div class="flex flex-col md:flex-row md:items-center justify-center md:justify-start gap-2.5 md:gap-3 mb-2.5">

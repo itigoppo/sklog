@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', $user->name . '(' . $bskyAccount->handle . ')/' . $targetDay->format('Y年m月d日') . ' - ' . config('app.name', 'SkLoG'))
+@section('title', ($user->name ? $user->name . ' (' . $bskyAccount->handle . ')' : $bskyAccount->handle) . '/' . $targetDay->format('Y年m月d日') . ' - ' . config('app.name', 'SkLoG'))
 
 
 

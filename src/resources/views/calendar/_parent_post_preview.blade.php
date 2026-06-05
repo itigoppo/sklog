@@ -43,7 +43,7 @@
           
           if ($isParentReplyToOthers) {
               if ($myDid && ($rootAuthor['did'] === $myDid)) {
-                  $rootAuthorName = $user->name;
+                  $rootAuthorName = $user->name ?: '@' . $user->blueskyAccount->handle;
               } else {
                   $isRootPrivate = $post->isPrivateUser($rootAuthor['did']);
                   $shouldMaskRoot = $isRootPrivate && !$isOwner;

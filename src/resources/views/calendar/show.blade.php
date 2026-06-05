@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', $user->name . '(' . $bskyAccount->handle . ')' . ($isMainPage ? '' : '/' . $currentMonth->format('Y年m月')) . ' - ' . config('app.name', 'SkLoG'))
+@section('title', ($user->name ? $user->name . ' (' . $bskyAccount->handle . ')' : $bskyAccount->handle) . ($isMainPage ? '' : '/' . $currentMonth->format('Y年m月')) . ' - ' . config('app.name', 'SkLoG'))
 
 @section('content')
   @php
@@ -11,51 +11,52 @@
 
   <!-- ゲスト閲覧用ヘッダーバナー (ログイン/自分のカレンダーへの誘導) -->
   @if (!$isOwner)
-    <div class="glass-card rounded-2xl p-4 md:p-5 border border-slate-800/80 bg-linear-to-r from-sky-500/5 to-indigo-500/5 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-      <div class="flex items-center gap-3">
+    <div class="glass-card rounded-2xl p-4 md:p-5 border border-slate-800/80 bg-linear-to-r from-sky-500/5 to-indigo-500/5 mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div class="grid grid-cols-[auto_1fr] gap-x-3.5 gap-y-2 flex-1 w-full">
         <!-- サービスロゴマーク -->
         <div class="w-8 h-8 rounded-lg bg-linear-to-br from-sky-400 to-indigo-600 flex items-center justify-center shadow-md shadow-sky-500/20 shrink-0">
           <x-icon name="logo" class="h-4.5 w-4.5 text-white" />
         </div>
         
-        <div class="text-left select-none">
-          <!-- タイトルは常に「SkLoG」ブランドを主語とする -->
-          <h4 class="text-xs font-extrabold text-white tracking-wider leading-none mb-1.5 flex items-center gap-1.5">
-            <span>{{ config('app.name', 'SkLoG') }}</span>
-            <span class="text-[9px] text-slate-500 font-bold uppercase tracking-widest px-1.5 py-0.5 rounded bg-slate-950 border border-slate-900 leading-none">Viewer</span>
-          </h4>
-          
-          <p class="text-[10px] text-slate-400 font-medium leading-tight">
+        <!-- タイトル -->
+        <h4 class="text-xs font-extrabold text-white tracking-wider leading-none flex items-center gap-1.5 self-center">
+          <span>{{ config('app.name', 'SkLoG') }}</span>
+          <span class="text-[9px] text-slate-500 font-bold uppercase tracking-widest px-1.5 py-0.5 rounded bg-slate-950 border border-slate-900 leading-none">Viewer</span>
+        </h4>
+        
+        <!-- 説明文と注意書き (モバイルではロゴの下に全幅で回り込み、PCではロゴの右側に配置) -->
+        <div class="col-span-2 sm:col-span-1 sm:col-start-2 text-left select-none">
+          <p class="text-[10px] text-slate-400 font-medium leading-relaxed">
             @auth
-              {{ $user->name }} さんのログを閲覧中
+              {{ $user->name ?: '@' . $bskyAccount->handle }} さんのログを閲覧中
             @else
-              {{ $user->name }} さんのログを閲覧中。あなたもBlueskyをカレンダーでアーカイブしてみませんか？
+              {{ $user->name ?: '@' . $bskyAccount->handle }} さんのログを閲覧中。あなたもBlueskyをカレンダーでアーカイブしてみませんか？
             @endauth
           </p>
           
-          <div class="mt-1.5 flex items-center gap-1.5 text-[9px] text-slate-500 font-semibold select-none">
+          <div class="mt-2 flex items-start gap-1.5 text-[9px] text-slate-500 font-semibold select-none leading-relaxed">
             @if ($isDemo)
-              <span class="text-sky-400">💡</span>
-              <span class="text-slate-400">デモ体験ページのため、すべての機能（カレンダー・検索・統計など）が特別に解放されています。</span>
+              <span class="text-sky-400 shrink-0">💡</span>
+              <span>デモ体験ページのため、すべての機能（カレンダー・検索・統計など）が特別に解放されています。</span>
             @else
-              <span>🔒</span>
+              <span class="shrink-0">🔒</span>
               <span>プライバシー保護のため、ご本人以外によるカレンダーや検索などの詳細機能は制限されています。</span>
             @endif
           </div>
         </div>
       </div>
       
-      <div class="flex items-center gap-2 shrink-0 select-none">
+      <div class="flex items-center gap-2 shrink-0 select-none w-full sm:w-auto mt-2 sm:mt-0">
         @auth
           <!-- すでにログインしている場合 -->
           @if ($authBskyAccount = Auth::user()->blueskyAccount)
-            <a href="{{ route('calendar.show', ['handle' => $authBskyAccount->handle]) }}" class="px-3.5 py-1.5 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 hover:border-sky-500/50 text-sky-400 font-bold text-[10px] rounded-xl transition duration-300 flex items-center gap-1.5 cursor-pointer">
+            <a href="{{ route('calendar.show', ['handle' => $authBskyAccount->handle]) }}" class="w-full sm:w-auto px-4 py-2 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 hover:border-sky-500/50 text-sky-400 font-bold text-xs rounded-xl transition duration-300 flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap">
               <span>マイカレンダーへ ➔</span>
             </a>
           @endif
         @else
           <!-- ゲスト -->
-          <a href="{{ route('login') }}" class="px-3.5 py-1.5 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 hover:border-sky-500/50 text-sky-400 font-bold text-[10px] rounded-xl transition duration-300 flex items-center gap-1.5 cursor-pointer">
+          <a href="{{ route('login') }}" class="w-full sm:w-auto px-4 py-2 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 hover:border-sky-500/50 text-sky-400 font-bold text-xs rounded-xl transition duration-300 flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap">
             <span>自分も始める ➔</span>
           </a>
         @endauth

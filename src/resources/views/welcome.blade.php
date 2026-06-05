@@ -197,7 +197,7 @@
                     <img src="{{ $account->avatar_url }}" alt="Avatar" class="w-full h-full object-cover">
                   @else
                     <div class="w-full h-full flex items-center justify-center bg-linear-to-br from-sky-400 to-indigo-600 text-white text-lg font-bold">
-                      {{ mb_substr($account->user->name, 0, 1) }}
+                      {{ mb_substr($account->user->name ?: $account->handle, 0, 1) }}
                     </div>
                   @endif
                 </div>
@@ -205,7 +205,7 @@
                 <!-- 名前 & ハンドル -->
                 <div class="min-w-0 pt-3">
                   <h3 class="text-sm font-bold text-white tracking-wide truncate hover:text-sky-400 transition duration-300">
-                    {{ $account->user->name }}
+                    {{ $account->user->name ?: '@' . $account->handle }}
                   </h3>
                   <p class="text-sky-400 font-semibold text-xs truncate">
                     {{ '@' . $account->handle }}

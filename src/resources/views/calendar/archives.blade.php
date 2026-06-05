@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', $user->name . ' (@' . $bskyAccount->handle . ') の月別アーカイブ一覧 | ' . config('app.name', 'SkLoG'))
+@section('title', ($user->name ? $user->name . ' (@' . $bskyAccount->handle . ')' : '@' . $bskyAccount->handle) . ' の月別アーカイブ一覧 | ' . config('app.name', 'SkLoG'))
 
 @section('extra_css')
   <style>

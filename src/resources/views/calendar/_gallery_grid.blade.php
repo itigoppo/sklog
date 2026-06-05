@@ -59,9 +59,9 @@
                   'month' => $post->posted_at->format('m'),
                   'day' => $post->posted_at->format('d')
               ]) . '#post-' . $post->id,
-              'author_name' => $post->user->name ?? $bskyAccount->handle,
+              'author_name' => $post->user->name ?: $bskyAccount->handle,
               'author_handle' => $bskyAccount->handle,
-              'author_avatar' => $post->user->avatar_url ?? $bskyAccount->avatar_url,
+              'author_avatar' => $post->user->avatar_url ?: $bskyAccount->avatar_url,
           ];
       }
   }
