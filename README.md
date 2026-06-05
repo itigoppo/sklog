@@ -6,13 +6,12 @@
 
 ```
 docker compose up -d --build
-
 ```
 
-### Laravelインストール
+### 依存関係のインストール (PHP)
 
 ```
-docker compose exec -w /home/itigoppo/git/sklog php composer create-project laravel/laravel src
+docker compose exec web composer install
 ```
 
 ## Laravel初期設定
@@ -26,7 +25,7 @@ cp src/.env.example src/.env
 ### APP_KEY生成
 
 ```
-docker compose exec php php artisan key:generate
+docker compose exec web php artisan key:generate
 ```
 
 ### DB設定
@@ -60,7 +59,7 @@ MAIL_FROM_NAME="${APP_NAME}"
 ### マイグレーション
 
 ```
-docker compose exec php php artisan migrate
+docker compose exec web php artisan migrate
 ```
 
 ### アクセス先
@@ -75,7 +74,7 @@ docker内じゃないよ
 
 ```
 cd src
-npm install
+pnpm install
 ```
 
 ## デプロイ
@@ -84,21 +83,54 @@ at local
 
 ```
 cd src
-npm run build
+pnpm build
 ```
 
 at server
 
+### 初回デプロイ
+
+1. リポジトリをクローンします。
+
+```
+cd ~/git
+git clone <リポジトリのURL> sklog
+```
+
+2. `.env` ファイルを作成し、本番環境の各種設定（DB接続、Blueskyアカウントなど）を編集します。
+
 ```
 cd ~/git/sklog
-git pull
+cp src/.env.example src/.env
+# エディタ等で src/.env を編集
+```
+
+3. 依存関係のインストール、マイグレーション、キャッシュ初期設定を行います。
+
+```
+chmod +x deploy.sh
+./deploy.sh
+```
+
+4. アプリケーションキーを生成します（初回のみ）。
+
+```
 cd src
-composer install --no-dev --optimize-autoloader
-php artisan optimize
+php artisan key:generate
+```
+
+5. 公開ディレクトリへ公開用ディレクトリのシンボリックリンクを作成します。
+
+```
 cd ~/www
 ln -s ../git/sklog/src/public sklog
+```
 
-# 次から
+### 2回目以降のデプロイ
+
+`deploy.sh` を実行するだけで、コードの最新化（`git pull`）、依存関係のインストール、**マイグレーションの実行（`migrate --force`）**、およびキャッシュの最適化までが自動で行われます。
+
+```
 cd ~/git/sklog
 ./deploy.sh
 ```
