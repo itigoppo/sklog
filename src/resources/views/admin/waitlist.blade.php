@@ -10,10 +10,15 @@
 </head>
 <body class="min-h-full p-6">
 
-  <div class="max-w-4xl mx-auto">
+  <div class="max-w-6xl mx-auto">
 
-    <div class="flex items-center justify-between mb-8">
-      <h1 class="text-2xl font-extrabold text-white tracking-tight">{{ config('app.name', 'SkLoG') }} <span class="text-sky-400">Admin</span> <span class="text-slate-500 font-normal text-lg">/ 申請一覧</span></h1>
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-extrabold text-white tracking-tight">
+        <a href="{{ route('admin.waitlist') }}" class="hover:opacity-80 transition">
+          {{ config('app.name', 'SkLoG') }} <span class="text-sky-400">Admin</span>
+        </a>
+        <span class="text-slate-500 font-normal text-lg">/ 申請一覧</span>
+      </h1>
       <div class="flex items-center gap-3">
         <a href="{{ route('admin.security') }}" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold transition flex items-center gap-1.5 duration-200">
           <x-icon name="lock" class="h-3.5 w-3.5 text-sky-400" stroke-width="2" />
@@ -26,6 +31,16 @@
           </button>
         </form>
       </div>
+    </div>
+
+    <!-- ナビゲーションタブ -->
+    <div class="flex border-b border-slate-800 mb-6 text-sm font-semibold select-none">
+      <a href="{{ route('admin.waitlist') }}" class="px-5 py-2.5 border-b-2 border-sky-500 text-sky-400 -mb-px transition duration-200">
+        申請管理 (未登録)
+      </a>
+      <a href="{{ route('admin.users') }}" class="px-5 py-2.5 text-slate-500 hover:text-slate-300 transition duration-200">
+        登録ユーザー管理
+      </a>
     </div>
 
     @if (!config('services.admin.2fa_enabled'))
@@ -71,14 +86,12 @@
         <!-- ステータスフィルタ -->
         <div class="w-full sm:w-48">
           <label for="status" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">ステータス</label>
-          <select name="status" id="status" 
-                  class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition duration-200 cursor-pointer">
+          <x-select name="status" id="status">
             <option value="">すべて</option>
             <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>申請中</option>
             <option value="invited" {{ request('status') === 'invited' ? 'selected' : '' }}>招待済み</option>
-            <option value="registered" {{ request('status') === 'registered' ? 'selected' : '' }}>登録済み</option>
             <option value="expired_pending" {{ request('status') === 'expired_pending' ? 'selected' : '' }}>再送要望</option>
-          </select>
+          </x-select>
         </div>
 
         <!-- ボタン -->
@@ -91,6 +104,10 @@
               クリア
             </a>
           @endif
+          <a href="{{ request()->fullUrl() }}" class="w-full sm:w-auto px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap" title="現在の条件で情報を更新します">
+            <x-icon name="sync" class="h-3.5 w-3.5" stroke-width="2.5" />
+            <span>更新</span>
+          </a>
         </div>
       </form>
     </div>
@@ -102,17 +119,16 @@
         <table class="w-full table-fixed text-sm">
           <thead>
             <tr class="border-b border-slate-800 text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-950/40">
-              <th class="w-[44%] px-4 py-3 text-left">Bluesky アカウント</th>
-              <th class="w-[18%] px-4 py-3 text-left">メールアドレス</th>
-              <th class="w-[11%] px-4 py-3 text-left">ステータス</th>
-              <th class="w-[13%] px-4 py-3 text-left">申請日時</th>
-              <th class="w-[14%] px-4 py-3 text-right">操作</th>
+              <th class="w-[45%] px-4 py-3 text-left">Bluesky アカウント</th>
+              <th class="w-[15%] px-4 py-3 text-left">ステータス</th>
+              <th class="w-[18%] px-4 py-3 text-left">申請日時</th>
+              <th class="w-[22%] px-4 py-3 text-right">操作</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-800/50">
             @foreach ($entries as $entry)
               <tr class="hover:bg-slate-800/20 transition">
-                <!-- Blueskyアカウント情報 (アバター、表示名、ハンドル、自己紹介を一括表示) -->
+                <!-- Blueskyアカウント情報 (アバター、表示名、ハンドル、メール、自己紹介を一括表示) -->
                 <td class="px-4 py-3 align-top">
                   <div class="flex items-start gap-3">
                     <!-- アバター画像 -->
@@ -134,18 +150,19 @@
                           <x-icon name="link" class="h-2.5 w-2.5 shrink-0 opacity-60" stroke-width="2.5" />
                         </a>
                       </div>
+                      <!-- メールアドレス -->
+                      <div class="text-[10px] text-slate-400 mt-1 select-all" title="登録メールアドレス">
+                        {{ $entry->email }}
+                      </div>
                       <!-- 自己紹介 (description) -->
                       @if ($entry->description)
-                        <div class="text-[10px] text-slate-400 mt-1.5 leading-relaxed line-clamp-2 break-all" title="{{ $entry->description }}">
+                        <div class="text-[10px] text-slate-500 mt-1.5 leading-relaxed line-clamp-2 break-all" title="{{ $entry->description }}">
                           {{ $entry->description }}
                         </div>
                       @endif
                     </div>
                   </div>
                 </td>
-                
-                <!-- メールアドレス -->
-                <td class="px-4 py-3 align-top text-slate-400 text-xs break-all select-all">{{ $entry->email }}</td>
                 
                 <!-- ステータス -->
                 <td class="px-4 py-3 align-top">
@@ -174,11 +191,9 @@
                         期限切れ: {{ $entry->inviteCode->expires_at->format('m/d H:i') }}
                       </div>
                     @endif
-                  @else
-                    <span class="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[9px] font-extrabold tracking-wider whitespace-nowrap inline-block">登録済み</span>
                   @endif
                 </td>
-                
+
                 <!-- 申請日時 -->
                 <td class="px-4 py-3 align-top text-slate-500 text-[11px] whitespace-nowrap">{{ $entry->created_at->format('Y/m/d H:i') }}</td>
                 
@@ -196,8 +211,6 @@
                         招待メール送信
                       </button>
                     </form>
-                  @elseif ($entry->status === 'registered')
-                    <span class="text-[10px] text-emerald-500/60 font-medium whitespace-nowrap">登録完了</span>
                   @else
                     {{-- 招待済みのすべてのステータスで再招待を可能に --}}
                     <form action="{{ route('admin.waitlist.reinvite', $entry) }}" method="POST" class="inline js-confirm-form">
@@ -246,10 +259,9 @@
       @if(request()->filled('handle') || request()->filled('status'))
         検索結果: <span class="text-sky-400 font-bold">{{ $entries->count() }}</span> 件 / 
       @endif
-      申請合計: {{ $stats['total'] }} 件
+      未登録申請合計: {{ $stats['pending'] + $stats['invited'] + $stats['expired_pending'] }} 件
       （申請中: {{ $stats['pending'] }}
       / 招待済み: {{ $stats['invited'] }}
-      / 登録済み: {{ $stats['registered'] }}
       / 再送要望: {{ $stats['expired_pending'] }}）
     </p>
   </div>

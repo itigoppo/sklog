@@ -129,18 +129,33 @@
 
         <!-- ハンドル入力 -->
         <div>
-          <label for="handle" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-            Bluesky ハンドル名
-          </label>
-          <div class="relative">
-            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 text-sm">@</span>
-            <input type="text" name="handle" id="handle" 
-                   value="{{ old('handle') }}"
-                   placeholder="username.bsky.social" 
-                   class="w-full pl-8 pr-4 py-3 rounded-lg bg-slate-900/60 border border-slate-700/60 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition duration-300"
-                   required>
+          <div class="flex justify-between items-center mb-2">
+            <label for="handleInput" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+              Bluesky ハンドル名
+            </label>
+            <!-- ドメイン切り替えスイッチ -->
+            <div class="flex rounded-md bg-slate-950 p-0.5 border border-slate-800/80 text-[10px] font-bold select-none">
+              <button type="button" id="toggleSuffix" class="px-2 py-0.5 rounded bg-slate-800 text-white transition-all cursor-pointer focus:outline-none">
+                .bsky.social
+              </button>
+              <button type="button" id="toggleCustom" class="px-2 py-0.5 rounded text-slate-500 hover:text-slate-300 transition-all cursor-pointer focus:outline-none">
+                カスタムドメイン
+              </button>
+            </div>
           </div>
-          <p class="mt-1 text-[10px] text-slate-500">カスタムドメイン（例: username.dev）も使用可能です</p>
+          <div class="relative flex items-center">
+            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 text-sm">@</span>
+            <input type="text" id="handleInput"
+                   placeholder="username"
+                   class="w-full pl-8 pr-28 py-3 rounded-lg bg-slate-900/60 border border-slate-700/60 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition duration-300">
+            <span id="bskySuffix" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 text-xs font-mono font-bold select-none pointer-events-none transition-all duration-200">
+              .bsky.social
+            </span>
+          </div>
+          <input type="hidden" name="handle" id="finalHandle" value="{{ old('handle') }}">
+          <p class="mt-1.5 text-[10px] text-slate-500">
+            <span id="handleHint">※「.bsky.social」を除いたユーザー名だけを入力してください</span>
+          </p>
         </div>
 
         <!-- アプリパスワード入力 -->
@@ -150,8 +165,7 @@
           </label>
           <input type="password" name="app_password" id="app_password" 
                  placeholder="xxxx-xxxx-xxxx-xxxx" 
-                 class="w-full px-4 py-3 rounded-lg bg-slate-900/60 border border-slate-700/60 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition duration-300 tracking-wider"
-                 required>
+                 class="w-full px-4 py-3 rounded-lg bg-slate-900/60 border border-slate-700/60 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition duration-300 tracking-wider">
         </div>
 
         <!-- アプリパスワードの作り方トグル -->
@@ -189,6 +203,82 @@
   </div>
 
   <script>
+    // ハンドル名入力のドメイン補完・切り替えロジック
+    (function() {
+      const finalHandle = document.getElementById('finalHandle');
+      const handleInput = document.getElementById('handleInput');
+      const bskySuffix = document.getElementById('bskySuffix');
+      const toggleSuffix = document.getElementById('toggleSuffix');
+      const toggleCustom = document.getElementById('toggleCustom');
+      const handleHint = document.getElementById('handleHint');
+
+      let mode = 'bsky';
+
+      function setMode(newMode) {
+        mode = newMode;
+        if (mode === 'bsky') {
+          toggleSuffix.classList.add('bg-slate-800', 'text-white');
+          toggleSuffix.classList.remove('text-slate-500', 'hover:text-slate-300');
+          toggleCustom.classList.remove('bg-slate-800', 'text-white');
+          toggleCustom.classList.add('text-slate-500', 'hover:text-slate-300');
+
+          bskySuffix.classList.remove('hidden');
+          handleInput.placeholder = 'username';
+          handleInput.classList.remove('pr-4');
+          handleInput.classList.add('pr-28');
+          handleHint.textContent = '※「.bsky.social」を除いたユーザー名だけを入力してください';
+        } else {
+          toggleCustom.classList.add('bg-slate-800', 'text-white');
+          toggleCustom.classList.remove('text-slate-500', 'hover:text-slate-300');
+          toggleSuffix.classList.remove('bg-slate-800', 'text-white');
+          toggleSuffix.classList.add('text-slate-500', 'hover:text-slate-300');
+
+          bskySuffix.classList.add('hidden');
+          handleInput.placeholder = 'username.com';
+          handleInput.classList.remove('pr-28');
+          handleInput.classList.add('pr-4');
+          handleHint.textContent = '※カスタムドメイン（例: username.dev）を直接入力してください';
+        }
+        updateFinalHandle();
+      }
+
+      function updateFinalHandle() {
+        const val = handleInput.value.trim();
+        if (val === '') {
+          finalHandle.value = '';
+          return;
+        }
+
+        if (mode === 'bsky') {
+          // .bsky.social を手動で入れてしまった場合は二重に付けない
+          if (val.toLowerCase().endsWith('.bsky.social')) {
+            finalHandle.value = val;
+          } else {
+            finalHandle.value = val + '.bsky.social';
+          }
+        } else {
+          finalHandle.value = val;
+        }
+      }
+
+      toggleSuffix.addEventListener('click', () => setMode('bsky'));
+      toggleCustom.addEventListener('click', () => setMode('custom'));
+      handleInput.addEventListener('input', updateFinalHandle);
+
+      // 初期状態の復元 (old('handle')など)
+      const initialValue = finalHandle.value.trim();
+      if (initialValue !== '') {
+        if (initialValue.toLowerCase().endsWith('.bsky.social')) {
+          handleInput.value = initialValue.slice(0, -12);
+          setMode('bsky');
+        } else {
+          handleInput.value = initialValue;
+          setMode('custom');
+        }
+      } else {
+        setMode('bsky');
+      }
+    })();
 
     // フォーム送信時の二重送信防止およびローディング表示
     document.getElementById('loginForm').addEventListener('submit', function() {

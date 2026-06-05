@@ -119,6 +119,16 @@
       <section class="space-y-2 border-b border-slate-800/60 pb-5">
         <h2 class="text-base font-bold text-white flex items-center gap-2">
           <span class="w-1.5 h-4 bg-sky-400 rounded-full"></span>
+          長期間同期が停止しているアカウントの取り扱い
+        </h2>
+        <p>
+          アプリパスワードの無効化などにより長期間（おおむね30日以上）同期エラーが継続している場合、または長期間にわたり本サービスのご利用（アクセス）がない休眠状態のアカウントは、サーバー資源の最適化のため、事前の通告なくアカウントおよび蓄積されたカレンダーデータを完全に削除させていただく場合があります。
+        </p>
+      </section>
+
+      <section class="space-y-2 border-b border-slate-800/60 pb-5">
+        <h2 class="text-base font-bold text-white flex items-center gap-2">
+          <span class="w-1.5 h-4 bg-sky-400 rounded-full"></span>
           お問い合わせについて
         </h2>
         <p>

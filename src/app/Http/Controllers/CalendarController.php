@@ -483,6 +483,19 @@ class CalendarController extends Controller
 
       return back()->with('success', 'Blueskyから最新の投稿を同期しました！');
     } catch (Exception $e) {
+      // 認証エラーに起因する可能性がある場合に、ハンドル名の変更をチェック
+      $errorMessage = $e->getMessage();
+      if ($bskyAccount && (
+        str_contains($errorMessage, 'ハンドル名またはアプリパスワードが正しくありません') || 
+        str_contains($errorMessage, 'Authentication failed') || 
+        str_contains($errorMessage, 'Invalid identifier or password')
+      )) {
+        $redirect = $this->handleAuthFailureWithHandleCheck($bskyAccount);
+        if ($redirect) {
+          return $redirect;
+        }
+      }
+
       return back()->with('error', '同期中にエラーが発生しました: ' . $e->getMessage());
     }
   }
@@ -776,6 +789,14 @@ class CalendarController extends Controller
 
     // 各行に分割し、空白を除去
     $urls = preg_split('/\r\n|\r|\n/', $request->input('urls', ''));
+    $urls = array_filter(array_map('trim', $urls));
+
+    if (count($urls) > 20) {
+      return back()->withErrors([
+        'urls' => '一度にインポートできるのは最大20件までです。',
+      ])->withInput();
+    }
+
     $atUris = [];
     $restoredCount = 0;
     $successCount = 0;
@@ -838,8 +859,21 @@ class CalendarController extends Controller
       try {
         $blueskyService = app(\App\Services\BlueskyService::class);
         $password = $bskyAccount->encrypted_app_password;
-        $session = $blueskyService->authenticate($bskyAccount->handle, $password);
-        $token = $session['accessJwt'];
+
+        try {
+          $session = $blueskyService->authenticate($bskyAccount->handle, $password);
+          $token = $session['accessJwt'];
+        } catch (\Exception $authEx) {
+          \Illuminate\Support\Facades\Log::error("ImportPosts Auth Exception: " . $authEx->getMessage());
+
+          // ハンドル名変更自動検知
+          $redirect = $this->handleAuthFailureWithHandleCheck($bskyAccount);
+          if ($redirect) {
+            return $redirect;
+          }
+
+          return back()->with('error', "Blueskyの認証に失敗しました。設定画面でアカウント情報（ハンドル名、アプリパスワード）が正しく設定されているか確認してください。 (詳細: " . $authEx->getMessage() . ")")->withInput();
+        }
 
         // app.bsky.feed.getPosts API を叩く
         $response = $blueskyService->getPosts($toImport, $token);
@@ -1020,5 +1054,49 @@ class CalendarController extends Controller
       \Illuminate\Support\Facades\Log::error("Delete Account Error for user {$user->id}: " . $e->getMessage());
       return back()->with('error', '退会処理中にエラーが発生しました。お手数ですがしばらく時間をおいてから再度お試しください。');
     }
+  }
+
+  /**
+   * 認証エラー発生時に、ハンドル名の変更が原因であるかチェックし、
+   * 変更されている場合はログアウトした上でハンドル変更確認画面へリダイレクトする。
+   * ハンドル名が変更されていなければ null を返す。
+   *
+   * @param \App\Models\BlueskyAccount $bskyAccount
+   * @return \Illuminate\Http\RedirectResponse|null
+   */
+  private function handleAuthFailureWithHandleCheck(\App\Models\BlueskyAccount $bskyAccount): ?\Illuminate\Http\RedirectResponse
+  {
+    try {
+      $blueskyService = app(\App\Services\BlueskyService::class);
+      // パブリックAPI経由でDIDから最新プロフィールを取得（トークンなし）
+      $profile = $blueskyService->getProfile($bskyAccount->did);
+      $currentHandle = $profile['handle'] ?? null;
+
+      if ($currentHandle && strtolower($bskyAccount->handle) !== strtolower($currentHandle)) {
+        $isPrivate = \App\Models\BlueskyAccount::isPrivateFromProfile($profile);
+        $throttleKey = 'login-attempt:' . request()->ip() . '|' . strtolower($currentHandle);
+
+        session([
+          'handle_change_pending' => [
+            'user_id' => $bskyAccount->user_id,
+            'old_handle' => $bskyAccount->handle,
+            'new_handle' => $currentHandle,
+            'app_password' => $bskyAccount->encrypted_app_password,
+            'profile' => $profile,
+            'is_private' => $isPrivate,
+            'throttle_key' => $throttleKey,
+          ]
+        ]);
+
+        \Illuminate\Support\Facades\Auth::logout();
+
+        return redirect()->route('login.confirm_handle_change')
+          ->with('info', 'Bluesky側でハンドル名の変更が検知されました。手続きを完了させてください。');
+      }
+    } catch (\Exception $e) {
+      \Illuminate\Support\Facades\Log::warning("Handle Check failed on auth failure: " . $e->getMessage());
+    }
+
+    return null;
   }
 }

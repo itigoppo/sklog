@@ -27,8 +27,7 @@
         <div>
           <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">パスワード</label>
           <input type="password" name="password" autofocus
-                 class="w-full px-4 py-3 rounded-lg bg-slate-950 border border-slate-700 text-white text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition"
-                 required>
+                 class="w-full px-4 py-3 rounded-lg bg-slate-950 border border-slate-700 text-white text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition">
         </div>
 
         @if (config('services.admin.2fa_enabled'))
@@ -38,8 +37,7 @@
               <span class="text-[10px] text-sky-400 normal-case font-normal">認証アプリの6桁コード</span>
             </label>
             <input type="text" name="totp_code" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" placeholder="123456" maxlength="6"
-                   class="w-full px-4 py-3 rounded-lg bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition text-center tracking-[0.5em] font-mono text-lg font-bold"
-                   required>
+                   class="w-full px-4 py-3 rounded-lg bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition text-center tracking-[0.5em] font-mono text-lg font-bold">
           </div>
         @endif
 

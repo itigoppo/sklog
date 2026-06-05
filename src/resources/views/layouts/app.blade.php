@@ -115,48 +115,50 @@
               {{ $user->name }}
             </a>
           </h2>
-          <div class="flex flex-wrap items-center justify-center md:justify-start gap-2.5 mb-2">
-            <p class="text-sky-400 font-semibold text-sm md:text-base hover:text-sky-300 transition duration-300 leading-none">
+          <div class="flex flex-col md:flex-row md:items-center justify-center md:justify-start gap-2.5 md:gap-3 mb-2.5">
+            <p class="text-sky-400 font-semibold text-sm md:text-base hover:text-sky-300 transition duration-300 leading-none text-center md:text-left">
               <a href="https://bsky.app/profile/{{ $bskyAccount->handle }}" target="_blank" rel="noopener noreferrer" class="cursor-pointer inline-flex items-center gap-1" title="Blueskyプロフィールを開く ➔">
                 {{ '@' . $bskyAccount->handle }}
                 <x-icon name="link" class="h-3.5 w-3.5 opacity-60" />
               </a>
             </p>
-            <!-- 公開・非公開バッジ -->
-            @if ($bskyAccount->is_private)
-              <span class="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-semibold tracking-wider inline-flex items-center gap-1 uppercase shrink-0 whitespace-nowrap select-none">
-                <x-icon name="lock" class="h-3 w-3" />
-                自分のみ
-              </span>
-            @else
-              <span class="px-2 py-0.5 rounded bg-sky-500/10 border border-sky-500/30 text-sky-400 text-[10px] font-semibold tracking-wider inline-flex items-center gap-1 uppercase shrink-0 whitespace-nowrap select-none">
-                <x-icon name="globe" class="h-3 w-3" />
-                公開中
-              </span>
-            @endif
-
-            @auth
-              @if (Auth::id() === $user->id)
-                <a href="{{ route('calendar.settings', ['handle' => $bskyAccount->handle]) }}" class="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 hover:border-sky-500/50 text-slate-400 hover:text-sky-400 text-[10px] font-semibold tracking-wider inline-flex items-center gap-1 shrink-0 whitespace-nowrap transition duration-300 select-none cursor-pointer" title="設定画面を開く">
-                  <x-icon name="settings" class="h-3 w-3 text-slate-500" />
-                  設定
-                </a>
-              @endif
-            @endauth
-
-            <!-- 最終同期日時表示 -->
-            @if (isset($bskyAccount) && $bskyAccount->last_synced_at)
-              <div class="relative group inline-flex">
-                <span class="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400 text-[10px] font-semibold tracking-wider inline-flex items-center gap-1 shrink-0 whitespace-nowrap select-none cursor-help">
-                  <x-icon name="sync" class="h-3 w-3 text-slate-500 shrink-0" />
-                  {{ $bskyAccount->last_synced_at->diffInDays(now()) >= 3 ? '最終同期: ' . $bskyAccount->last_synced_at->format('m/d H:i') : '最終同期: ' . $bskyAccount->last_synced_at->diffForHumans() }}
+            <div class="flex flex-wrap items-center justify-center md:justify-start gap-2 shrink-0">
+              <!-- 公開・非公開バッジ -->
+              @if ($bskyAccount->is_private)
+                <span class="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-semibold tracking-wider inline-flex items-center gap-1 uppercase shrink-0 whitespace-nowrap select-none">
+                  <x-icon name="lock" class="h-3 w-3" />
+                  自分のみ
                 </span>
-                <!-- スタイリッシュな即時ホバーツールチップ -->
-                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-[10px] text-slate-300 font-bold tracking-wider opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 shadow-2xl whitespace-nowrap z-50 select-none">
-                  {{ $bskyAccount->last_synced_at->format('Y/m/d H:i:s') }}
+              @else
+                <span class="px-2 py-0.5 rounded bg-sky-500/10 border border-sky-500/30 text-sky-400 text-[10px] font-semibold tracking-wider inline-flex items-center gap-1 uppercase shrink-0 whitespace-nowrap select-none">
+                  <x-icon name="globe" class="h-3 w-3" />
+                  公開中
+                </span>
+              @endif
+
+              @auth
+                @if (Auth::id() === $user->id)
+                  <a href="{{ route('calendar.settings', ['handle' => $bskyAccount->handle]) }}" class="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 hover:border-sky-500/50 text-slate-400 hover:text-sky-400 text-[10px] font-semibold tracking-wider inline-flex items-center gap-1 shrink-0 whitespace-nowrap transition duration-300 select-none cursor-pointer" title="設定画面を開く">
+                    <x-icon name="settings" class="h-3 w-3 text-slate-500" />
+                    設定
+                  </a>
+                @endif
+              @endauth
+
+              <!-- 最終同期日時表示 -->
+              @if (isset($bskyAccount) && $bskyAccount->last_synced_at)
+                <div class="relative group inline-flex">
+                  <span class="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400 text-[10px] font-semibold tracking-wider inline-flex items-center gap-1 shrink-0 whitespace-nowrap select-none cursor-help">
+                    <x-icon name="sync" class="h-3 w-3 text-slate-500 shrink-0" />
+                    {{ $bskyAccount->last_synced_at->diffInDays(now()) >= 3 ? '最終同期: ' . $bskyAccount->last_synced_at->format('m/d H:i') : '最終同期: ' . $bskyAccount->last_synced_at->diffForHumans() }}
+                  </span>
+                  <!-- スタイリッシュな即時ホバーツールチップ -->
+                  <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-[10px] text-slate-300 font-bold tracking-wider opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 shadow-2xl whitespace-nowrap z-50 select-none">
+                    {{ $bskyAccount->last_synced_at->format('Y/m/d H:i:s') }}
+                  </div>
                 </div>
-              </div>
-            @endif
+              @endif
+            </div>
           </div>
           @if ($bskyAccount->description)
             <p class="text-slate-400 text-xs md:text-sm w-full leading-relaxed whitespace-pre-wrap text-left mx-auto md:mx-0">{!! $bskyAccount->html_description !!}</p>

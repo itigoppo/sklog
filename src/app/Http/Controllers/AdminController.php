@@ -104,7 +104,8 @@ class AdminController extends Controller
       'expired_pending' => WaitlistEntry::where('status', 'expired_pending')->count(),
     ];
 
-    $query = WaitlistEntry::with('inviteCode');
+    $query = WaitlistEntry::with(['inviteCode'])
+      ->where('status', '!=', 'registered');
 
     // ハンドル名での部分一致検索
     if ($request->filled('handle')) {
@@ -116,7 +117,7 @@ class AdminController extends Controller
     // ステータスでのフィルタ
     if ($request->filled('status')) {
       $status = $request->status;
-      if (in_array($status, ['pending', 'invited', 'registered', 'expired_pending'])) {
+      if (in_array($status, ['pending', 'invited', 'expired_pending'])) {
         $query->where('status', $status);
       }
     }
@@ -124,6 +125,60 @@ class AdminController extends Controller
     $entries = $query->orderBy('created_at', 'desc')->get();
 
     return view('admin.waitlist', compact('entries', 'stats'));
+  }
+
+  public function users(Request $request)
+  {
+    // 2FAが有効化されていない場合は、申請者一覧を表示させずセキュリティ画面へ強制リダイレクト
+    if (!config('services.admin.2fa_enabled')) {
+      return redirect()->route('admin.security')->with('error', 'ユーザー一覧を閲覧するには、二要素認証 (2FA) を有効化する必要があります。');
+    }
+
+    // 全体の統計情報を取得
+    $stats = [
+      'total'           => WaitlistEntry::count(),
+      'pending'         => WaitlistEntry::where('status', 'pending')->count(),
+      'invited'         => WaitlistEntry::where('status', 'invited')->count(),
+      'registered'      => WaitlistEntry::where('status', 'registered')->count(),
+      'expired_pending' => WaitlistEntry::where('status', 'expired_pending')->count(),
+    ];
+
+    $query = WaitlistEntry::with(['inviteCode.usedBy.blueskyAccount'])
+      ->where('status', 'registered');
+
+    // ハンドル名での部分一致検索
+    if ($request->filled('handle')) {
+      $handle = trim($request->handle);
+      $handle = ltrim($handle, '@'); // @が付いている場合は除去
+      $query->where('handle', 'like', '%' . $handle . '%');
+    }
+
+    // 同期状況でのフィルタ
+    if ($request->filled('sync_status')) {
+      $syncStatus = $request->sync_status;
+      if (in_array($syncStatus, ['active', 'inactive', 'error', 'syncing', 'inactive_30d'])) {
+        $query->whereHas('inviteCode.usedBy.blueskyAccount', function ($q) use ($syncStatus) {
+          if ($syncStatus === 'active') {
+            $q->where('is_auto_sync_enabled', true)->whereNull('sync_error_type');
+          } elseif ($syncStatus === 'inactive') {
+            $q->where('is_auto_sync_enabled', false);
+          } elseif ($syncStatus === 'error') {
+            $q->whereNotNull('sync_error_type');
+          } elseif ($syncStatus === 'syncing') {
+            $q->where('is_syncing', true);
+          } elseif ($syncStatus === 'inactive_30d') {
+            $q->where(function ($sub) {
+              $sub->where('last_synced_at', '<', now()->subDays(30))
+                  ->orWhereNull('last_synced_at');
+            });
+          }
+        });
+      }
+    }
+
+    $entries = $query->orderBy('created_at', 'desc')->get();
+
+    return view('admin.users', compact('entries', 'stats'));
   }
 
   public function securitySettings(Request $request)
@@ -218,5 +273,39 @@ class AdminController extends Controller
     Mail::to($entry->email)->send(new InviteCodeMail($entry, $inviteCode));
 
     return back()->with('success', "@{$entry->handle} の招待期限を延長し、新しい招待メールを再送信しました。");
+  }
+
+  /**
+   * ユーザーを強制退会させ、カレンダーデータおよび登録/申請データを完全に物理削除します。
+   */
+  public function forceDelete(WaitlistEntry $entry)
+  {
+    $handle = $entry->handle;
+
+    // 登録済みユーザーの場合、関連するUserモデルを削除
+    if ($entry->status === 'registered') {
+      $inviteCode = $entry->inviteCode;
+      if ($inviteCode && $inviteCode->used_by_user_id) {
+        $user = \App\Models\User::find($inviteCode->used_by_user_id);
+        if ($user) {
+          \Illuminate\Support\Facades\DB::transaction(function () use ($user, $entry, $inviteCode) {
+            $user->delete(); // カスケード削除により、BlueskyAccountやPostデータも消えます
+            $inviteCode->delete();
+            $entry->delete();
+          });
+          return redirect()->route('admin.users')->with('success', "@{$handle} を強制退会させ、カレンダーおよび全データを完全に削除しました。");
+        }
+      }
+    }
+
+    // まだ登録されていない、またはUserデータが見つからない場合も、安全のため申請エントリーとコードを削除
+    \Illuminate\Support\Facades\DB::transaction(function () use ($entry) {
+      if ($entry->inviteCode) {
+        $entry->inviteCode->delete();
+      }
+      $entry->delete();
+    });
+
+    return redirect()->route('admin.users')->with('success', "@{$handle} の申請データを完全に削除しました。");
   }
 }

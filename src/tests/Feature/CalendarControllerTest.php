@@ -1898,6 +1898,133 @@ class CalendarControllerTest extends TestCase
   }
 
   /**
+   * 個別インポート実行時、アプリパスワード間違いなどの認証エラーが発生した場合に
+   * 処理が中断され、具体的なエラーメッセージがセッションにセットされてリダイレクトされることを検証。
+   */
+  public function test_owner_import_posts_fails_when_auth_fails(): void
+  {
+    $this->actingAs($this->user);
+
+    // 新規にAPI経由でインポートされるポストを用意 (新規テスト用)
+    $newUri = 'at://did:plc:test123456/app.bsky.feed.post/to_import_auth_fail';
+
+    // BlueskyService のモック作成 (認証で例外をスローさせる)
+    $blueskyService = \Mockery::mock(\App\Services\BlueskyService::class);
+    $blueskyService->shouldReceive('authenticate')
+      ->once()
+      ->with('test.bsky.social', $this->account->encrypted_app_password)
+      ->andThrow(new \Exception('Invalid identifier or password'));
+    $this->app->instance(\App\Services\BlueskyService::class, $blueskyService);
+
+    // インポート実行リクエスト
+    $urlsInput = "https://bsky.app/profile/profile/test.bsky.social/post/to_import_auth_fail";
+
+    $response = $this->post("/profile/test.bsky.social/settings/import-posts", [
+      'urls' => $urlsInput,
+    ]);
+
+    $response->assertStatus(302);
+    $response->assertSessionHas('error');
+    $this->assertStringContainsString('Blueskyの認証に失敗しました', session('error'));
+    $this->assertStringContainsString('Invalid identifier or password', session('error'));
+
+    // 新規投稿がDBに追加されていないこと
+    $this->assertDatabaseMissing('posts', [
+      'uri' => $newUri,
+    ]);
+  }
+
+  /**
+   * 個別インポート実行時、認証エラーが発生し、かつBluesky上のハンドル名が変更されていた場合に、
+   * ログアウト処理が走り、ハンドル変更確認画面へリダイレクトされることを検証。
+   */
+  public function test_owner_import_posts_redirects_to_confirm_handle_change_on_handle_mismatch(): void
+  {
+    $this->actingAs($this->user);
+
+    $newUri = 'at://did:plc:test123456/app.bsky.feed.post/to_import_auth_fail';
+
+    // BlueskyService のモック作成 (認証で例外、かつ getProfile で新しいハンドル名を返す)
+    $blueskyService = \Mockery::mock(\App\Services\BlueskyService::class);
+    $blueskyService->shouldReceive('authenticate')
+      ->once()
+      ->with('test.bsky.social', $this->account->encrypted_app_password)
+      ->andThrow(new \Exception('Invalid identifier or password'));
+    
+    // パブリックAPI呼び出しをシミュレート
+    $blueskyService->shouldReceive('getProfile')
+      ->once()
+      ->with($this->account->did)
+      ->andReturn([
+        'did' => $this->account->did,
+        'handle' => 'new-handle.bsky.social',
+        'displayName' => '新しい名前',
+      ]);
+
+    $this->app->instance(\App\Services\BlueskyService::class, $blueskyService);
+
+    // インポート実行リクエスト
+    $urlsInput = "https://bsky.app/profile/profile/test.bsky.social/post/to_import_auth_fail";
+
+    $response = $this->post("/profile/test.bsky.social/settings/import-posts", [
+      'urls' => $urlsInput,
+    ]);
+
+    // ハンドル変更確認画面へリダイレクトされること
+    $response->assertRedirect(route('login.confirm_handle_change'));
+    
+    // セッションに保留データが格納されていること
+    $this->assertTrue(session()->has('handle_change_pending'));
+    $this->assertEquals('new-handle.bsky.social', session('handle_change_pending.new_handle'));
+    $this->assertEquals('test.bsky.social', session('handle_change_pending.old_handle'));
+
+    // ログアウトされていること
+    $this->assertGuest();
+  }
+
+  /**
+   * 手動同期実行時、認証エラーが発生し、かつBluesky上のハンドル名が変更されていた場合に、
+   * ログアウト処理が走り、ハンドル変更確認画面へリダイレクトされることを検証。
+   */
+  public function test_owner_sync_redirects_to_confirm_handle_change_on_handle_mismatch(): void
+  {
+    $this->actingAs($this->user);
+
+    // BlueskyService のモック作成 (認証で例外、かつ getProfile で新しいハンドル名を返す)
+    $blueskyService = \Mockery::mock(\App\Services\BlueskyService::class);
+    $blueskyService->shouldReceive('authenticate')
+      ->once()
+      ->with('test.bsky.social', $this->account->encrypted_app_password)
+      ->andThrow(new \Exception('Invalid identifier or password'));
+
+    // 認証エラー発生後のハンドルチェックで getProfile が呼ばれる
+    $blueskyService->shouldReceive('getProfile')
+      ->once()
+      ->with($this->account->did)
+      ->andReturn([
+        'did' => $this->account->did,
+        'handle' => 'new-handle.bsky.social',
+        'displayName' => '新しい名前',
+      ]);
+
+    $this->app->instance(\App\Services\BlueskyService::class, $blueskyService);
+
+    // 同期実行リクエスト
+    $response = $this->post('/sync');
+
+    // ハンドル変更確認画面へリダイレクトされること
+    $response->assertRedirect(route('login.confirm_handle_change'));
+
+    // セッションに保留データが格納されていること
+    $this->assertTrue(session()->has('handle_change_pending'));
+    $this->assertEquals('new-handle.bsky.social', session('handle_change_pending.new_handle'));
+    $this->assertEquals('test.bsky.social', session('handle_change_pending.old_handle'));
+
+    // ログアウトされていること
+    $this->assertGuest();
+  }
+
+  /**
    * 画像付きポストのみの絞り込み機能（media=1）を検証。
    */
   public function test_owner_can_filter_posts_by_media(): void

@@ -73,25 +73,27 @@
         ハンドル変更の確認
       </h2>
 
-      <div class="space-y-6 text-sm leading-relaxed text-slate-300">
-        <p>
+      <div class="space-y-6 text-sm sm:text-base leading-relaxed text-slate-300">
+        <p class="text-left">
           Blueskyアカウントのハンドル名が変更されていることを検知しました。
         </p>
 
         <!-- ハンドル比較表示 -->
-        <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-around gap-4 text-center font-mono">
-          <div>
+        <div class="p-5 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col items-center gap-3 text-center font-mono">
+          <div class="w-full">
             <span class="block text-[10px] text-slate-500 uppercase font-sans font-bold tracking-wider mb-1">旧ハンドル</span>
-            <span class="text-slate-400 text-xs truncate max-w-[180px] block">{{ '@' . $oldHandle }}</span>
+            <span class="text-slate-400 text-sm block break-all">{{ '@' . $oldHandle }}</span>
           </div>
-          <x-icon name="chevron-right" class="h-5 w-5 text-sky-400 mx-auto rotate-90 sm:rotate-0" stroke-width="2.5" />
-          <div>
+          <div class="flex items-center justify-center py-1">
+            <x-icon name="chevron-right" class="h-5 w-5 text-sky-400 rotate-90" stroke-width="2.5" />
+          </div>
+          <div class="w-full">
             <span class="block text-[10px] text-sky-400 uppercase font-sans font-bold tracking-wider mb-1">新ハンドル</span>
-            <span class="text-white text-sm font-bold truncate max-w-[180px] block">{{ '@' . $newHandle }}</span>
+            <span class="text-white text-base font-bold block break-all">{{ '@' . $newHandle }}</span>
           </div>
         </div>
 
-        <p class="text-slate-300">
+        <p class="text-slate-300 text-left">
           カレンダーのデータを引き継ぎ、新しいハンドル名で本サービスを引き続き公開・使用しますか？
         </p>
 
@@ -100,7 +102,7 @@
           <form action="{{ url('/login/confirm-handle-change') }}" method="POST">
             @csrf
             <input type="hidden" name="action" value="consent">
-            <button type="submit" class="w-full py-3.5 px-4 rounded-lg cursor-pointer bg-linear-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-sm shadow-lg shadow-sky-950/50 hover:shadow-sky-500/10 focus:outline-none transition duration-300 transform active:scale-[0.98] flex items-center justify-center gap-2">
+            <button type="submit" class="w-full py-3 sm:py-3.5 px-4 rounded-lg cursor-pointer bg-linear-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-sky-950/50 hover:shadow-sky-500/10 focus:outline-none transition duration-300 transform active:scale-[0.98] flex items-center justify-center gap-2">
               はい、新しいハンドルに引き継いで使い続ける
             </button>
           </form>
@@ -109,7 +111,7 @@
           <form action="{{ url('/login/confirm-handle-change') }}" method="POST" onsubmit="return confirm('本当にアカウントとカレンダーの全データを完全に削除しますか？この操作は取り消せません。');">
             @csrf
             <input type="hidden" name="action" value="delete">
-            <button type="submit" class="w-full py-3 px-4 rounded-lg cursor-pointer bg-rose-950/20 hover:bg-rose-900/30 border border-rose-800/40 hover:border-rose-500/50 text-rose-300 hover:text-rose-200 text-xs font-semibold transition duration-300 transform active:scale-[0.98] flex items-center justify-center gap-2">
+            <button type="submit" class="w-full py-2.5 sm:py-3 px-4 rounded-lg cursor-pointer bg-rose-950/20 hover:bg-rose-900/30 border border-rose-800/40 hover:border-rose-500/50 text-rose-300 hover:text-rose-200 text-[11px] sm:text-xs font-semibold transition duration-300 transform active:scale-[0.98] flex items-center justify-center gap-2">
               いいえ、カレンダーの利用を停止し、全データを削除する（退会）
             </button>
           </form>

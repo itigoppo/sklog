@@ -52,6 +52,10 @@ Route::middleware(\App\Http\Middleware\AdminAuth::class)->group(function () {
   Route::post('/admin/waitlist/{entry}/invite', [AdminController::class, 'sendInvite'])->name('admin.waitlist.invite');
   Route::post('/admin/waitlist/{entry}/reinvite', [AdminController::class, 'reinvite'])->name('admin.waitlist.reinvite');
   
+  // 登録ユーザー管理関連
+  Route::get('/admin/users', [AdminController::class, 'users'])->name('admin.users');
+  Route::post('/admin/users/{entry}/force-delete', [AdminController::class, 'forceDelete'])->name('admin.users.force_delete');
+  
   // セキュリティ設定関連
   Route::get('/admin/security', [AdminController::class, 'securitySettings'])->name('admin.security');
   Route::post('/admin/security/verify', [AdminController::class, 'verify2faSetup'])->name('admin.security.verify');

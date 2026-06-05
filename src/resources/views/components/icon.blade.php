@@ -126,6 +126,13 @@
     </svg>
     @break
 
+  @case('chevron-down')
+    {{-- 下向き矢印、プルダウン --}}
+    <svg {{ $attributes->merge(['stroke-linecap' => 'round', 'stroke-linejoin' => 'round']) }}>
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+    @break
+
   @case('calendar')
     {{-- カレンダーマーク --}}
     <svg {{ $attributes->merge(['stroke-linecap' => 'round', 'stroke-linejoin' => 'round']) }}>

@@ -16,7 +16,9 @@
     <!-- ヘッダー -->
     <div class="flex items-center justify-between mb-8">
       <h1 class="text-2xl font-extrabold text-white tracking-tight">
-        {{ config('app.name', 'SkLoG') }} <span class="text-sky-400">Admin</span> 
+        <a href="{{ route('admin.waitlist') }}" class="hover:opacity-80 transition">
+          {{ config('app.name', 'SkLoG') }} <span class="text-sky-400">Admin</span>
+        </a>
         <span class="text-slate-500 font-normal text-lg">/ セキュリティ設定</span>
       </h1>
       <div class="flex items-center gap-3">

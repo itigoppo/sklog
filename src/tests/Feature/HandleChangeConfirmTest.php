@@ -73,6 +73,80 @@ class HandleChangeConfirmTest extends TestCase
   }
 
   /**
+   * ログイン画面で古い（変更前の）ハンドル名を入力してログインしようとした際、
+   * APIが認証エラーを返しても、裏で最新のハンドルを特定して再認証に成功すれば、
+   * 自動的にハンドル変更確認画面へ遷移すること。
+   */
+  public function test_login_with_old_handle_redirects_to_confirm_handle_change_on_successful_fallback_auth(): void
+  {
+    $user = User::create(['name' => 'テスト太郎']);
+    $bskyAccount = BlueskyAccount::create([
+      'id' => \Illuminate\Support\Str::uuid(),
+      'user_id' => $user->id,
+      'did' => 'did:plc:test777',
+      'handle' => 'old-handle.bsky.social', // 登録されている古いハンドル名
+      'encrypted_app_password' => 'secret_app_pass',
+    ]);
+
+    $blueskyService = Mockery::mock(BlueskyService::class);
+    
+    // 1. 最初は古いハンドル名での認証要求で例外を発生させる
+    $blueskyService->shouldReceive('authenticate')
+      ->once()
+      ->with('old-handle.bsky.social', 'secret_app_pass')
+      ->andThrow(new \Exception('Invalid identifier or password'));
+
+    // 2. DIDからパブリックAPIで最新のプロフィールを取得する
+    $blueskyService->shouldReceive('getProfile')
+      ->once()
+      ->with('did:plc:test777')
+      ->andReturn([
+        'did' => 'did:plc:test777',
+        'handle' => 'new-handle.bsky.social', // 新しいハンドル
+      ]);
+
+    // 3. 新しいハンドル名で再認証を試み、成功させる
+    $blueskyService->shouldReceive('authenticate')
+      ->once()
+      ->with('new-handle.bsky.social', 'secret_app_pass')
+      ->andReturn([
+        'did' => 'did:plc:test777',
+        'handle' => 'new-handle.bsky.social',
+        'accessJwt' => 'mock_token',
+      ]);
+
+    // 4. 新ハンドルでのログイン成功後のプロフィール情報取得
+    $blueskyService->shouldReceive('getProfile')
+      ->once()
+      ->with('did:plc:test777', 'mock_token')
+      ->andReturn([
+        'displayName' => 'テスト太郎',
+        'avatar' => 'new_avatar_url',
+        'description' => '新しい自己紹介文',
+        'postsCount' => 150,
+      ]);
+
+    $this->app->instance(BlueskyService::class, $blueskyService);
+
+    // 古いハンドル名でログインを実行
+    $response = $this->post('/login', [
+      'handle' => 'old-handle.bsky.social',
+      'app_password' => 'secret_app_pass',
+    ]);
+
+    $response->assertStatus(302);
+    $response->assertRedirect('/login/confirm-handle-change');
+    $response->assertSessionHas('handle_change_pending');
+
+    // セッションの保留データに新旧ハンドル名が正しく設定されていること
+    $this->assertEquals('new-handle.bsky.social', session('handle_change_pending.new_handle'));
+    $this->assertEquals('old-handle.bsky.social', session('handle_change_pending.old_handle'));
+
+    // ログイン状態にはなっていないこと
+    $this->assertGuest();
+  }
+
+  /**
    * 保留状態が無い場合は確認画面からログイン画面へリダイレクトされること。
    */
   public function test_confirm_handle_change_page_redirects_to_login_without_session(): void

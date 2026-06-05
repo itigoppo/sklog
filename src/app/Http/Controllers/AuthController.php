@@ -182,7 +182,32 @@ class AuthController extends Controller
     }
 
     try {
-      $session = $this->blueskyService->authenticate($credentials['handle'], $credentials['app_password']);
+      $session = null;
+      try {
+        $session = $this->blueskyService->authenticate($credentials['handle'], $credentials['app_password']);
+      } catch (Exception $authEx) {
+        // 認証失敗時、古いハンドル名でのログイン試行である可能性をチェック
+        $bskyAccount = BlueskyAccount::where('handle', $credentials['handle'])->first();
+        if ($bskyAccount) {
+          try {
+            // DIDから最新のプロフィールを取得（トークンなしのパブリックAPI呼び出し）
+            $profile = $this->blueskyService->getProfile($bskyAccount->did);
+            $currentHandle = $profile['handle'] ?? null;
+
+            // ハンドル名が変更されていた場合、新しいハンドル名で再認証を試みる
+            if ($currentHandle && strtolower($bskyAccount->handle) !== strtolower($currentHandle)) {
+              $session = $this->blueskyService->authenticate($currentHandle, $credentials['app_password']);
+            }
+          } catch (Exception $fallbackEx) {
+            // プロフィール取得や再認証に失敗した場合は、元の例外をそのまま投げる
+            throw $authEx;
+          }
+        }
+
+        if (!$session) {
+          throw $authEx;
+        }
+      }
 
       $did = $session['did'];
       $handle = $session['handle'];
@@ -281,10 +306,22 @@ class AuthController extends Controller
    */
   public function logout(Request $request)
   {
+    // 管理者セッションを一時退避
+    $adminAuth = $request->session()->get('admin_authenticated');
+    $admin2fa = $request->session()->get('admin_2fa_verified');
+
     Auth::logout();
 
     $request->session()->invalidate();
     $request->session()->regenerateToken();
+
+    // 管理者セッションを復元
+    if ($adminAuth) {
+      $request->session()->put('admin_authenticated', $adminAuth);
+    }
+    if ($admin2fa) {
+      $request->session()->put('admin_2fa_verified', $admin2fa);
+    }
 
     return redirect('/login')->with('success', 'ログアウトしました。');
   }

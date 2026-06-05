@@ -724,5 +724,218 @@ class WaitlistAndRegistrationTest extends TestCase
     $response->assertStatus(302);
     $response->assertSessionHasErrors(['terms']);
   }
+
+  /**
+   * 管理画面：30日以上未同期のステータス絞り込みが機能すること。
+   */
+  public function test_admin_waitlist_index_filters_by_sync_status_inactive_30d(): void
+  {
+    config(['services.admin.2fa_enabled' => true]);
+
+    // 1. 30日以上未同期ユーザーの作成 (31日前)
+    $entry1 = WaitlistEntry::create([
+      'email' => 'user1@example.com',
+      'handle' => 'old-sync.bsky.social',
+      'status' => 'registered',
+    ]);
+    $user1 = User::create(['name' => 'Old Sync User']);
+    $invite1 = InviteCode::create([
+      'code' => 'INV-CODE-111',
+      'handle' => 'old-sync.bsky.social',
+      'waitlist_entry_id' => $entry1->id,
+      'used_by_user_id' => $user1->id,
+    ]);
+    $user1->blueskyAccount()->create([
+      'did' => 'did:plc:old111',
+      'handle' => 'old-sync.bsky.social',
+      'encrypted_app_password' => 'secret',
+      'last_synced_at' => Carbon::now()->subDays(31),
+    ]);
+
+    // 2. 最近同期したユーザーの作成 (5日前)
+    $entry2 = WaitlistEntry::create([
+      'email' => 'user2@example.com',
+      'handle' => 'new-sync.bsky.social',
+      'status' => 'registered',
+    ]);
+    $user2 = User::create(['name' => 'New Sync User']);
+    $invite2 = InviteCode::create([
+      'code' => 'INV-CODE-222',
+      'handle' => 'new-sync.bsky.social',
+      'waitlist_entry_id' => $entry2->id,
+      'used_by_user_id' => $user2->id,
+    ]);
+    $user2->blueskyAccount()->create([
+      'did' => 'did:plc:new222',
+      'handle' => 'new-sync.bsky.social',
+      'encrypted_app_password' => 'secret',
+      'last_synced_at' => Carbon::now()->subDays(5),
+    ]);
+
+    // 'inactive_30d' で絞り込み
+    $response = $this->withSession([
+      'admin_authenticated' => true,
+      'admin_2fa_verified' => true,
+    ])
+      ->get('/admin/users?sync_status=inactive_30d');
+
+    $response->assertStatus(200);
+    $response->assertSee('old-sync.bsky.social');
+    $response->assertDontSee('new-sync.bsky.social');
+  }
+
+  /**
+   * 管理者が登録済みユーザーを強制退会させ、カレンダー・アカウント・申請データが一括物理削除されること。
+   */
+  public function test_admin_can_force_delete_registered_user(): void
+  {
+    config(['services.admin.2fa_enabled' => true]);
+
+    $entry = WaitlistEntry::create([
+      'email' => 'ban-target@example.com',
+      'handle' => 'ban-target.bsky.social',
+      'status' => 'registered',
+    ]);
+    $user = User::create(['name' => 'Ban Target']);
+    $invite = InviteCode::create([
+      'code' => 'INV-CODE-BAN',
+      'handle' => 'ban-target.bsky.social',
+      'waitlist_entry_id' => $entry->id,
+      'used_by_user_id' => $user->id,
+    ]);
+    $account = $user->blueskyAccount()->create([
+      'did' => 'did:plc:ban999',
+      'handle' => 'ban-target.bsky.social',
+      'encrypted_app_password' => 'secret',
+    ]);
+
+    // 強制退会リクエストの実行
+    $response = $this->withSession([
+      'admin_authenticated' => true,
+      'admin_2fa_verified' => true,
+    ])
+      ->from('/admin/users')
+      ->post("/admin/users/{$entry->id}/force-delete");
+
+    $response->assertStatus(302);
+    $response->assertRedirect('/admin/users');
+    $response->assertSessionHas('success');
+
+    // DBから完全物理削除されていることをアサート
+    $this->assertDatabaseMissing('users', ['id' => $user->id]);
+    $this->assertDatabaseMissing('bluesky_accounts', ['id' => $account->id]);
+    $this->assertDatabaseMissing('invite_codes', ['id' => $invite->id]);
+    $this->assertDatabaseMissing('waitlist_entries', ['id' => $entry->id]);
+  }
+
+  /**
+   * 管理画面：登録ユーザー管理画面に未登録の申請者が表示されないこと。
+   */
+  public function test_admin_users_page_shows_only_registered_users(): void
+  {
+    config(['services.admin.2fa_enabled' => true]);
+
+    $entry1 = WaitlistEntry::create([
+      'email' => 'pending@example.com',
+      'handle' => 'pending.bsky.social',
+      'status' => 'pending',
+    ]);
+    $entry2 = WaitlistEntry::create([
+      'email' => 'registered@example.com',
+      'handle' => 'registered.bsky.social',
+      'status' => 'registered',
+    ]);
+
+    $response = $this->withSession([
+      'admin_authenticated' => true,
+      'admin_2fa_verified' => true,
+    ])
+      ->get('/admin/users');
+
+    $response->assertStatus(200);
+    $response->assertSee('registered.bsky.social');
+    $response->assertDontSee('pending.bsky.social');
+  }
+
+  /**
+   * 管理画面：申請一覧画面に登録ユーザーが表示されないこと。
+   */
+  public function test_admin_waitlist_page_shows_only_unregistered_entries(): void
+  {
+    config(['services.admin.2fa_enabled' => true]);
+
+    $entry1 = WaitlistEntry::create([
+      'email' => 'pending@example.com',
+      'handle' => 'pending.bsky.social',
+      'status' => 'pending',
+    ]);
+    $entry2 = WaitlistEntry::create([
+      'email' => 'registered@example.com',
+      'handle' => 'registered.bsky.social',
+      'status' => 'registered',
+    ]);
+
+    $response = $this->withSession([
+      'admin_authenticated' => true,
+      'admin_2fa_verified' => true,
+    ])
+      ->get('/admin/waitlist');
+
+    $response->assertStatus(200);
+    $response->assertSee('pending.bsky.social');
+    $response->assertDontSee('registered.bsky.social');
+  }
+
+  /**
+   * 一般ユーザーがログアウトしても、管理画面のセッション（認証状態）が維持されること。
+   */
+  public function test_user_logout_does_not_destroy_admin_session(): void
+  {
+    config(['services.admin.2fa_enabled' => true]);
+
+    $user = User::create(['name' => 'Test User']);
+
+    // 1. 管理者セッションと一般ユーザーのログイン状態が共存する状況を作る
+    $response = $this->actingAs($user)
+      ->withSession([
+        'admin_authenticated' => true,
+        'admin_2fa_verified' => true,
+      ])
+      ->post('/logout');
+
+    $response->assertStatus(302);
+    $response->assertRedirect('/login');
+
+    // 2. 一般ユーザーはログアウトされているが、管理者セッションは保持されていること
+    $this->assertGuest();
+    $this->assertEquals(true, session('admin_authenticated'));
+    $this->assertEquals(true, session('admin_2fa_verified'));
+  }
+
+  /**
+   * 管理画面からログアウトしても、ログイン中の一般ユーザーのセッション（認証状態）が維持されること。
+   */
+  public function test_admin_logout_does_not_destroy_user_session(): void
+  {
+    config(['services.admin.2fa_enabled' => true]);
+
+    $user = User::create(['name' => 'Test User']);
+
+    // 1. 管理者セッションと一般ユーザーのログイン状態が共存する状況を作る
+    $response = $this->actingAs($user)
+      ->withSession([
+        'admin_authenticated' => true,
+        'admin_2fa_verified' => true,
+      ])
+      ->post('/admin/logout');
+
+    $response->assertStatus(302);
+    $response->assertRedirect('/admin/login');
+
+    // 2. 一般ユーザーはログイン状態を維持していること、管理者セッションのみが破棄されていること
+    $this->assertAuthenticatedAs($user);
+    $this->assertNull(session('admin_authenticated'));
+    $this->assertNull(session('admin_2fa_verified'));
+  }
 }
 

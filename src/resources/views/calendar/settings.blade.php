@@ -24,19 +24,26 @@
 
       <form action="{{ route('calendar.settings.import_posts', ['handle' => $bskyAccount->handle]) }}" method="POST" id="importPostsForm" class="space-y-4 m-0">
         @csrf
+
+        @error('urls')
+          <div class="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
+            {{ $message }}
+          </div>
+        @enderror
+
         <div class="space-y-2">
           <label for="urls" class="text-xs font-bold text-slate-300 block select-none">
-            ポストのURL (複数ある場合は改行して入力してください)
+            ポストのURL (一度に最大20件まで、複数ある場合は改行して入力してください)
           </label>
           <textarea 
             name="urls" 
             id="urls" 
             rows="6" 
             class="w-full rounded-xl bg-slate-950/60 border border-slate-800 focus:border-sky-500/60 focus:ring-1 focus:ring-sky-500/30 text-slate-200 text-xs px-3.5 py-3 placeholder-slate-600 transition duration-200 focus:outline-hidden font-mono leading-relaxed"
-            placeholder="https://bsky.app/profile/{{ $bskyAccount->handle }}/post/3kp5u2jx5hk2b&#10;https://bsky.app/profile/{{ $bskyAccount->handle }}/post/3kp..."
-            required></textarea>
+            placeholder="https://bsky.app/profile/{{ $bskyAccount->handle }}/post/3kp5u2jx5hk2b&#10;https://bsky.app/profile/{{ $bskyAccount->handle }}/post/3kp..."></textarea>
           <span class="text-[10px] text-slate-500 block leading-relaxed">
-            ※ご自身（{{ '@' . $bskyAccount->handle }}）のオリジナルポストのみが対象となります。他人のポストやリポストのURLはインポートできません。
+            ※ご自身（{{ '@' . $bskyAccount->handle }}）のオリジナルポストのみが対象となります。他人のポストやリポストのURLはインポートできません。<br>
+            ※一度に処理できるのは最大20件までとなります。大量のポストを同期する場合は、マイページ上部の「同期」ボタンを使用してください。
           </span>
         </div>
 
@@ -85,8 +92,7 @@
             name="app_password" 
             id="app_password" 
             placeholder="xxxx-xxxx-xxxx-xxxx"
-            class="w-full rounded-xl bg-slate-950/60 border border-slate-800 focus:border-sky-500/60 focus:ring-1 focus:ring-sky-500/30 text-slate-200 text-xs px-3.5 py-3 transition duration-200 focus:outline-hidden tracking-wider"
-            required>
+            class="w-full rounded-xl bg-slate-950/60 border border-slate-800 focus:border-sky-500/60 focus:ring-1 focus:ring-sky-500/30 text-slate-200 text-xs px-3.5 py-3 transition duration-200 focus:outline-hidden tracking-wider">
         </div>
 
         <!-- アプリパスワードの作り方トグル -->
