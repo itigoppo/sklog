@@ -58,7 +58,7 @@ class WaitlistController extends Controller
       'description'  => $profile['description'] ?? null,
     ]);
 
-    $adminEmail = env('ADMIN_NOTIFICATION_EMAIL');
+    $adminEmail = config('services.admin.notification_email');
     if ($adminEmail) {
       Mail::to($adminEmail)->send(new WaitlistAppliedMail($entry));
     }

@@ -40,6 +40,7 @@ return [
         '2fa_enabled' => filter_var(env('ADMIN_2FA_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
         '2fa_secret' => env('ADMIN_2FA_SECRET'),
         'invite_expiry_hours' => (int) env('INVITE_EXPIRY_HOURS', 24),
+        'notification_email' => env('ADMIN_NOTIFICATION_EMAIL'),
     ],
 
     'bluesky' => [
