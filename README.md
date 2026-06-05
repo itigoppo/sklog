@@ -137,11 +137,15 @@ cd ~/git/sklog
 
 ### 自動同期ジョブ（Cron）の設定
 
-Blueskyからの自動同期ジョブ（1時間に1回の自動同期など）を定期的に稼働させるため、本番サーバーの `cron` に以下のタスクスケジュール登録を行います。
+Blueskyからの自動同期をスケジュールどおりに起動させ、かつ非同期のキュータスク（同期処理）を本番で消化させるため、本番サーバーの `cron` に以下の2つのジョブを登録します。
 
 1. サーバー側で `crontab -e` を実行して編集画面を開きます。
-2. 以下の行を追加して保存します（ユーザーのホームディレクトリのパス等に合わせて適宜調整してください）。
+2. 以下の2行を追加して保存します。
 
 ```cron
-* * * * * cd ~/git/sklog/src && php artisan schedule:run >> ~/git/sklog/cron.log 2>&1
+# 定期スケジュールジョブのトリガー (5分毎にチェック)
+*/5 * * * * cd ~/git/sklog/src && php artisan schedule:run >> ~/git/sklog/cron.log 2>&1
+
+# キューに溜まった同期タスクの実行 (5分毎にチェック・空になったら自動終了)
+*/5 * * * * cd ~/git/sklog/src && php artisan queue:work --stop-when-empty >> ~/git/sklog/cron.log 2>&1
 ```
