@@ -24,7 +24,7 @@
     @else
       <!-- 公開カレンダー用のリッチメタデータ -->
       <meta property="og:title" content="{{ ($user->name ?? $bskyAccount->handle) }} のカレンダー | {{ config('app.name', 'SkLoG') }}">
-      <meta property="og:description" content="{{ $bskyAccount->description ? str($bskyAccount->description)->limit(120) : 'Blueskyの投稿をカレンダー形式でログ保存・公開しているアーカイブです。' }}">
+      <meta property="og:description" content="{{ $bskyAccount->description ? str($bskyAccount->description)->squish()->limit(120) : 'Blueskyの投稿をカレンダー形式でログ保存・公開しているアーカイブです。' }}">
       @if ($bskyAccount->avatar_url)
         <meta property="og:image" content="{{ $bskyAccount->avatar_url }}">
       @else
