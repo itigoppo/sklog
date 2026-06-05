@@ -905,6 +905,7 @@ class CalendarController extends Controller
    */
   public function updatePassword(\Illuminate\Http\Request $request, string $handle)
   {
+    $handle = ltrim(trim($handle), '@');
     $request->validate([
       'app_password' => 'required|string',
     ]);
@@ -949,6 +950,7 @@ class CalendarController extends Controller
    */
   public function deleteAccount(\Illuminate\Http\Request $request, string $handle)
   {
+    $handle = ltrim(trim($handle), '@');
     /** @var \App\Models\User $user */
     $user = \Illuminate\Support\Facades\Auth::user();
     $bskyAccount = $user->blueskyAccount;

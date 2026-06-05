@@ -825,7 +825,7 @@ class CalendarControllerTest extends TestCase
     $response->assertSee('2026年');
     $response->assertSee('08月');
     // 15日の日付セルが投稿ありリンクとして出力されていることを検証
-    $response->assertSee('/@test.bsky.social/2026/08/15');
+    $response->assertSee('/test.bsky.social/2026/08/15');
   }
 
   /**

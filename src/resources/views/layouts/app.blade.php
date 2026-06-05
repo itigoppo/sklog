@@ -490,7 +490,7 @@
       }
 
       try {
-        const url = `/@${handle}/calendar-api/${year}/${month}`;
+        const url = `/${handle}/calendar-api/${year}/${month}`;
         const response = await fetch(url, {
           headers: {
             'X-Requested-With': 'XMLHttpRequest'

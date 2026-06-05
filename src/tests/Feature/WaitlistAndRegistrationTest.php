@@ -273,7 +273,7 @@ class WaitlistAndRegistrationTest extends TestCase
     ]);
 
     $response->assertStatus(302);
-    $response->assertRedirect('/@registrant.bsky.social');
+    $response->assertRedirect('/registrant.bsky.social');
 
     // DBの各モデルが正常に生成・更新されたか検証
     $this->assertDatabaseHas('users', [
@@ -537,7 +537,7 @@ class WaitlistAndRegistrationTest extends TestCase
     ]);
 
     $response->assertStatus(302);
-    $response->assertRedirect('/@new-handle.bsky.social');
+    $response->assertRedirect('/new-handle.bsky.social');
 
     // DB上でも新しいハンドル名でBlueskyAccountが生成されていることをアサート
     $this->assertDatabaseHas('bluesky_accounts', [
