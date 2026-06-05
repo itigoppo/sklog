@@ -1,0 +1,21 @@
+#!/bin/sh
+
+# Husky Pre-Commit Hook: コミット時に自動でアセットをビルドし、成果物をコミットに含めます。
+
+echo "=== Husky Pre-Commit Hook: Running Asset Build ==="
+# リポジトリのルートを基準にして src ディレクトリに移動
+ROOT_DIR=$(git rev-parse --show-toplevel)
+cd "$ROOT_DIR/src"
+
+# pnpm build の実行
+if ! pnpm build; then
+  echo "Error: Asset build failed! Commit aborted."
+  exit 1
+fi
+
+# ビルドアセットをステージング
+cd "$ROOT_DIR"
+git add src/public/build/
+
+echo "=== Husky Pre-Commit Hook: Build Finished & Staged ==="
+exit 0
