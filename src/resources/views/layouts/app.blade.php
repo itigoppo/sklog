@@ -275,6 +275,19 @@
       }
     }
 
+    // スクロールロック制御（スタック管理）
+    let bodyScrollLockCount = 0;
+    function lockBodyScroll() {
+      bodyScrollLockCount++;
+      document.body.classList.add('overflow-hidden');
+    }
+    function unlockBodyScroll() {
+      bodyScrollLockCount = Math.max(0, bodyScrollLockCount - 1);
+      if (bodyScrollLockCount === 0) {
+        document.body.classList.remove('overflow-hidden');
+      }
+    }
+
     // 画像拡大モーダル関連
     document.addEventListener('DOMContentLoaded', () => {
       const modal = document.getElementById('imageModal');
@@ -345,6 +358,7 @@
           
           modal.classList.remove('hidden');
           modal.classList.add('flex');
+          lockBodyScroll();
           // アニメーションのために少し遅らせて opacity-100 にする
           setTimeout(() => {
             modal.classList.remove('opacity-0');
@@ -394,6 +408,7 @@
       setTimeout(() => {
         modal.classList.remove('flex');
         modal.classList.add('hidden');
+        unlockBodyScroll();
         modalImg.src = '';
         modalImg.classList.remove('opacity-100');
         modalImg.classList.add('opacity-0');
@@ -418,7 +433,7 @@
         drawer.classList.add('translate-x-0');
         overlay.classList.remove('opacity-0', 'pointer-events-none');
         overlay.classList.add('opacity-100', 'pointer-events-auto');
-        document.body.classList.add('overflow-hidden');
+        lockBodyScroll();
       }
 
       function closeDrawer() {
@@ -427,7 +442,7 @@
         drawer.classList.add('translate-x-full');
         overlay.classList.remove('opacity-100', 'pointer-events-auto');
         overlay.classList.add('opacity-0', 'pointer-events-none');
-        document.body.classList.remove('overflow-hidden');
+        unlockBodyScroll();
       }
 
       if (menuBtn) menuBtn.addEventListener('click', openDrawer);
@@ -544,6 +559,7 @@
         confirmModal.firstElementChild.classList.remove('scale-100');
         confirmModal.firstElementChild.classList.add('scale-95');
         confirmModal.classList.add('opacity-0', 'pointer-events-none');
+        unlockBodyScroll();
         currentForm = null;
       }
 
@@ -588,6 +604,7 @@
 
           if (confirmModal) {
             confirmModal.classList.remove('opacity-0', 'pointer-events-none');
+            lockBodyScroll();
             setTimeout(() => {
               confirmModal.firstElementChild.classList.remove('scale-95');
               confirmModal.firstElementChild.classList.add('scale-100');

@@ -4,15 +4,15 @@
   <div id="galleryModalBg" class="absolute inset-0 bg-slate-950/85 backdrop-blur-md transition-opacity duration-300"></div>
 
   <!-- モーダル本体 -->
-  <div class="relative w-full max-w-5xl h-[90vh] md:h-[80vh] flex flex-col md:flex-row bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl z-10 transition-transform duration-300 scale-95">
+  <div class="relative w-full max-w-5xl max-h-[85vh] md:h-[80vh] flex flex-col md:flex-row bg-slate-900/90 border border-slate-800 rounded-2xl overflow-y-auto md:overflow-hidden shadow-2xl z-10 transition-transform duration-300 scale-95">
     
     <!-- 閉じるボタン -->
-    <button id="galleryModalClose" class="absolute top-4 right-4 z-20 p-2 rounded-full bg-slate-950/60 border border-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-800/80 transition duration-300 cursor-pointer active:scale-95" aria-label="閉じる">
+    <button id="galleryModalClose" class="fixed md:absolute top-4 right-4 md:top-4 md:right-4 z-50 md:z-20 p-2 rounded-full bg-slate-950/60 border border-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-800/80 transition duration-300 cursor-pointer active:scale-95" aria-label="閉じる">
       <x-icon name="close" class="w-5 h-5" stroke-width="2.5" />
     </button>
 
     <!-- 左側: 画像表示エリア -->
-    <div class="flex-1 bg-slate-950/80 flex items-center justify-center relative p-4 select-none">
+    <div class="w-full md:flex-1 h-72 sm:h-96 md:h-auto bg-slate-950/80 flex items-center justify-center relative p-4 select-none shrink-0">
       <!-- ローディングスピナー -->
       <div id="galleryModalSpinner" class="absolute inset-0 items-center justify-center pointer-events-none hidden">
         <svg class="w-8 h-8 text-sky-500 animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -24,7 +24,7 @@
     </div>
 
     <!-- 右側: 投稿情報エリア -->
-    <div class="w-full md:w-85 lg:w-96 flex flex-col justify-between border-t md:border-t-0 md:border-l border-slate-800 p-6 bg-slate-900/40 backdrop-blur-xs overflow-y-auto">
+    <div class="w-full md:w-85 lg:w-96 flex flex-col justify-between border-t md:border-t-0 md:border-l border-slate-800 p-6 bg-slate-900/40 backdrop-blur-xs overflow-visible md:overflow-y-auto">
       
       <!-- 上部コンテンツ: 投稿者 & 投稿本文 -->
       <div class="space-y-5">
@@ -143,7 +143,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 modal.classList.remove('opacity-0', 'pointer-events-none');
                 modalContainer.classList.remove('scale-95');
                 modalContainer.classList.add('scale-100');
-                document.body.classList.add('overflow-hidden'); // 背景スクロール禁止
+                if (typeof lockBodyScroll === 'function') {
+                    lockBodyScroll();
+                } else {
+                    document.body.classList.add('overflow-hidden');
+                }
             });
         });
     };
@@ -152,7 +156,11 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.classList.add('opacity-0', 'pointer-events-none');
         modalContainer.classList.remove('scale-100');
         modalContainer.classList.add('scale-95');
-        document.body.classList.remove('overflow-hidden');
+        if (typeof unlockBodyScroll === 'function') {
+            unlockBodyScroll();
+        } else {
+            document.body.classList.remove('overflow-hidden');
+        }
         
         // アニメーション完了後に画像を空にしてチラつきを防ぐ
         setTimeout(() => {

@@ -314,6 +314,7 @@
 
             // モーダルを表示
             confirmModal.classList.remove('opacity-0', 'pointer-events-none');
+            document.body.classList.add('overflow-hidden');
             setTimeout(() => {
               confirmModal.firstElementChild.classList.remove('scale-95');
               confirmModal.firstElementChild.classList.add('scale-100');
@@ -326,6 +327,7 @@
         confirmModal.firstElementChild.classList.remove('scale-100');
         confirmModal.firstElementChild.classList.add('scale-95');
         confirmModal.classList.add('opacity-0', 'pointer-events-none');
+        document.body.classList.remove('overflow-hidden');
         formToSubmit = null;
       };
 
