@@ -1079,25 +1079,33 @@ class CalendarControllerTest extends TestCase
    */
   public function test_noindex_tag_output_rules(): void
   {
-    // 通常の他者閲覧 -> noindex が出力されること
-    config(['services.bluesky.demo_handle' => 'some-other-demo.bsky.social']);
+    // 公開アカウントの場合 -> 他者、本人いずれも noindex が出力されないこと
+    $this->account->update(['is_private' => false]);
     
     $responseGuest = $this->get("/@test.bsky.social");
     $responseGuest->assertStatus(200);
-    $responseGuest->assertSee('<meta name="robots" content="noindex, nofollow">', false);
+    $responseGuest->assertDontSee('<meta name="robots" content="noindex, nofollow">', false);
 
-    // 本人による閲覧 -> noindex が出力されないこと
     $responseOwner = $this->actingAs($this->user)->get("/@test.bsky.social");
     $responseOwner->assertStatus(200);
     $responseOwner->assertDontSee('<meta name="robots" content="noindex, nofollow">', false);
 
-    // デモアカウントの閲覧（ゲスト） -> noindex が出力されないこと
-    \Illuminate\Support\Facades\Auth::logout();
-    config(['services.bluesky.demo_handle' => 'test.bsky.social']);
+    // 非公開アカウントの場合 -> ログイン本人のみアクセスでき、noindex が出力されること
+    $this->account->update(['is_private' => true]);
+    $responsePrivateOwner = $this->actingAs($this->user)->get("/@test.bsky.social");
+    $responsePrivateOwner->assertStatus(200);
+    $responsePrivateOwner->assertSee('<meta name="robots" content="noindex, nofollow">', false);
 
-    $responseDemo = $this->get("/@test.bsky.social");
-    $responseDemo->assertStatus(200);
-    $responseDemo->assertDontSee('<meta name="robots" content="noindex, nofollow">', false);
+    // 設定ページ（settings）の場合 -> アカウントの公開・非公開設定にかかわらず、常に noindex が出力されること
+    $this->account->update(['is_private' => false]);
+    $responseSettingsOpen = $this->actingAs($this->user)->get("/@test.bsky.social/settings");
+    $responseSettingsOpen->assertStatus(200);
+    $responseSettingsOpen->assertSee('<meta name="robots" content="noindex, nofollow">', false);
+
+    $this->account->update(['is_private' => true]);
+    $responseSettingsPrivate = $this->actingAs($this->user)->get("/@test.bsky.social/settings");
+    $responseSettingsPrivate->assertStatus(200);
+    $responseSettingsPrivate->assertSee('<meta name="robots" content="noindex, nofollow">', false);
   }
 
   /**

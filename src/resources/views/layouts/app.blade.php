@@ -54,21 +54,8 @@
       box-shadow: 0 15px 35px rgba(56, 189, 248, 0.08);
     }
   </style>
-  @if (isset($user) && isset($bskyAccount))
-    @php
-      $isOwner = Auth::check() && Auth::id() === $user->id;
-      $isDemo = $bskyAccount->handle === config('services.bluesky.demo_handle');
-      $isOwnerOrDemo = $isOwner || $isDemo;
-    @endphp
-    @if (!$isOwnerOrDemo)
-      @php
-        $ua = request()->header('User-Agent', '');
-        $isSnsCrawler = (bool) preg_match('/(Twitterbot|BlueskyBot|facebookexternalhit|Discordbot|Slackbot|Slack-ImgProxy|TelegramBot|WhatsApp|LineBot)/i', $ua);
-      @endphp
-      @if (!$isSnsCrawler)
-        <meta name="robots" content="noindex, nofollow">
-      @endif
-    @endif
+  @if ((isset($bskyAccount) && $bskyAccount->is_private) || request()->routeIs('calendar.settings'))
+    <meta name="robots" content="noindex, nofollow">
   @endif
 
   @yield('extra_css')
