@@ -106,6 +106,16 @@
         </p>
       </section>
 
+      <section class="space-y-2 border-b border-slate-800/60 pb-5">
+        <h2 class="text-base font-bold text-white flex items-center gap-2">
+          <span class="w-1.5 h-4 bg-sky-400 rounded-full"></span>
+          お問い合わせについて
+        </h2>
+        <p>
+          本サービスに関するご質問、不具合のご報告、ご意見などがございましたら、本サービス公式のBlueskyアカウント（<a href="https://bsky.app/profile/sklog.nono150.com" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline hover:text-sky-300 transition cursor-pointer">@sklog.nono150.com</a>）までダイレクトメッセージでお知らせください。
+        </p>
+      </section>
+
     </div>
 
     <!-- 戻るアクション -->

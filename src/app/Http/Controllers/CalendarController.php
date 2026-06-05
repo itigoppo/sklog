@@ -899,4 +899,80 @@ class CalendarController extends Controller
     $queryString = http_build_query($queryParams);
     return request()->url() . ($queryString !== '' ? '?' . $queryString : '');
   }
+
+  /**
+   * ログインしたままアプリパスワードを更新し、同期エラーを復旧します。
+   */
+  public function updatePassword(\Illuminate\Http\Request $request, string $handle)
+  {
+    $request->validate([
+      'app_password' => 'required|string',
+    ]);
+
+    /** @var \App\Models\User $user */
+    $user = \Illuminate\Support\Facades\Auth::user();
+    $bskyAccount = $user->blueskyAccount;
+
+    // 認可チェック: handleが一致していること
+    if (!$bskyAccount || strtolower($bskyAccount->handle) !== strtolower($handle)) {
+      abort(403);
+    }
+
+    try {
+      // BlueskyServiceインスタンスを取得
+      $blueskyService = app(\App\Services\BlueskyService::class);
+      
+      // 新しいパスワードで認証ができるかテスト
+      $blueskyService->authenticate($bskyAccount->handle, $request->app_password);
+      
+      // 認証成功したため、パスワード更新およびエラーのリセット
+      $bskyAccount->update([
+        'encrypted_app_password' => $request->app_password,
+        'sync_error_type' => null,
+        'sync_error_message' => null,
+        'auth_failure_count' => 0,
+        'is_auto_sync_enabled' => true,
+      ]);
+
+      return back()->with('success', 'アプリパスワードを正常に更新し、自動同期を再有効化しました。');
+
+    } catch (\Exception $e) {
+      \Illuminate\Support\Facades\Log::error("Password Update Error for user {$user->id}: " . $e->getMessage());
+      return back()->withErrors([
+        'app_password' => '入力されたアプリパスワードでのBluesky認証に失敗しました。正しいパスワードを入力してください。',
+      ]);
+    }
+  }
+
+  /**
+   * カレンダーアカウントおよびデータをすべて物理削除し、退会します。
+   */
+  public function deleteAccount(\Illuminate\Http\Request $request, string $handle)
+  {
+    /** @var \App\Models\User $user */
+    $user = \Illuminate\Support\Facades\Auth::user();
+    $bskyAccount = $user->blueskyAccount;
+
+    // 認可チェック
+    if (!$bskyAccount || strtolower($bskyAccount->handle) !== strtolower($handle)) {
+      abort(403);
+    }
+
+    try {
+      \Illuminate\Support\Facades\DB::transaction(function () use ($user) {
+        // CascadeOnDeleteにより、Userに関連するBlueskyAccount、Post、中間テーブルなどは自動で物理削除されます
+        $user->delete();
+      });
+
+      \Illuminate\Support\Facades\Auth::logout();
+      $request->session()->invalidate();
+      $request->session()->regenerateToken();
+
+      return redirect('/login')->with('success', 'アカウントとすべてのカレンダーデータを完全に削除し、退会しました。');
+
+    } catch (\Exception $e) {
+      \Illuminate\Support\Facades\Log::error("Delete Account Error for user {$user->id}: " . $e->getMessage());
+      return back()->with('error', '退会処理中にエラーが発生しました。お手数ですがしばらく時間をおいてから再度お試しください。');
+    }
+  }
 }

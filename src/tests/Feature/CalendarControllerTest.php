@@ -1870,6 +1870,109 @@ class CalendarControllerTest extends TestCase
     $responseFiltered->assertSee('data-fullsize="https://example.com/full.jpg"', false);
     $responseFiltered->assertSee('gallery-image-link');
   }
+
+  public function test_owner_can_update_app_password_with_valid_credentials(): void
+  {
+    // 初期状態として、同期エラーを設定しておく
+    $this->account->update([
+      'sync_error_type' => 'auth_failed',
+      'sync_error_message' => 'Old error',
+      'auth_failure_count' => 2,
+    ]);
+
+    $blueskyService = \Mockery::mock(\App\Services\BlueskyService::class);
+    $blueskyService->shouldReceive('authenticate')
+      ->once()
+      ->with('test.bsky.social', 'new_valid_password')
+      ->andReturn([
+        'accessJwt' => 'mock_token',
+        'did' => 'did:plc:test123456',
+      ]);
+    $this->app->instance(\App\Services\BlueskyService::class, $blueskyService);
+
+    $response = $this->actingAs($this->user)
+      ->post("/@test.bsky.social/settings/update-password", [
+        'app_password' => 'new_valid_password',
+      ]);
+
+    $response->assertRedirect();
+    $response->assertSessionHas('success');
+
+    $this->account->refresh();
+    $this->assertEquals('new_valid_password', $this->account->encrypted_app_password);
+    $this->assertNull($this->account->sync_error_type);
+    $this->assertNull($this->account->sync_error_message);
+    $this->assertEquals(0, $this->account->auth_failure_count);
+    $this->assertTrue($this->account->is_auto_sync_enabled);
+  }
+
+  public function test_owner_cannot_update_app_password_with_invalid_credentials(): void
+  {
+    $blueskyService = \Mockery::mock(\App\Services\BlueskyService::class);
+    $blueskyService->shouldReceive('authenticate')
+      ->once()
+      ->andThrow(new \Exception('Authentication failed'));
+    $this->app->instance(\App\Services\BlueskyService::class, $blueskyService);
+
+    $response = $this->actingAs($this->user)
+      ->post("/@test.bsky.social/settings/update-password", [
+        'app_password' => 'invalid_password',
+      ]);
+
+    $response->assertRedirect();
+    $response->assertSessionHasErrors(['app_password']);
+
+    $this->account->refresh();
+    $this->assertEquals('secret_app_pass', $this->account->encrypted_app_password); // 変更されていないこと
+  }
+
+  public function test_owner_can_delete_account_and_is_logged_out(): void
+  {
+    $response = $this->actingAs($this->user)
+      ->post("/@test.bsky.social/settings/delete-account");
+
+    $response->assertRedirect('/login');
+    $response->assertSessionHas('success');
+
+    $this->assertGuest();
+    $this->assertDatabaseMissing('users', ['id' => $this->user->id]);
+    $this->assertDatabaseMissing('bluesky_accounts', ['id' => $this->account->id]);
+  }
+
+  public function test_guest_cannot_delete_other_account(): void
+  {
+    $otherUser = User::create([
+      'name' => '他人',
+      'email' => 'other@example.com',
+      'password' => bcrypt('password'),
+    ]);
+
+    $response = $this->actingAs($otherUser)
+      ->post("/@test.bsky.social/settings/delete-account");
+
+    $response->assertStatus(403);
+    $this->assertDatabaseHas('users', ['id' => $this->user->id]); // 削除されていないこと
+  }
+
+  public function test_calendar_page_ogp_meta_tags(): void
+  {
+    // 1. 公開アカウント時の OGP タグの検証
+    $response = $this->get("/@test.bsky.social");
+    $response->assertStatus(200);
+    $response->assertSee('<meta property="og:title" content="テストユーザー のカレンダー | ', false);
+    $response->assertSee('<meta property="og:description" content="テストプロフィールです', false);
+
+    // 2. 非公開アカウント時の OGP マスクの検証
+    $this->account->update(['is_private' => true]);
+    
+    // ゲスト状態でアクセス（非公開なので 403 / リダイレクトなどを期待するが、テストでの振る舞いを確認）
+    // カレンダーはプライベート状態のとき、ゲストアクセスするとログイン画面にリダイレクトされる仕様。
+    // そのため、所有者ログイン状態でアクセスしてOGPを見る。
+    $responsePrivate = $this->actingAs($this->user)->get("/@test.bsky.social");
+    $responsePrivate->assertStatus(200);
+    $responsePrivate->assertSee('<meta property="og:title" content="非公開のカレンダー | ', false);
+    $responsePrivate->assertSee('<meta property="og:description" content="このカレンダーは所有者本人にのみ公開されています。', false);
+  }
 }
 
 

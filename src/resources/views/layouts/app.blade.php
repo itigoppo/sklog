@@ -14,6 +14,29 @@
   <!-- Tailwind CSS (Vite経由) -->
   @vite(['resources/css/app.css', 'resources/js/app.js'])
 
+  <!-- OGP (Open Graph Protocol) -->
+  @if (isset($bskyAccount))
+    @if ($bskyAccount->is_private)
+      <!-- 非公開カレンダー用のマスクされたメタデータ -->
+      <meta property="og:title" content="非公開のカレンダー | {{ config('app.name', 'SkLoG') }}">
+      <meta property="og:description" content="このカレンダーは所有者本人にのみ公開されています。">
+      <meta property="og:image" content="{{ asset('favicon.svg') }}">
+    @else
+      <!-- 公開カレンダー用のリッチメタデータ -->
+      <meta property="og:title" content="{{ ($user->name ?? $bskyAccount->handle) }} のカレンダー | {{ config('app.name', 'SkLoG') }}">
+      <meta property="og:description" content="{{ $bskyAccount->description ? str($bskyAccount->description)->limit(120) : 'Blueskyの投稿をカレンダー形式でログ保存・公開しているアーカイブです。' }}">
+      @if ($bskyAccount->avatar_url)
+        <meta property="og:image" content="{{ $bskyAccount->avatar_url }}">
+      @else
+        <meta property="og:image" content="{{ asset('favicon.svg') }}">
+      @endif
+    @endif
+    <meta property="og:url" content="{{ route('calendar.show', ['handle' => $bskyAccount->handle]) }}">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="{{ config('app.name', 'SkLoG') }}">
+    <meta name="twitter:card" content="summary">
+  @endif
+
   <style>
     body {
       font-family: 'Outfit', 'Noto Sans JP', sans-serif;

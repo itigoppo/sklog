@@ -96,6 +96,18 @@ Route::post('/@{handle}/settings/import-posts', [CalendarController::class, 'imp
   ->where('handle', '[a-zA-Z0-9\.-]+')
   ->name('calendar.settings.import_posts');
 
+// アプリパスワードの更新（ログイン中の本人限定）
+Route::post('/@{handle}/settings/update-password', [CalendarController::class, 'updatePassword'])
+  ->middleware('auth')
+  ->where('handle', '[a-zA-Z0-9\.-]+')
+  ->name('calendar.settings.update_password');
+
+// 退会・アカウント削除（ログイン中の本人限定）
+Route::post('/@{handle}/settings/delete-account', [CalendarController::class, 'deleteAccount'])
+  ->middleware('auth')
+  ->where('handle', '[a-zA-Z0-9\.-]+')
+  ->name('calendar.settings.delete_account');
+
 // 参加申請（ウェイトリスト）
 Route::get('/join', [WaitlistController::class, 'show'])->name('waitlist.show');
 Route::post('/join', [WaitlistController::class, 'store'])->name('waitlist.store');
