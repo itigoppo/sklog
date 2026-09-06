@@ -13,7 +13,8 @@
 # 使い方:
 #   bash .orca/setup.sh           # 通常（vendor が既にあれば composer install はスキップ）
 #   bash .orca/setup.sh --force   # vendor があっても composer install をやり直す
-#   bash .orca/setup.sh --no-db   # ワークツリー専用 MySQL を起動しない
+#   bash .orca/setup.sh --no-db   # DB もアプリも起動しない
+#   bash .orca/setup.sh --no-app  # DB は起動するがアプリは起動しない
 
 set -uo pipefail
 
@@ -22,10 +23,12 @@ ROOT="$PWD"
 
 FORCE=0
 WITH_DB=1
+WITH_APP=1
 for arg in "$@"; do
   case "$arg" in
     --force) FORCE=1 ;;
-    --no-db) WITH_DB=0 ;;
+    --no-db) WITH_DB=0; WITH_APP=0 ;;
+    --no-app) WITH_APP=0 ;;
     *) echo "Unknown option: $arg" >&2; exit 1 ;;
   esac
 done
@@ -132,6 +135,21 @@ elif make db-up && make migrate && make seed; then
   info "マイグレーションとシードまで完了しました。"
 else
   warn "DB のセットアップに失敗しました。make db-up / make migrate を手で試してください。"
+  WITH_APP=0
+fi
+
+# ---------- ワークツリー専用アプリ ----------
+# compose のスタックは main のディレクトリをマウントしているので、
+# ワークツリーの変更を画面で見るには専用のアプリが要る。
+step "ワークツリー専用のアプリを起動します"
+if [ "$WITH_APP" -eq 0 ]; then
+  info "スキップします（あとで make app-up で起動できます）。"
+elif [ "$MAIN" = "$ROOT" ]; then
+  info "ここは main チェックアウトなのでスキップします。"
+elif make app-up; then
+  :
+else
+  warn "アプリの起動に失敗しました。make app-up を手で試してください。"
 fi
 
 # ---------- 完了 ----------
@@ -139,27 +157,39 @@ cat <<'MSG'
 
 ワークツリーのセットアップが完了しました。
 
-このワークツリーでも動くもの（web イメージの使い捨てコンテナで実行されます）:
+コードを直してテストを回すだけなら、これだけで足ります:
 
-  make test     # テスト（sqlite :memory: なので DB 不要）
+  make test     # テスト（sqlite :memory:）
   make lint     # Pint のチェック
   make format   # Pint の自動修正
-  make build    # Vite ビルド
-  make run      # Vite 開発サーバー（ポートが空いていれば）
 
-ワークツリー専用の MySQL（約110MB）が起動していて、マイグレーションとシードが
-済んでいます。main の DB とは別物なので、いくら壊しても main には影響しません。
+専用の MySQL（約110MB）が起動していて、マイグレーションとシードも済んでいます。
+main の DB とは別物なので、いくら壊しても main には影響しません。
 
-  make migrate   # このワークツリーの DB に対して実行される
-  make db-down   # 止めてメモリを空ける（コンテナごと消えるのでデータも残りません）
-  make db-up     # また使うときに起動する
+  make migrate  # このワークツリーの DB に対して実行される
+  make seed     # シードを流し直す
+MSG
 
-このワークツリーのアプリをブラウザで見たいとき:
+if [ "$WITH_APP" -eq 1 ] && docker ps --format '{{.Names}}' | grep -q "^sklog_wt_.*_app$"; then
+  echo ""
+  echo "専用のアプリ（Laravel + Mailpit）も起動済みです。"
+  echo ""
+  make -s app-info
+  cat <<'MSG'
 
-  make app-up    # 専用の Laravel + Mailpit を起動（URL が表示されます）
-  make run       # 別ターミナルで Vite（HMR が効きます）
-  make app-down  # 停止
+  make run       # CSS/JS を触るときに別ターミナルで（Vite。HMR が効きます）
+  make dev       # アプリと Vite をまとめて起動したいとき
+  make app-down  # アプリを止めてメモリを空ける
 
 main の compose スタック (http://localhost:18080) は main のディレクトリを
-マウントしているので、ワークツリーの変更はそちらには出ません。
+見ているので、ワークツリーの変更はそちらには出ません。
 MSG
+else
+  cat <<'MSG'
+
+アプリは起動していません。画面を確認するときは make app-up してください。
+MSG
+fi
+
+echo ""
+echo "止めたものは make db-up / make app-up で戻せます。"

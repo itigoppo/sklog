@@ -66,12 +66,16 @@ make db-prune   # ワークツリーが存在しない sklog_wt_* を削除す�
 
 ### ワークツリーのアプリをブラウザで見る
 
-compose のスタックは main のディレクトリをマウントしているので、ワークツリーの変更は `http://localhost:18080` には出ません。ワークツリー側で見るには専用のアプリを立てます。
+compose のスタックは main のディレクトリをマウントしているので、ワークツリーの変更は `http://localhost:18080` には出ません。そのため専用のアプリ（Laravel + Mailpit）を**セットアップ時に自動で起動**しています。URL はセットアップの最後に表示されます。
 
 ```
-make app-up     # このワークツリーの Laravel と Mailpit を起動（URL が表示されます）
-make app-down   # 停止
+make app-info   # URL を再表示
+make app-down   # 停止してメモリを空ける
+make app-up     # また起動する（起動済みなら何もしません）
+make dev        # アプリ + Vite をまとめて起動（Vite はフォアグラウンド）
 ```
+
+アプリが不要なワークツリーは `bash .orca/setup.sh --no-app`（DB も要らなければ `--no-db`）で立てずに済ませられます。
 
 `php artisan serve` をワークツリー専用ネットワークで動かすので、DB も Mailpit もそのワークツリーのものを使います。ポートはワークツリー名から決まります（アプリ 18081〜18099、Mailpit 18026〜18044）。衝突したら `make APP_PORT=18090 app-up` のように上書きしてください。
 

@@ -45,7 +45,7 @@ endif
 	lint format \
 	require-web require-php require-db \
 	db-up db-down db-prune \
-	app-up app-down
+	app-up app-down app-info dev
 
 # Set up the local development environment
 setup:
@@ -126,27 +126,32 @@ app-up: require-php require-db
 	@if [ "$(CURDIR)" = "$(MAIN_CHECKOUT)" ]; then \
 		echo "main チェックアウトでは make docker-up を使ってください。"; \
 		exit 1; \
-	fi
-	@docker rm -f $(WT_APP) $(WT_MAIL) >/dev/null 2>&1 || true
-	@if [ -f src/public/hot ] && ! curl -s -o /dev/null --max-time 2 "$$(cat src/public/hot)/@vite/client"; then \
+	fi; \
+	if [ -n "$$(docker ps -q -f name=^$(WT_APP)$$)" ] \
+		&& curl -s -o /dev/null --max-time 2 http://localhost:$(APP_PORT)/ 2>/dev/null; then \
+		echo "アプリは既に起動しています。"; \
+		$(MAKE) -s app-info; \
+		exit 0; \
+	fi; \
+	docker rm -f $(WT_APP) $(WT_MAIL) >/dev/null 2>&1 || true; \
+	if [ -f src/public/hot ] && ! curl -s -o /dev/null --max-time 2 "$$(cat src/public/hot)/@vite/client"; then \
 		rm -f src/public/hot; \
 		echo "死んでいる public/hot を削除しました（Vite が強制終了された跡）。"; \
-	fi
-	@docker run -d --rm --name $(WT_MAIL) --network $(WT_NET) --network-alias mail \
-		-p $(MAIL_PORT):8025 sklog-mail >/dev/null
-	@docker run -d --rm --name $(WT_APP) --network $(WT_NET) \
+	fi; \
+	docker run -d --rm --name $(WT_MAIL) --network $(WT_NET) --network-alias mail \
+		-p $(MAIL_PORT):8025 sklog-mail >/dev/null; \
+	docker run -d --rm --name $(WT_APP) --network $(WT_NET) \
 		-v "$(CURDIR)":/home/itigoppo/git/sklog -w /home/itigoppo/git/sklog/src \
 		-p $(APP_PORT):8000 $(WEB_IMAGE) \
-		php artisan serve --host=0.0.0.0 --port=8000 >/dev/null
-	@printf "起動を待っています"; \
+		php artisan serve --host=0.0.0.0 --port=8000 >/dev/null; \
+	printf "起動を待っています"; \
 	for i in $$(seq 1 30); do \
 		if curl -s -o /dev/null http://localhost:$(APP_PORT)/ 2>/dev/null; then \
 			echo " OK"; \
 			echo ""; \
-			echo "  アプリ    : http://localhost:$(APP_PORT)"; \
-			echo "  Mailpit   : http://localhost:$(MAIL_PORT)"; \
+			$(MAKE) -s app-info; \
 			echo ""; \
-			echo "  アセットを編集しながら見るときは別ターミナルで make run (Vite) も起動してください。"; \
+			echo "  CSS/JS を触るときは別ターミナルで make run (Vite) も起動してください。"; \
 			exit 0; \
 		fi; \
 		printf "."; \
@@ -154,6 +159,16 @@ app-up: require-php require-db
 	done; \
 	echo " タイムアウトしました。docker logs $(WT_APP) を確認してください。"; \
 	exit 1
+
+# Show this worktree's app URLs
+app-info:
+	@echo "  アプリ    : http://localhost:$(APP_PORT)"
+	@echo "  Mailpit   : http://localhost:$(MAIL_PORT)"
+
+# Start the app and the Vite dev server together (Vite runs in the foreground)
+dev: app-up
+	@echo ""
+	cd src && pnpm dev
 
 # Stop this worktree's app
 app-down:
