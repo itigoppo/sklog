@@ -35,7 +35,7 @@ Orca の repo 設定 → Setup script に `bash .orca/setup.sh` が登録済み�
 - `src/.env` は main チェックアウトからコピーします
 - `src/node_modules` はホストの `pnpm install` で作ります
 - `src/vendor` は使い捨ての `composer:2` コンテナで作ります（ホストに PHP 不要）
-- **Docker は起動しません。** `docker-compose.yml` は `container_name` とポートが固定のため、main チェックアウトの環境と衝突します。アプリの動作確認は main 側（`cd ~/git/sklog && make docker-up`）で行ってください
+- **アプリのスタック（compose）は起動しません。** `docker-compose.yml` は `container_name` とポートが固定なので、main チェックアウトの環境と衝突します。ブラウザでの確認は main 側（`cd ~/git/sklog && make docker-up`）で行ってください
 - `vendor` が既にある場合はスキップします。作り直すときは `bash .orca/setup.sh --force`
 - `.husky/_` も生成します（git 管理外のため、これが無いとワークツリーでは pre-commit のアセットビルドが黙ってスキップされます）
 
@@ -43,9 +43,25 @@ Orca の repo 設定 → Setup script に `bash .orca/setup.sh` が登録済み�
 
 ただしその `sklog-web` イメージは **main チェックアウトの compose が作るもの**です（ワークツリーで `compose build` しても `<ディレクトリ名>-web` という別名になります）。したがって **一度は main 側で `make docker-build`（または `./setup.sh`）を通しておく必要があります**。無い場合は Makefile がその旨を出して止まります。別名のイメージを使いたいときは `make WEB_IMAGE=<image> test` で上書きできます。
 
-DB や常駐プロセスが要るもの（`make migrate` / `make queue` / `make schedule` など）は main チェックアウト側でのみ動きます。ワークツリーで叩くとガードで止まります。
+DB が要るもの（`make migrate` / `make queue` / `make schedule` など）は、ワークツリー専用の使い捨て MySQL を立てれば動きます。
 
-ワークツリー削除時の後始末は不要です。コンテナは `docker run --rm` の使い捨てしか作らないため残らず、`src/vendor` や `src/node_modules` は `orca worktree rm`（`--force` なし）でワークツリーごと削除されます。
+```
+make db-up     # このワークツリー専用の MySQL を起動（ネットワークも専用）
+make migrate   # 専用 DB に対して実行される
+make db-down   # 停止（--rm なのでコンテナごと消え、データも残らない）
+```
+
+main の DB とは完全に別で、main 側の中身には触りません。`make db-up` せずに `make migrate` を叩くとガードで止まります。
+
+止め忘れたままワークツリーを消すとコンテナとネットワークが残るので、Orca の repo 設定 → Archive script に次を登録しておきます。
+
+```
+bash .orca/archive.sh
+```
+
+なお、アプリをブラウザで確認したいときは main チェックアウト側で行ってください（コンテナは main のディレクトリをマウントしているため、ワークツリーの変更はマイグレーションに限らず反映されません）。
+
+`src/vendor` や `src/node_modules` は `orca worktree rm`（`--force` なし）でワークツリーごと削除されるので、後始末は `make db-up` した DB コンテナだけです（上記の Archive script が担当）。
 
 ## 手動セットアップ
 

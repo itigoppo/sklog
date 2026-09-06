@@ -7,10 +7,24 @@
 # (プロジェクト名 sklog → sklog-web)。ワークツリーで compose build しても
 # 別名 (<ディレクトリ名>-web) になるため、一度は main で make docker-build が要る。
 WEB_IMAGE ?= sklog-web
+DB_IMAGE ?= sklog-mysql
 WEB_CONTAINER := $(shell docker compose ps -q web 2>/dev/null)
 MAIN_CHECKOUT := $(shell cd "$$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)/.." 2>/dev/null && pwd)
+
+# ワークツリー専用の使い捨て MySQL (make db-up / db-down)
+# main の DB を汚さずにマイグレーションを流すためのもの。--rm なのでデータは残らない。
+WT_NAME := $(shell printf '%s' "$(notdir $(CURDIR))" | tr -c 'A-Za-z0-9_.-' '_')
+WT_NET := sklog_wt_$(WT_NAME)
+WT_DB := sklog_wt_$(WT_NAME)_db
+WT_DB_RUNNING := $(shell docker ps -q -f name=^$(WT_DB)$$ 2>/dev/null)
+
+WT_RUN = docker run --rm -v "$(CURDIR)":/home/itigoppo/git/sklog -w /home/itigoppo/git/sklog/src
 ifeq ($(WEB_CONTAINER),)
-PHP = docker run --rm -v "$(CURDIR)":/home/itigoppo/git/sklog -w /home/itigoppo/git/sklog/src $(WEB_IMAGE)
+ifeq ($(WT_DB_RUNNING),)
+PHP = $(WT_RUN) $(WEB_IMAGE)
+else
+PHP = $(WT_RUN) --network $(WT_NET) $(WEB_IMAGE)
+endif
 else
 PHP = docker compose exec web
 endif
@@ -22,7 +36,8 @@ endif
 	migrate migrate-fresh migrate-fresh-seed cache-clear \
 	test test-coverage \
 	lint format \
-	require-web require-php
+	require-web require-php require-db \
+	db-up db-down
 
 # Set up the local development environment
 setup:
@@ -59,6 +74,49 @@ require-php:
 		exit 1; \
 	fi
 
+# Fail early when a target needs a database
+require-db:
+	@if [ -n "$(WEB_CONTAINER)" ] || [ -n "$(WT_DB_RUNNING)" ]; then exit 0; fi; \
+	if [ "$(CURDIR)" = "$(MAIN_CHECKOUT)" ]; then \
+		echo "web コンテナが起動していません。make docker-up してください。"; \
+	else \
+		echo "ワークツリー用の DB が起動していません。make db-up してください。"; \
+	fi; \
+	exit 1
+
+# Start a throwaway MySQL for this worktree (data is discarded on db-down)
+db-up: require-php
+	@if [ "$(CURDIR)" = "$(MAIN_CHECKOUT)" ]; then \
+		echo "main チェックアウトでは make docker-up を使ってください。"; \
+		exit 1; \
+	fi
+	@docker image inspect $(DB_IMAGE) >/dev/null 2>&1 || { \
+		echo "$(DB_IMAGE) イメージがありません。main チェックアウト ($(MAIN_CHECKOUT)) で make docker-build してください。"; \
+		exit 1; \
+	}
+	@if [ -n "$(WT_DB_RUNNING)" ]; then echo "$(WT_DB) は既に起動しています。"; exit 0; fi; \
+	docker network inspect $(WT_NET) >/dev/null 2>&1 || docker network create $(WT_NET) >/dev/null; \
+	docker run -d --rm --name $(WT_DB) --network $(WT_NET) --network-alias mysql \
+		-e TZ=Asia/Tokyo -e MYSQL_DATABASE=sklog -e MYSQL_ROOT_PASSWORD=root \
+		-e MYSQL_USER=user -e MYSQL_PASSWORD=password $(DB_IMAGE) >/dev/null; \
+	printf "MySQL の起動を待っています"; \
+	for i in $$(seq 1 60); do \
+		if docker exec $(WT_DB) mysqladmin ping -h 127.0.0.1 -uuser -ppassword --silent >/dev/null 2>&1; then \
+			echo " OK"; \
+			echo "make migrate / make queue などがこのワークツリーの DB に向きます。"; \
+			exit 0; \
+		fi; \
+		printf "."; \
+		sleep 2; \
+	done; \
+	echo " タイムアウトしました。docker logs $(WT_DB) を確認してください。"; \
+	exit 1
+
+# Stop the throwaway MySQL (the container and its data are removed)
+db-down:
+	@docker rm -f $(WT_DB) >/dev/null 2>&1 && echo "$(WT_DB) を停止しました。" || echo "$(WT_DB) は起動していません。"
+	@docker network rm $(WT_NET) >/dev/null 2>&1 || true
+
 # Start Docker containers
 docker-up:
 	docker compose up -d
@@ -80,8 +138,12 @@ docker-web: require-web
 	docker compose exec web bash
 
 # Get into the mysql container
-docker-db: require-web
-	docker compose exec mysql mysql -u user -ppassword sklog
+docker-db: require-db
+	@if [ -n "$(WEB_CONTAINER)" ]; then \
+		docker compose exec mysql mysql -u user -ppassword sklog; \
+	else \
+		docker exec -it $(WT_DB) mysql -u user -ppassword sklog; \
+	fi
 
 # Get into the mailpit container
 docker-mail: require-web
@@ -96,28 +158,28 @@ build:
 	cd src && pnpm build
 
 # Run the queue worker (jobs are dispatched to the database queue)
-queue: require-web
-	docker compose exec web php artisan queue:work
+queue: require-php require-db
+	$(PHP) php artisan queue:work
 
 # Drain the queue and exit (same as the production cron)
-queue-once: require-web
-	docker compose exec web php artisan queue:work --stop-when-empty
+queue-once: require-php require-db
+	$(PHP) php artisan queue:work --stop-when-empty
 
 # Run the scheduler (bluesky:sync-all is scheduled hourly)
-schedule: require-web
-	docker compose exec web php artisan schedule:work
+schedule: require-php require-db
+	$(PHP) php artisan schedule:work
 
 # Migrate the database
-migrate: require-web
-	docker compose exec web php artisan migrate
+migrate: require-php require-db
+	$(PHP) php artisan migrate
 
 # Fresh migrate the database
-migrate-fresh: require-web
-	docker compose exec web php artisan migrate:fresh
+migrate-fresh: require-php require-db
+	$(PHP) php artisan migrate:fresh
 
 # Fresh migrate the database with seed
-migrate-fresh-seed: require-web
-	docker compose exec web php artisan migrate:fresh --seed
+migrate-fresh-seed: require-php require-db
+	$(PHP) php artisan migrate:fresh --seed
 
 # Clear cache
 cache-clear: require-php

@@ -127,8 +127,15 @@ cat <<'MSG'
   make build    # Vite ビルド
   make run      # Vite 開発サーバー（ポートが空いていれば）
 
-DB や常駐プロセスが要るもの（make migrate / queue / schedule など）は
-main チェックアウト側で実行してください（ワークツリーではガードで止まります）。
+DB が要るもの（make migrate / queue / schedule など）は、このワークツリー専用の
+使い捨て MySQL を立てれば動きます。main の DB は汚しません。
+
+  make db-up     # 専用 MySQL を起動
+  make migrate   # このワークツリーの DB に対して実行される
+  make db-down   # 停止（コンテナごと消えるのでデータも残りません）
+
+アプリをブラウザで確認したいときは main チェックアウト側で行ってください
+（コンテナは main のディレクトリをマウントしています）。
 
   cd ~/git/sklog && make docker-up
 MSG
