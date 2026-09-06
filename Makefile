@@ -1,9 +1,14 @@
 # php を実行する先の決め方
-#   main チェックアウト: 起動中の web コンテナ (docker compose exec)
-#   ワークツリー       : compose プロジェクトが無いので web イメージから使い捨てコンテナを起動する
-#                        テストは sqlite :memory: を使うので DB が無くても動く
+#   web コンテナが起動している (= main チェックアウトで docker-up 済み): そのコンテナで実行する
+#   起動していない (ワークツリー、または main で未起動): web イメージから使い捨てコンテナを起動する
+#     テストは sqlite :memory: を使うので DB が無くても動く
+#
+# 使い捨てコンテナが使うイメージは main チェックアウトの compose が作ったもの
+# (プロジェクト名 sklog → sklog-web)。ワークツリーで compose build しても
+# 別名 (<ディレクトリ名>-web) になるため、一度は main で make docker-build が要る。
 WEB_IMAGE ?= sklog-web
 WEB_CONTAINER := $(shell docker compose ps -q web 2>/dev/null)
+MAIN_CHECKOUT := $(shell cd "$$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)/.." 2>/dev/null && pwd)
 ifeq ($(WEB_CONTAINER),)
 PHP = docker run --rm -v "$(CURDIR)":/home/itigoppo/git/sklog -w /home/itigoppo/git/sklog/src $(WEB_IMAGE)
 else
@@ -17,7 +22,7 @@ endif
 	migrate migrate-fresh migrate-fresh-seed cache-clear \
 	test test-coverage \
 	lint format \
-	require-web
+	require-web require-php
 
 # Set up the local development environment
 setup:
@@ -31,10 +36,26 @@ setup-fresh:
 setup-worktree:
 	bash .orca/setup.sh
 
-# Fail early when a target needs the running stack (main checkout only)
+# Fail early when a target needs the running stack (DB, long-running processes)
 require-web:
-	@if [ -z "$(WEB_CONTAINER)" ]; then \
-		echo "web コンテナが起動していません。main チェックアウト (~/git/sklog) で make docker-up してください。"; \
+	@if [ -n "$(WEB_CONTAINER)" ]; then exit 0; fi; \
+	if [ "$(CURDIR)" = "$(MAIN_CHECKOUT)" ]; then \
+		echo "web コンテナが起動していません。make docker-up してください。"; \
+	else \
+		echo "ここはワークツリーです。この操作は main チェックアウト ($(MAIN_CHECKOUT)) で実行してください。"; \
+	fi; \
+	exit 1
+
+# Fail early when the throwaway container cannot be started
+require-php:
+	@if [ -n "$(WEB_CONTAINER)" ]; then exit 0; fi; \
+	if ! docker info >/dev/null 2>&1; then \
+		echo "Docker が起動していません。"; \
+		exit 1; \
+	fi; \
+	if ! docker image inspect $(WEB_IMAGE) >/dev/null 2>&1; then \
+		echo "$(WEB_IMAGE) イメージがありません。main チェックアウト ($(MAIN_CHECKOUT)) で make docker-build してください。"; \
+		echo "別名のイメージを使う場合: make WEB_IMAGE=<image> <target>"; \
 		exit 1; \
 	fi
 
@@ -99,21 +120,21 @@ migrate-fresh-seed: require-web
 	docker compose exec web php artisan migrate:fresh --seed
 
 # Clear cache
-cache-clear:
+cache-clear: require-php
 	$(PHP) php artisan optimize:clear
 
 # Check code style (Laravel Pint)
-lint:
+lint: require-php
 	$(PHP) php vendor/bin/pint --test
 
 # Fix code style
-format:
+format: require-php
 	$(PHP) php vendor/bin/pint
 
 # Run unit tests
-test:
+test: require-php
 	$(PHP) php artisan test
 
 # Run unit tests with coverage
-test-coverage:
+test-coverage: require-php
 	$(PHP) php artisan test --coverage

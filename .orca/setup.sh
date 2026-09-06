@@ -103,6 +103,17 @@ else
     || fail "composer install に失敗しました。"
 fi
 
+# ---------- web イメージの確認 ----------
+# make test / lint はこのイメージから使い捨てコンテナを起動する。
+# イメージは main チェックアウトの compose が作るので、一度も起動していないと存在しない。
+step "web イメージを確認します"
+if docker image inspect sklog-web >/dev/null 2>&1; then
+  info "sklog-web: OK"
+else
+  warn "sklog-web イメージがありません。make test / make lint はこのままでは動きません。"
+  warn "  main チェックアウトで一度ビルドしてください: cd ~/git/sklog && make docker-build"
+fi
+
 # ---------- 完了 ----------
 cat <<'MSG'
 
@@ -117,8 +128,7 @@ cat <<'MSG'
   make run      # Vite 開発サーバー（ポートが空いていれば）
 
 DB や常駐プロセスが要るもの（make migrate / queue / schedule など）は
-main チェックアウト側で実行してください。ワークツリーでは
-「web コンテナが起動していません」と出て止まります。
+main チェックアウト側で実行してください（ワークツリーではガードで止まります）。
 
   cd ~/git/sklog && make docker-up
 MSG

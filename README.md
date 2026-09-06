@@ -41,6 +41,8 @@ Orca の repo 設定 → Setup script に `bash .orca/setup.sh` が登録済み�
 
 ワークツリーでも `make test` / `make lint` / `make format` / `make build` は動きます。web コンテナが起動していない場所では、Makefile が `sklog-web` イメージから使い捨てコンテナを起動して実行するためです（テストは sqlite `:memory:` なので DB 不要）。
 
+ただしその `sklog-web` イメージは **main チェックアウトの compose が作るもの**です（ワークツリーで `compose build` しても `<ディレクトリ名>-web` という別名になります）。したがって **一度は main 側で `make docker-build`（または `./setup.sh`）を通しておく必要があります**。無い場合は Makefile がその旨を出して止まります。別名のイメージを使いたいときは `make WEB_IMAGE=<image> test` で上書きできます。
+
 DB や常駐プロセスが要るもの（`make migrate` / `make queue` / `make schedule` など）は main チェックアウト側でのみ動きます。ワークツリーで叩くとガードで止まります。
 
 ワークツリー削除時の後始末は不要です。コンテナは `docker run --rm` の使い捨てしか作らないため残らず、`src/vendor` や `src/node_modules` は `orca worktree rm`（`--force` なし）でワークツリーごと削除されます。
