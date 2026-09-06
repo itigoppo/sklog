@@ -77,6 +77,10 @@ make app-down   # 停止
 
 アセットを編集しながら確認するときは、別ターミナルで `make run`（Vite）も起動します。ワークツリーの `public/hot` をそのワークツリーの Laravel が読むので、HMR がそのまま効きます。
 
+**起動順はどちらでも構いません。** Laravel はリクエストのたびに `public/hot` を見るため、後から `make run` しても次のリロードで dev サーバーに切り替わり、Vite を Ctrl-C で止めればビルド済みアセットに戻ります。
+
+ただし Vite を強制終了（`kill -9` など）すると `public/hot` が残り、アプリが死んだ dev サーバーを指し続けてアセットが読めなくなります。`make app-up` は起動時にこれを検出して削除しますが、実行中に起きた場合は `rm src/public/hot` してください。
+
 メモリはアプリ 73MB + Mailpit 10MB です（DB 119MB と合わせて約200MB）。
 
 `src/vendor` や `src/node_modules` は `orca worktree rm`（`--force` なし）でワークツリーごと削除されるので、後始末は `make db-up` した DB コンテナだけです（上記の Archive script が担当）。

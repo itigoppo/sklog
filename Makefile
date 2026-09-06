@@ -128,6 +128,10 @@ app-up: require-php require-db
 		exit 1; \
 	fi
 	@docker rm -f $(WT_APP) $(WT_MAIL) >/dev/null 2>&1 || true
+	@if [ -f src/public/hot ] && ! curl -s -o /dev/null --max-time 2 "$$(cat src/public/hot)/@vite/client"; then \
+		rm -f src/public/hot; \
+		echo "死んでいる public/hot を削除しました（Vite が強制終了された跡）。"; \
+	fi
 	@docker run -d --rm --name $(WT_MAIL) --network $(WT_NET) --network-alias mail \
 		-p $(MAIL_PORT):8025 sklog-mail >/dev/null
 	@docker run -d --rm --name $(WT_APP) --network $(WT_NET) \
