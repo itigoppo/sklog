@@ -94,7 +94,7 @@ MAIL_HOST=mail
 MAIL_PORT=1025
 MAIL_USERNAME=null
 MAIL_PASSWORD=null
-MAIL_ENCRYPTION=null
+MAIL_SCHEME=null
 MAIL_FROM_ADDRESS="hello@example.com"
 MAIL_FROM_NAME="${APP_NAME}"
 ```
@@ -118,6 +118,25 @@ docker内じゃないよ
 ```
 cd src
 pnpm install
+```
+
+### コードスタイル
+
+Laravel Pint を使います。このリポジトリは PHP を **2スペースインデント**で書いているため、`pint.json` でインデント系のルール（`statement_indentation` など）を無効にしています。
+
+```
+make lint     # チェックのみ
+make format   # 自動修正
+```
+
+### キュー / スケジューラ（ローカル）
+
+`QUEUE_CONNECTION=database` で、`bluesky:sync-all` はジョブをキューに積むだけです。コンテナには常駐ワーカーがいないので、消化するには自分で動かします。
+
+```
+make queue        # ワーカーを常駐させる
+make queue-once   # 溜まっている分だけ消化して終了（本番の cron と同じ）
+make schedule     # スケジューラ（bluesky:sync-all は1時間ごと）
 ```
 
 ## デプロイ

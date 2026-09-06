@@ -1,0 +1,9 @@
+{
+    "preset": "laravel",
+    "rules": {
+        "statement_indentation": false,
+        "array_indentation": false,
+        "method_chaining_indentation": false,
+        "heredoc_indentation": false
+    }
+}

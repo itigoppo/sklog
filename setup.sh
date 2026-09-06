@@ -101,7 +101,7 @@ set_env MAIL_HOST mail
 set_env MAIL_PORT 1025
 set_env MAIL_USERNAME null
 set_env MAIL_PASSWORD null
-set_env MAIL_ENCRYPTION null
+set_env MAIL_SCHEME null
 info "DB / Mail の接続先を Docker 用の設定にしました。"
 
 # ---------- コンテナ起動 ----------

@@ -1,9 +1,10 @@
 .PHONY: \
 	setup setup-fresh setup-worktree \
 	docker-up docker-down docker-build docker-rebuild docker-web docker-db docker-mail \
-	run build \
+	run build queue queue-once schedule \
 	migrate migrate-fresh migrate-fresh-seed cache-clear \
-	test test-coverage
+	test test-coverage \
+	lint format
 
 # Set up the local development environment
 setup:
@@ -53,6 +54,18 @@ run:
 build:
 	cd src && pnpm build
 
+# Run the queue worker (jobs are dispatched to the database queue)
+queue:
+	docker compose exec web php artisan queue:work
+
+# Drain the queue and exit (same as the production cron)
+queue-once:
+	docker compose exec web php artisan queue:work --stop-when-empty
+
+# Run the scheduler (bluesky:sync-all is scheduled hourly)
+schedule:
+	docker compose exec web php artisan schedule:work
+
 # Migrate the database
 migrate:
 	docker compose exec web php artisan migrate
@@ -68,6 +81,14 @@ migrate-fresh-seed:
 # Clear cache
 cache-clear:
 	docker compose exec web php artisan optimize:clear
+
+# Check code style (Laravel Pint)
+lint:
+	docker compose exec web php vendor/bin/pint --test
+
+# Fix code style
+format:
+	docker compose exec web php vendor/bin/pint
 
 # Run unit tests
 test:
