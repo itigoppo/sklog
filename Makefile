@@ -37,7 +37,7 @@ endif
 	test test-coverage \
 	lint format \
 	require-web require-php require-db \
-	db-up db-down
+	db-up db-down db-prune
 
 # Set up the local development environment
 setup:
@@ -111,6 +111,23 @@ db-up: require-php
 	done; \
 	echo " タイムアウトしました。docker logs $(WT_DB) を確認してください。"; \
 	exit 1
+
+# Remove throwaway MySQL containers whose worktree no longer exists
+# (archive フックが走らずに削除されたワークツリーの取りこぼし用)
+db-prune:
+	@names=$$(docker ps -a --filter "name=^sklog_wt_" --format '{{.Names}}'); \
+	if [ -z "$$names" ]; then echo "対象のコンテナはありません。"; exit 0; fi; \
+	existing=$$(git worktree list --porcelain | awk '/^worktree /{n=split($$2,a,"/"); print a[n]}' \
+		| while IFS= read -r b; do printf '%s\n' "$$(printf '%s' "$$b" | tr -c 'A-Za-z0-9_.-' '_')"; done); \
+	printf '%s\n' "$$names" | while IFS= read -r c; do \
+		n=$${c#sklog_wt_}; n=$${n%_db}; \
+		if printf '%s\n' "$$existing" | grep -qx "$$n"; then \
+			echo "$$c: ワークツリーが存在するので残します"; \
+		else \
+			docker rm -f "$$c" >/dev/null 2>&1 && echo "$$c を削除しました"; \
+			docker network rm "sklog_wt_$$n" >/dev/null 2>&1 || true; \
+		fi; \
+	done
 
 # Stop the throwaway MySQL (the container and its data are removed)
 db-down:

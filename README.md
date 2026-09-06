@@ -53,10 +53,12 @@ make db-down   # 停止（--rm なのでコンテナごと消え、データも�
 
 main の DB とは完全に別で、main 側の中身には触りません。`make db-up` せずに `make migrate` を叩くとガードで止まります。
 
-止め忘れたままワークツリーを消すとコンテナとネットワークが残るので、Orca の repo 設定 → Archive script に次を登録しておきます。
+止め忘れたままワークツリーを消すとコンテナとネットワークが残るので、Orca の repo 設定 → Archive script に `bash .orca/archive.sh` を登録してあります。
+
+ただし **`orca worktree rm` は `--run-hooks` を付けないと archive フックを実行しません**（`orca.yaml archive hook skipped ... pass --run-hooks to run it.` という警告が出ます）。フックが走らずに消えてしまった分は次で回収できます。
 
 ```
-bash .orca/archive.sh
+make db-prune   # ワークツリーが存在しない sklog_wt_* を削除する
 ```
 
 なお、アプリをブラウザで確認したいときは main チェックアウト側で行ってください（コンテナは main のディレクトリをマウントしているため、ワークツリーの変更はマイグレーションに限らず反映されません）。
