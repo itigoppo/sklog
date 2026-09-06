@@ -150,6 +150,10 @@ if [ "$RUN_NODE" -eq 1 ]; then
   step "フロントエンドの依存関係をインストールします (pnpm install)"
   info "※ Vite は Docker 内ではなくホスト側で動かします"
   (cd src && pnpm install)
+
+  # .npmrc の ignore-scripts=true により prepare は自動実行されないため明示的に叩く
+  (cd src && pnpm run prepare)
+  info "husky (pre-commit) を有効にしました。"
 fi
 
 # ---------- 完了 ----------

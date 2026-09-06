@@ -67,6 +67,12 @@ fi
 step "フロントエンドの依存関係をインストールします (pnpm install)"
 if command -v pnpm >/dev/null 2>&1; then
   (cd src && pnpm install) || fail "pnpm install に失敗しました。"
+
+  # .husky/_ は git 管理外なのでワークツリーには存在しない。
+  # core.hooksPath=.husky/_ が無いと pre-commit (アセットビルド) が黙ってスキップされる。
+  # .npmrc の ignore-scripts=true により prepare は自動実行されないため明示的に叩く。
+  (cd src && pnpm run prepare) || fail "husky のセットアップに失敗しました。"
+  info "husky (pre-commit) を有効にしました。"
 else
   warn "pnpm が見つからないためスキップします (npm install -g pnpm / corepack enable pnpm)。"
 fi
