@@ -34,10 +34,14 @@ Orca の repo 設定 → Setup script に `bash .orca/setup.sh` が登録済み�
 
 - `src/.env` は main チェックアウトからコピーします
 - `src/node_modules` はホストの `pnpm install` で作ります
-- `src/vendor` は使い捨ての `composer:2` コンテナで作ります（ホストに PHP 不要。`--no-scripts`）
+- `src/vendor` は使い捨ての `composer:2` コンテナで作ります（ホストに PHP 不要）
 - **Docker は起動しません。** `docker-compose.yml` は `container_name` とポートが固定のため、main チェックアウトの環境と衝突します。アプリの動作確認は main 側（`cd ~/git/sklog && make docker-up`）で行ってください
 - `vendor` が既にある場合はスキップします。作り直すときは `bash .orca/setup.sh --force`
 - `.husky/_` も生成します（git 管理外のため、これが無いとワークツリーでは pre-commit のアセットビルドが黙ってスキップされます）
+
+ワークツリーでも `make test` / `make lint` / `make format` / `make build` は動きます。web コンテナが起動していない場所では、Makefile が `sklog-web` イメージから使い捨てコンテナを起動して実行するためです（テストは sqlite `:memory:` なので DB 不要）。
+
+DB や常駐プロセスが要るもの（`make migrate` / `make queue` / `make schedule` など）は main チェックアウト側でのみ動きます。ワークツリーで叩くとガードで止まります。
 
 ワークツリー削除時の後始末は不要です。コンテナは `docker run --rm` の使い捨てしか作らないため残らず、`src/vendor` や `src/node_modules` は `orca worktree rm`（`--force` なし）でワークツリーごと削除されます。
 

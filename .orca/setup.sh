@@ -98,11 +98,9 @@ else
     -w /app \
     composer:2 install \
       --ignore-platform-reqs \
-      --no-scripts \
       --no-interaction \
       --no-progress \
     || fail "composer install に失敗しました。"
-  info "※ --no-scripts で入れています（コンテナに PHP 拡張が揃っていないため）。"
 fi
 
 # ---------- 完了 ----------
@@ -110,12 +108,17 @@ cat <<'MSG'
 
 ワークツリーのセットアップが完了しました。
 
-このワークツリーでは Docker は起動していません。
-アプリを動かして確認したいときは main チェックアウト側で行ってください。
+このワークツリーでも動くもの（web イメージの使い捨てコンテナで実行されます）:
+
+  make test     # テスト（sqlite :memory: なので DB 不要）
+  make lint     # Pint のチェック
+  make format   # Pint の自動修正
+  make build    # Vite ビルド
+  make run      # Vite 開発サーバー（ポートが空いていれば）
+
+DB や常駐プロセスが要るもの（make migrate / queue / schedule など）は
+main チェックアウト側で実行してください。ワークツリーでは
+「web コンテナが起動していません」と出て止まります。
 
   cd ~/git/sklog && make docker-up
-
-Vite の開発サーバーはワークツリー内でも動かせます（ポートが空いていれば）。
-
-  make run
 MSG

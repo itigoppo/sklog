@@ -1,10 +1,23 @@
+# php を実行する先の決め方
+#   main チェックアウト: 起動中の web コンテナ (docker compose exec)
+#   ワークツリー       : compose プロジェクトが無いので web イメージから使い捨てコンテナを起動する
+#                        テストは sqlite :memory: を使うので DB が無くても動く
+WEB_IMAGE ?= sklog-web
+WEB_CONTAINER := $(shell docker compose ps -q web 2>/dev/null)
+ifeq ($(WEB_CONTAINER),)
+PHP = docker run --rm -v "$(CURDIR)":/home/itigoppo/git/sklog -w /home/itigoppo/git/sklog/src $(WEB_IMAGE)
+else
+PHP = docker compose exec web
+endif
+
 .PHONY: \
 	setup setup-fresh setup-worktree \
 	docker-up docker-down docker-build docker-rebuild docker-web docker-db docker-mail \
 	run build queue queue-once schedule \
 	migrate migrate-fresh migrate-fresh-seed cache-clear \
 	test test-coverage \
-	lint format
+	lint format \
+	require-web
 
 # Set up the local development environment
 setup:
@@ -17,6 +30,13 @@ setup-fresh:
 # Set up a git worktree (copy .env from main, install deps; no Docker)
 setup-worktree:
 	bash .orca/setup.sh
+
+# Fail early when a target needs the running stack (main checkout only)
+require-web:
+	@if [ -z "$(WEB_CONTAINER)" ]; then \
+		echo "web コンテナが起動していません。main チェックアウト (~/git/sklog) で make docker-up してください。"; \
+		exit 1; \
+	fi
 
 # Start Docker containers
 docker-up:
@@ -35,16 +55,16 @@ docker-rebuild:
 	docker compose up --build -d
 
 # Get into the web container
-docker-web:
+docker-web: require-web
 	docker compose exec web bash
 
 # Get into the mysql container
-docker-db:
+docker-db: require-web
 	docker compose exec mysql mysql -u user -ppassword sklog
 
 # Get into the mailpit container
-docker-mail:
-	docker compose exec mailpit bash
+docker-mail: require-web
+	docker compose exec mail sh
 
 # Run the development server
 run:
@@ -55,45 +75,45 @@ build:
 	cd src && pnpm build
 
 # Run the queue worker (jobs are dispatched to the database queue)
-queue:
+queue: require-web
 	docker compose exec web php artisan queue:work
 
 # Drain the queue and exit (same as the production cron)
-queue-once:
+queue-once: require-web
 	docker compose exec web php artisan queue:work --stop-when-empty
 
 # Run the scheduler (bluesky:sync-all is scheduled hourly)
-schedule:
+schedule: require-web
 	docker compose exec web php artisan schedule:work
 
 # Migrate the database
-migrate:
+migrate: require-web
 	docker compose exec web php artisan migrate
 
 # Fresh migrate the database
-migrate-fresh:
+migrate-fresh: require-web
 	docker compose exec web php artisan migrate:fresh
 
 # Fresh migrate the database with seed
-migrate-fresh-seed:
+migrate-fresh-seed: require-web
 	docker compose exec web php artisan migrate:fresh --seed
 
 # Clear cache
 cache-clear:
-	docker compose exec web php artisan optimize:clear
+	$(PHP) php artisan optimize:clear
 
 # Check code style (Laravel Pint)
 lint:
-	docker compose exec web php vendor/bin/pint --test
+	$(PHP) php vendor/bin/pint --test
 
 # Fix code style
 format:
-	docker compose exec web php vendor/bin/pint
+	$(PHP) php vendor/bin/pint
 
 # Run unit tests
 test:
-	docker compose exec web php artisan test
+	$(PHP) php artisan test
 
 # Run unit tests with coverage
 test-coverage:
-	docker compose exec web php artisan test --coverage
+	$(PHP) php artisan test --coverage
