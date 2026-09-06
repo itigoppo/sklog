@@ -1,7 +1,15 @@
-@import 'tailwindcss';
+/*
+ * source(none) で Tailwind の自動ソース検出を切り、走査対象を下の @source だけに限定している。
+ * 自動検出はリポジトリ全体を舐めるため、README や lang/ の "lowercase"、
+ * migration 名の "table" などをクラス名と誤検出し、CSS と無関係なファイルを
+ * 編集しただけでビルド成果物（ハッシュ）が変わってしまう。
+ * クラス名を含むファイルを新しい場所に置いたら、ここに @source を足すこと。
+ */
+@import 'tailwindcss' source(none);
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
+@source '../../app/**/*.php';
 @source '../**/*.blade.php';
 @source '../**/*.js';
 
