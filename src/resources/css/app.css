@@ -4,11 +4,15 @@
  * migration 名の "table" などをクラス名と誤検出し、CSS と無関係なファイルを
  * 編集しただけでビルド成果物（ハッシュ）が変わってしまう。
  * クラス名を含むファイルを新しい場所に置いたら、ここに @source を足すこと。
+ *
+ * storage/framework/views（コンパイル済み Blade）は意図的に外している。
+ * テストや例外の発生でコンパイルされるファイルが変わり、ビルド成果物が
+ * 実行履歴に依存してしまうため。vendor のエラーページは自前の <style> を
+ * 持っているのでここで拾う必要はない。
  */
 @import 'tailwindcss' source(none);
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../storage/framework/views/*.php';
 @source '../../app/**/*.php';
 @source '../**/*.blade.php';
 @source '../**/*.js';
