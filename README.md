@@ -43,15 +43,18 @@ Orca の repo 設定 → Setup script に `bash .orca/setup.sh` が登録済み�
 
 ただしその `sklog-web` イメージは **main チェックアウトの compose が作るもの**です（ワークツリーで `compose build` しても `<ディレクトリ名>-web` という別名になります）。したがって **一度は main 側で `make docker-build`（または `./setup.sh`）を通しておく必要があります**。無い場合は Makefile がその旨を出して止まります。別名のイメージを使いたいときは `make WEB_IMAGE=<image> test` で上書きできます。
 
-DB が要るもの（`make migrate` / `make queue` / `make schedule` など）は、ワークツリー専用の使い捨て MySQL を立てれば動きます。
+DB はセットアップスクリプトが用意します。ワークツリー専用の MySQL を起動し、マイグレーションとシードまで済ませるので、作成直後から `make migrate` などが使えます。main の DB とは完全に別物なので、何をしても main 側には影響しません。
 
 ```
-make db-up     # このワークツリー専用の MySQL を起動（ネットワークも専用）
+make db-down   # 止めてメモリを空ける（--rm なのでコンテナごと消え、データも残らない）
+make db-up     # また使うときに起動する
 make migrate   # 専用 DB に対して実行される
-make db-down   # 停止（--rm なのでコンテナごと消え、データも残らない）
+make seed      # シードを流し直す
 ```
 
-main の DB とは完全に別で、main 側の中身には触りません。`make db-up` せずに `make migrate` を叩くとガードで止まります。
+MySQL は既定のままだと 1台 360MB ほど使うため、`docker/db/worktree.cnf` で `performance_schema` とバッファを絞って **約110MB** に抑えています（main の DB には影響しません）。DB が不要なワークツリーでは `make db-down`、最初から立てたくない場合は `bash .orca/setup.sh --no-db` を使ってください。
+
+DB を止めた状態で `make migrate` を叩くとガードで止まります。
 
 止め忘れたままワークツリーを消すとコンテナとネットワークが残るので、Orca の repo 設定 → Archive script に `bash .orca/archive.sh` を登録してあります。
 

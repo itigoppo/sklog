@@ -1,0 +1,19 @@
+# ワークツリー専用 MySQL (make db-up) の軽量設定
+#
+# ワークツリーの数だけコンテナが増えるため、既定のままだと 1台あたり 360MB ほど使う。
+# 開発用途では performance_schema と各種バッファを削っても困らないので絞っている
+# (実測 360MB -> 110MB)。main チェックアウトの DB (docker/db/my.cnf) には影響しない。
+[mysqld]
+performance_schema=OFF
+innodb_buffer_pool_size=32M
+innodb_log_buffer_size=4M
+key_buffer_size=8M
+tmp_table_size=8M
+max_heap_table_size=8M
+max_connections=20
+table_open_cache=64
+host_cache_size=0
+
+# クエリログはワークツリーでは不要 (ログ用のボリュームもマウントしていない)
+general_log=0
+slow_query_log=0

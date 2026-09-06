@@ -33,7 +33,7 @@ endif
 	setup setup-fresh setup-worktree \
 	docker-up docker-down docker-build docker-rebuild docker-web docker-db docker-mail \
 	run build queue queue-once schedule \
-	migrate migrate-fresh migrate-fresh-seed cache-clear \
+	migrate migrate-fresh migrate-fresh-seed seed cache-clear \
 	test test-coverage \
 	lint format \
 	require-web require-php require-db \
@@ -97,6 +97,7 @@ db-up: require-php
 	@if [ -n "$(WT_DB_RUNNING)" ]; then echo "$(WT_DB) は既に起動しています。"; exit 0; fi; \
 	docker network inspect $(WT_NET) >/dev/null 2>&1 || docker network create $(WT_NET) >/dev/null; \
 	docker run -d --rm --name $(WT_DB) --network $(WT_NET) --network-alias mysql \
+		-v "$(CURDIR)/docker/db/worktree.cnf":/etc/mysql/conf.d/worktree.cnf:ro \
 		-e TZ=Asia/Tokyo -e MYSQL_DATABASE=sklog -e MYSQL_ROOT_PASSWORD=root \
 		-e MYSQL_USER=user -e MYSQL_PASSWORD=password $(DB_IMAGE) >/dev/null; \
 	printf "MySQL の起動を待っています"; \
@@ -197,6 +198,10 @@ migrate-fresh: require-php require-db
 # Fresh migrate the database with seed
 migrate-fresh-seed: require-php require-db
 	$(PHP) php artisan migrate:fresh --seed
+
+# Run the database seeders
+seed: require-php require-db
+	$(PHP) php artisan db:seed
 
 # Clear cache
 cache-clear: require-php

@@ -13,6 +13,7 @@
 # 使い方:
 #   bash .orca/setup.sh           # 通常（vendor が既にあれば composer install はスキップ）
 #   bash .orca/setup.sh --force   # vendor があっても composer install をやり直す
+#   bash .orca/setup.sh --no-db   # ワークツリー専用 MySQL を起動しない
 
 set -uo pipefail
 
@@ -20,9 +21,11 @@ cd "$(dirname "$0")/.."
 ROOT="$PWD"
 
 FORCE=0
+WITH_DB=1
 for arg in "$@"; do
   case "$arg" in
     --force) FORCE=1 ;;
+    --no-db) WITH_DB=0 ;;
     *) echo "Unknown option: $arg" >&2; exit 1 ;;
   esac
 done
@@ -114,6 +117,23 @@ else
   warn "  main チェックアウトで一度ビルドしてください: cd ~/git/sklog && make docker-build"
 fi
 
+# ---------- ワークツリー専用 DB ----------
+# main の DB とは別の、このワークツリー専用の MySQL を立てる。
+# 軽量設定 (docker/db/worktree.cnf) を効かせて 1台あたり約 110MB に抑えている。
+step "ワークツリー専用の MySQL を起動します"
+if [ "$WITH_DB" -eq 0 ]; then
+  info "--no-db が指定されたのでスキップします（あとで make db-up で起動できます）。"
+elif [ "$MAIN" = "$ROOT" ]; then
+  info "ここは main チェックアウトなのでスキップします。"
+elif ! docker image inspect sklog-mysql >/dev/null 2>&1; then
+  warn "sklog-mysql イメージがないためスキップします。"
+  warn "  main チェックアウトで一度ビルドしてください: cd ~/git/sklog && make docker-build"
+elif make db-up && make migrate && make seed; then
+  info "マイグレーションとシードまで完了しました。"
+else
+  warn "DB のセットアップに失敗しました。make db-up / make migrate を手で試してください。"
+fi
+
 # ---------- 完了 ----------
 cat <<'MSG'
 
@@ -127,12 +147,12 @@ cat <<'MSG'
   make build    # Vite ビルド
   make run      # Vite 開発サーバー（ポートが空いていれば）
 
-DB が要るもの（make migrate / queue / schedule など）は、このワークツリー専用の
-使い捨て MySQL を立てれば動きます。main の DB は汚しません。
+ワークツリー専用の MySQL（約110MB）が起動していて、マイグレーションとシードが
+済んでいます。main の DB とは別物なので、いくら壊しても main には影響しません。
 
-  make db-up     # 専用 MySQL を起動
   make migrate   # このワークツリーの DB に対して実行される
-  make db-down   # 停止（コンテナごと消えるのでデータも残りません）
+  make db-down   # 止めてメモリを空ける（コンテナごと消えるのでデータも残りません）
+  make db-up     # また使うときに起動する
 
 アプリをブラウザで確認したいときは main チェックアウト側で行ってください
 （コンテナは main のディレクトリをマウントしています）。
