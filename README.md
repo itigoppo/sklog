@@ -30,13 +30,16 @@ Orca でワークツリーを作成したときに走らせるスクリプトで
 bash .orca/setup.sh
 ```
 
-Orca の repo 設定 → Setup script に上記を登録しておくと、ワークツリー作成時に自動で実行されます。
+Orca の repo 設定 → Setup script に `bash .orca/setup.sh` が登録済みで、ワークツリー作成時に自動実行されます（動作確認済み）。
 
 - `src/.env` は main チェックアウトからコピーします
 - `src/node_modules` はホストの `pnpm install` で作ります
 - `src/vendor` は使い捨ての `composer:2` コンテナで作ります（ホストに PHP 不要。`--no-scripts`）
 - **Docker は起動しません。** `docker-compose.yml` は `container_name` とポートが固定のため、main チェックアウトの環境と衝突します。アプリの動作確認は main 側（`cd ~/git/sklog && make docker-up`）で行ってください
 - `vendor` が既にある場合はスキップします。作り直すときは `bash .orca/setup.sh --force`
+- `.husky/_` も生成します（git 管理外のため、これが無いとワークツリーでは pre-commit のアセットビルドが黙ってスキップされます）
+
+ワークツリー削除時の後始末は不要です。コンテナは `docker run --rm` の使い捨てしか作らないため残らず、`src/vendor` や `src/node_modules` は `orca worktree rm`（`--force` なし）でワークツリーごと削除されます。
 
 ## 手動セットアップ
 
