@@ -18,6 +18,13 @@ WT_NET := sklog_wt_$(WT_NAME)
 WT_DB := sklog_wt_$(WT_NAME)_db
 WT_DB_RUNNING := $(shell docker ps -q -f name=^$(WT_DB)$$ 2>/dev/null)
 
+WT_APP := sklog_wt_$(WT_NAME)_app
+WT_MAIL := sklog_wt_$(WT_NAME)_mail
+# ワークツリー名からポートを決める (18081-18099 / 18025 系)。衝突したら APP_PORT= で上書きする
+WT_PORT_OFFSET := $(shell printf '%s' "$(WT_NAME)" | cksum | cut -d' ' -f1 | awk '{print $$1 % 19}')
+APP_PORT ?= $(shell expr 18081 + $(WT_PORT_OFFSET))
+MAIL_PORT ?= $(shell expr 18026 + $(WT_PORT_OFFSET))
+
 WT_RUN = docker run --rm -v "$(CURDIR)":/home/itigoppo/git/sklog -w /home/itigoppo/git/sklog/src
 ifeq ($(WEB_CONTAINER),)
 ifeq ($(WT_DB_RUNNING),)
@@ -37,7 +44,8 @@ endif
 	test test-coverage \
 	lint format \
 	require-web require-php require-db \
-	db-up db-down db-prune
+	db-up db-down db-prune \
+	app-up app-down
 
 # Set up the local development environment
 setup:
@@ -113,6 +121,40 @@ db-up: require-php
 	echo " タイムアウトしました。docker logs $(WT_DB) を確認してください。"; \
 	exit 1
 
+# Serve this worktree's app (main checkout keeps using docker compose)
+app-up: require-php require-db
+	@if [ "$(CURDIR)" = "$(MAIN_CHECKOUT)" ]; then \
+		echo "main チェックアウトでは make docker-up を使ってください。"; \
+		exit 1; \
+	fi
+	@docker rm -f $(WT_APP) $(WT_MAIL) >/dev/null 2>&1 || true
+	@docker run -d --rm --name $(WT_MAIL) --network $(WT_NET) --network-alias mail \
+		-p $(MAIL_PORT):8025 sklog-mail >/dev/null
+	@docker run -d --rm --name $(WT_APP) --network $(WT_NET) \
+		-v "$(CURDIR)":/home/itigoppo/git/sklog -w /home/itigoppo/git/sklog/src \
+		-p $(APP_PORT):8000 $(WEB_IMAGE) \
+		php artisan serve --host=0.0.0.0 --port=8000 >/dev/null
+	@printf "起動を待っています"; \
+	for i in $$(seq 1 30); do \
+		if curl -s -o /dev/null http://localhost:$(APP_PORT)/ 2>/dev/null; then \
+			echo " OK"; \
+			echo ""; \
+			echo "  アプリ    : http://localhost:$(APP_PORT)"; \
+			echo "  Mailpit   : http://localhost:$(MAIL_PORT)"; \
+			echo ""; \
+			echo "  アセットを編集しながら見るときは別ターミナルで make run (Vite) も起動してください。"; \
+			exit 0; \
+		fi; \
+		printf "."; \
+		sleep 1; \
+	done; \
+	echo " タイムアウトしました。docker logs $(WT_APP) を確認してください。"; \
+	exit 1
+
+# Stop this worktree's app
+app-down:
+	@docker rm -f $(WT_APP) $(WT_MAIL) >/dev/null 2>&1 && echo "アプリを停止しました。" || echo "アプリは起動していません。"
+
 # Remove throwaway MySQL containers whose worktree no longer exists
 # (archive フックが走らずに削除されたワークツリーの取りこぼし用)
 db-prune:
@@ -121,7 +163,8 @@ db-prune:
 	existing=$$(git worktree list --porcelain | awk '/^worktree /{n=split($$2,a,"/"); print a[n]}' \
 		| while IFS= read -r b; do printf '%s\n' "$$(printf '%s' "$$b" | tr -c 'A-Za-z0-9_.-' '_')"; done); \
 	printf '%s\n' "$$names" | while IFS= read -r c; do \
-		n=$${c#sklog_wt_}; n=$${n%_db}; \
+		n=$${c#sklog_wt_}; \
+		case "$$n" in *_db) n=$${n%_db};; *_app) n=$${n%_app};; *_mail) n=$${n%_mail};; esac; \
 		if printf '%s\n' "$$existing" | grep -qx "$$n"; then \
 			echo "$$c: ワークツリーが存在するので残します"; \
 		else \
@@ -131,7 +174,7 @@ db-prune:
 	done
 
 # Stop the throwaway MySQL (the container and its data are removed)
-db-down:
+db-down: app-down
 	@docker rm -f $(WT_DB) >/dev/null 2>&1 && echo "$(WT_DB) を停止しました。" || echo "$(WT_DB) は起動していません。"
 	@docker network rm $(WT_NET) >/dev/null 2>&1 || true
 

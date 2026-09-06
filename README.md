@@ -35,7 +35,7 @@ Orca の repo 設定 → Setup script に `bash .orca/setup.sh` が登録済み�
 - `src/.env` は main チェックアウトからコピーします
 - `src/node_modules` はホストの `pnpm install` で作ります
 - `src/vendor` は使い捨ての `composer:2` コンテナで作ります（ホストに PHP 不要）
-- **アプリのスタック（compose）は起動しません。** `docker-compose.yml` は `container_name` とポートが固定なので、main チェックアウトの環境と衝突します。ブラウザでの確認は main 側（`cd ~/git/sklog && make docker-up`）で行ってください
+- **compose のスタックは起動しません。** `docker-compose.yml` は `container_name` とポートが固定なので、main チェックアウトの環境と衝突します。ワークツリーのアプリをブラウザで見たいときは後述の `make app-up` を使います
 - `vendor` が既にある場合はスキップします。作り直すときは `bash .orca/setup.sh --force`
 - `.husky/_` も生成します（git 管理外のため、これが無いとワークツリーでは pre-commit のアセットビルドが黙ってスキップされます）
 
@@ -64,7 +64,20 @@ DB を止めた状態で `make migrate` を叩くとガードで止まります�
 make db-prune   # ワークツリーが存在しない sklog_wt_* を削除する
 ```
 
-なお、アプリをブラウザで確認したいときは main チェックアウト側で行ってください（コンテナは main のディレクトリをマウントしているため、ワークツリーの変更はマイグレーションに限らず反映されません）。
+### ワークツリーのアプリをブラウザで見る
+
+compose のスタックは main のディレクトリをマウントしているので、ワークツリーの変更は `http://localhost:18080` には出ません。ワークツリー側で見るには専用のアプリを立てます。
+
+```
+make app-up     # このワークツリーの Laravel と Mailpit を起動（URL が表示されます）
+make app-down   # 停止
+```
+
+`php artisan serve` をワークツリー専用ネットワークで動かすので、DB も Mailpit もそのワークツリーのものを使います。ポートはワークツリー名から決まります（アプリ 18081〜18099、Mailpit 18026〜18044）。衝突したら `make APP_PORT=18090 app-up` のように上書きしてください。
+
+アセットを編集しながら確認するときは、別ターミナルで `make run`（Vite）も起動します。ワークツリーの `public/hot` をそのワークツリーの Laravel が読むので、HMR がそのまま効きます。
+
+メモリはアプリ 73MB + Mailpit 10MB です（DB 119MB と合わせて約200MB）。
 
 `src/vendor` や `src/node_modules` は `orca worktree rm`（`--force` なし）でワークツリーごと削除されるので、後始末は `make db-up` した DB コンテナだけです（上記の Archive script が担当）。
 

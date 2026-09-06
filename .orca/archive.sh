@@ -2,7 +2,7 @@
 #
 # Orca ワークツリー削除時のクリーンアップスクリプト
 #
-# make db-up で立てたワークツリー専用の MySQL を止めます。
+# make db-up / make app-up で立てたワークツリー専用のコンテナを止めます。
 # 止め忘れたままワークツリーを消すとコンテナとネットワークが残るため、
 # Orca の archive フックから実行される想定です。
 #
@@ -17,7 +17,6 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 
 WT_NAME="$(printf '%s' "$(basename "$PWD")" | tr -c 'A-Za-z0-9_.-' '_')"
-WT_DB="sklog_wt_${WT_NAME}_db"
 WT_NET="sklog_wt_${WT_NAME}"
 
 if ! docker info >/dev/null 2>&1; then
@@ -25,11 +24,17 @@ if ! docker info >/dev/null 2>&1; then
   exit 0
 fi
 
-if [ -n "$(docker ps -aq -f "name=^${WT_DB}$")" ]; then
-  docker rm -f "$WT_DB" >/dev/null 2>&1
-  echo "$WT_DB を削除しました。"
-else
-  echo "$WT_DB はありません。"
+removed=0
+for suffix in db app mail; do
+  c="sklog_wt_${WT_NAME}_${suffix}"
+  if [ -n "$(docker ps -aq -f "name=^${c}$")" ]; then
+    docker rm -f "$c" >/dev/null 2>&1
+    echo "$c を削除しました。"
+    removed=$((removed + 1))
+  fi
+done
+if [ "$removed" -eq 0 ]; then
+  echo "このワークツリーのコンテナはありません。"
 fi
 
 if docker network rm "$WT_NET" >/dev/null 2>&1; then

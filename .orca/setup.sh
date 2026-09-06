@@ -154,8 +154,12 @@ cat <<'MSG'
   make db-down   # 止めてメモリを空ける（コンテナごと消えるのでデータも残りません）
   make db-up     # また使うときに起動する
 
-アプリをブラウザで確認したいときは main チェックアウト側で行ってください
-（コンテナは main のディレクトリをマウントしています）。
+このワークツリーのアプリをブラウザで見たいとき:
 
-  cd ~/git/sklog && make docker-up
+  make app-up    # 専用の Laravel + Mailpit を起動（URL が表示されます）
+  make run       # 別ターミナルで Vite（HMR が効きます）
+  make app-down  # 停止
+
+main の compose スタック (http://localhost:18080) は main のディレクトリを
+マウントしているので、ワークツリーの変更はそちらには出ません。
 MSG
