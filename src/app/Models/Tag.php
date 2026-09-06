@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Model;
 
 #[Fillable([
   'name',
@@ -25,22 +25,19 @@ class Tag extends Model
 
   /**
    * テキストからハッシュタグ（#を除く名前部分）を抽出します。
-   *
-   * @param string $text
-   * @return array
    */
   public static function extractTags(string $text): array
   {
-    if (preg_match_all(self::EXTRACT_REGEX, $text, $matches) && !empty($matches[1])) {
-      return array_unique((array)$matches[1]);
+    if (preg_match_all(self::EXTRACT_REGEX, $text, $matches) && ! empty($matches[1])) {
+      return array_unique((array) $matches[1]);
     }
+
     return [];
   }
 
   /**
    * キーワードがハッシュタグ形式であるかを判定し、タグ名を返します。
    *
-   * @param string $keyword
    * @return string|null タグ名（#を除いたもの）。ハッシュタグでなければnull。
    */
   public static function parseHashtag(string $keyword): ?string
@@ -48,6 +45,7 @@ class Tag extends Model
     if (preg_match(self::STRICT_REGEX, $keyword, $matches)) {
       return $matches[1];
     }
+
     return null;
   }
 

@@ -2,19 +2,21 @@
 
 namespace App\Jobs;
 
-use App\Models\User;
 use App\Models\BlueskyAccount;
-use App\Services\BlueskyService;
 use App\Models\Post;
 use App\Models\Tag;
+use App\Models\User;
+use App\Services\BlueskyService;
+use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Carbon;
-use Exception;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class SyncBlueskyPostsJob implements ShouldQueue
 {
@@ -36,14 +38,16 @@ class SyncBlueskyPostsJob implements ShouldQueue
   public function handle(BlueskyService $blueskyService): void
   {
     $bskyAccount = $this->user->blueskyAccount;
-    if (!$bskyAccount) {
+    if (! $bskyAccount) {
       Log::warning("SyncJob: User {$this->user->id} has no Bluesky account.");
+
       return;
     }
 
     // 二重起動防止：すでに実行中の場合は処理をスキップ
     if ($bskyAccount->is_syncing) {
       Log::info("SyncJob: User {$this->user->id} (@{$bskyAccount->handle}) is already syncing. Skipping.");
+
       return;
     }
 
@@ -53,7 +57,7 @@ class SyncBlueskyPostsJob implements ShouldQueue
 
       // 暗号化されたアプリパスワードは自動で復号される（Model of casts設定による）
       $password = $bskyAccount->encrypted_app_password;
-      
+
       // セッション作成
       $session = $blueskyService->authenticate($bskyAccount->handle, $password);
       $token = $session['accessJwt'];
@@ -61,7 +65,7 @@ class SyncBlueskyPostsJob implements ShouldQueue
 
       // 1. プロフィール情報を取得して最新キャッシュに更新
       $profile = $blueskyService->getProfile($did, $token);
-      
+
       $isPrivate = BlueskyAccount::isPrivateFromProfile($profile);
 
       $bskyAccount->update([
@@ -81,17 +85,17 @@ class SyncBlueskyPostsJob implements ShouldQueue
 
       foreach ($latestFeed as $item) {
         $postData = $item['post'] ?? null;
-        if (!$postData) {
+        if (! $postData) {
           continue;
         }
 
         $uri = $postData['uri'];
-        
+
         // 自身のオリジナルポスト、または本人のリポストのみを収集対象とする
         $authorDid = $postData['author']['did'] ?? '';
         $isRepost = isset($item['reason']) && (($item['reason']['$type'] ?? '') === 'app.bsky.feed.defs#reasonRepost');
-        
-        if ($authorDid !== $did && !$isRepost) {
+
+        if ($authorDid !== $did && ! $isRepost) {
           continue;
         }
 
@@ -114,13 +118,14 @@ class SyncBlueskyPostsJob implements ShouldQueue
           if ($bskyAccount->is_archive_complete) {
             break;
           }
+
           continue;
         }
 
         $cid = $postData['cid'];
         $record = $postData['record'] ?? [];
         $text = $record['text'] ?? '';
-        
+
         if ($isRepost) {
           // リポストの場合は「自分がリポストした日時」を使用する
           $createdAtString = $item['reason']['indexedAt'] ?? null;
@@ -129,7 +134,7 @@ class SyncBlueskyPostsJob implements ShouldQueue
           $createdAtString = $record['createdAt'] ?? null;
         }
 
-        if (!$createdAtString) {
+        if (! $createdAtString) {
           continue;
         }
 
@@ -148,7 +153,7 @@ class SyncBlueskyPostsJob implements ShouldQueue
 
         // ハッシュタグの抽出と紐付け（オリジナル投稿のみ対象、リポストのハッシュタグは集計から除外するためスキップ）
         $tagIds = [];
-        if (!$isRepost) {
+        if (! $isRepost) {
           foreach (Tag::extractTags($text) as $tagName) {
             $tag = Tag::firstOrCreate(['name' => $tagName]);
             $tagIds[] = $tag->id;
@@ -159,7 +164,7 @@ class SyncBlueskyPostsJob implements ShouldQueue
 
       // 初回同期時（まだ過去遡り用カーソルがなく、DBへの登録が初めてのとき）の初期設定
       // 最新の同期で取得した最後の cursor を next_cursor にセットし、過去方向への遡り起点とする
-      if (!$bskyAccount->next_cursor && !$bskyAccount->is_archive_complete) {
+      if (! $bskyAccount->next_cursor && ! $bskyAccount->is_archive_complete) {
         if ($latestCursor) {
           $bskyAccount->update([
             'next_cursor' => $latestCursor,
@@ -175,7 +180,7 @@ class SyncBlueskyPostsJob implements ShouldQueue
       // 3. 過去の投稿（過去方向）を同期
       // 過去ログのインポートが完了しておらず、かつ遡り用カーソルがある場合に実行
       $bskyAccount->refresh();
-      if (!$bskyAccount->is_archive_complete && $bskyAccount->next_cursor) {
+      if (! $bskyAccount->is_archive_complete && $bskyAccount->next_cursor) {
         $archiveFeedData = $blueskyService->getAuthorFeed(
           $did,
           limit: 100,
@@ -187,15 +192,15 @@ class SyncBlueskyPostsJob implements ShouldQueue
 
         foreach ($archiveFeed as $item) {
           $postData = $item['post'] ?? null;
-          if (!$postData) {
+          if (! $postData) {
             continue;
           }
 
           $uri = $postData['uri'];
           $authorDid = $postData['author']['did'] ?? '';
           $isRepost = isset($item['reason']) && (($item['reason']['$type'] ?? '') === 'app.bsky.feed.defs#reasonRepost');
-          
-          if ($authorDid !== $did && !$isRepost) {
+
+          if ($authorDid !== $did && ! $isRepost) {
             continue;
           }
 
@@ -213,6 +218,7 @@ class SyncBlueskyPostsJob implements ShouldQueue
             if ($existingPost->trashed()) {
               continue;
             }
+
             // 過去ログはすでにDBにあるためスキップ
             continue;
           }
@@ -220,7 +226,7 @@ class SyncBlueskyPostsJob implements ShouldQueue
           $cid = $postData['cid'];
           $record = $postData['record'] ?? [];
           $text = $record['text'] ?? '';
-          
+
           if ($isRepost) {
             // リポストの場合は「自分がリポストした日時」を使用する
             $createdAtString = $item['reason']['indexedAt'] ?? null;
@@ -229,7 +235,7 @@ class SyncBlueskyPostsJob implements ShouldQueue
             $createdAtString = $record['createdAt'] ?? null;
           }
 
-          if (!$createdAtString) {
+          if (! $createdAtString) {
             continue;
           }
 
@@ -248,7 +254,7 @@ class SyncBlueskyPostsJob implements ShouldQueue
 
           // ハッシュタグの抽出と紐付け（オリジナル投稿のみ対象、リポストのハッシュタグは集計から除外するためスキップ）
           $tagIds = [];
-          if (!$isRepost) {
+          if (! $isRepost) {
             foreach (Tag::extractTags($text) as $tagName) {
               $tag = Tag::firstOrCreate(['name' => $tagName]);
               $tagIds[] = $tag->id;
@@ -272,7 +278,7 @@ class SyncBlueskyPostsJob implements ShouldQueue
       }
 
       // 既存ポストに対する一括ハッシュタグ初回移行ロジック (中間テーブルが空の場合のみ自動実行)
-      if (\Illuminate\Support\Facades\DB::table('post_tags')->count() === 0) {
+      if (DB::table('post_tags')->count() === 0) {
         $existingPosts = Post::where('user_id', $this->user->id)->get();
         foreach ($existingPosts as $existingPost) {
           // リポストの場合はハッシュタグを集計対象外にするため移行をスキップ
@@ -285,14 +291,14 @@ class SyncBlueskyPostsJob implements ShouldQueue
             $tag = Tag::firstOrCreate(['name' => $tagName]);
             $tagIds[] = $tag->id;
           }
-          if (!empty($tagIds)) {
+          if (! empty($tagIds)) {
             $existingPost->tags()->sync($tagIds);
           }
         }
       }
 
       // ハッシュタグキャッシュのクリア（次回のページ読み込み時に最新で再計算されます）
-      \Illuminate\Support\Facades\Cache::forget('user-tags:' . $this->user->id);
+      Cache::forget('user-tags:'.$this->user->id);
 
       // 同期成功日時を記録し、直近のエラー情報をクリア
       $bskyAccount->update([
@@ -307,12 +313,12 @@ class SyncBlueskyPostsJob implements ShouldQueue
 
     } catch (Exception $e) {
       $errorMessage = $e->getMessage();
-      Log::error("SyncJob Error for user {$this->user->id}: " . $errorMessage);
+      Log::error("SyncJob Error for user {$this->user->id}: ".$errorMessage);
 
       // アプリパスワード無効による認証エラーかどうかを特定
       $errorType = 'api_failed'; // デフォルトは汎用APIエラー
-      if (str_contains($errorMessage, 'ハンドル名またはアプリパスワードが正しくありません') || 
-          str_contains($errorMessage, 'Authentication failed') || 
+      if (str_contains($errorMessage, 'ハンドル名またはアプリパスワードが正しくありません') ||
+          str_contains($errorMessage, 'Authentication failed') ||
           str_contains($errorMessage, 'Invalid identifier or password')) {
         $errorType = 'auth_failed';
       }

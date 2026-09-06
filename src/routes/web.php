@@ -1,16 +1,17 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\WaitlistController;
-use App\Http\Controllers\AdminController;
+use App\Http\Middleware\AdminAuth;
+use App\Models\BlueskyAccount;
+use Illuminate\Support\Facades\Route;
 
 // 1. ルートURLへのアクセス
 Route::get('/', function () {
   // 公開されているBlueskyアカウントを最新登録順に取得
-  $publicAccounts = \App\Models\BlueskyAccount::where('is_private', false)
+  $publicAccounts = BlueskyAccount::where('is_private', false)
     ->where('handle', '!=', config('services.bluesky.demo_handle'))
     ->with('user')
     ->orderBy('created_at', 'desc')
@@ -43,19 +44,19 @@ Route::post('/sync', [CalendarController::class, 'sync'])
   ->name('calendar.sync');
 
 // 6. 管理画面 (固定)
-Route::get('/admin', fn() => redirect()->route('admin.login'));
+Route::get('/admin', fn () => redirect()->route('admin.login'));
 Route::get('/admin/login', [AdminController::class, 'showLogin'])->name('admin.login');
 Route::post('/admin/login', [AdminController::class, 'login'])->name('admin.login.post');
 Route::post('/admin/logout', [AdminController::class, 'logout'])->name('admin.logout');
-Route::middleware(\App\Http\Middleware\AdminAuth::class)->group(function () {
+Route::middleware(AdminAuth::class)->group(function () {
   Route::get('/admin/waitlist', [AdminController::class, 'index'])->name('admin.waitlist');
   Route::post('/admin/waitlist/{entry}/invite', [AdminController::class, 'sendInvite'])->name('admin.waitlist.invite');
   Route::post('/admin/waitlist/{entry}/reinvite', [AdminController::class, 'reinvite'])->name('admin.waitlist.reinvite');
-  
+
   // 登録ユーザー管理関連
   Route::get('/admin/users', [AdminController::class, 'users'])->name('admin.users');
   Route::post('/admin/users/{entry}/force-delete', [AdminController::class, 'forceDelete'])->name('admin.users.force_delete');
-  
+
   // セキュリティ設定関連
   Route::get('/admin/security', [AdminController::class, 'securitySettings'])->name('admin.security');
   Route::post('/admin/security/verify', [AdminController::class, 'verify2faSetup'])->name('admin.security.verify');
@@ -133,4 +134,3 @@ Route::prefix('/profile/{handle}')->where(['handle' => $handlePattern])->group(f
     ->middleware('auth')
     ->name('calendar.post.restore');
 });
-

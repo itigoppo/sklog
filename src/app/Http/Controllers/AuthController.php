@@ -2,17 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
 use App\Models\BlueskyAccount;
 use App\Models\InviteCode;
+use App\Models\User;
+use App\Models\WaitlistEntry;
 use App\Services\BlueskyService;
-use App\Jobs\SyncBlueskyPostsJob;
+use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Carbon;
-use Exception;
+use Illuminate\Support\Facades\RateLimiter;
 
 class AuthController extends Controller
 {
@@ -30,6 +31,7 @@ class AuthController extends Controller
   {
     if (Auth::check()) {
       $handle = Auth::user()->blueskyAccount->handle;
+
       return redirect()->route('calendar.show', ['handle' => $handle]);
     }
 
@@ -43,6 +45,7 @@ class AuthController extends Controller
   {
     if (Auth::check()) {
       $handle = Auth::user()->blueskyAccount->handle;
+
       return redirect()->route('calendar.show', ['handle' => $handle]);
     }
 
@@ -65,7 +68,7 @@ class AuthController extends Controller
 
     // 招待コードの検証
     $inviteCode = InviteCode::where('code', strtoupper(trim($request->invite_code)))->first();
-    if (!$inviteCode || $inviteCode->isUsed()) {
+    if (! $inviteCode || $inviteCode->isUsed()) {
       return back()->withErrors([
         'invite_code' => '招待コードが無効または使用済みです。',
       ])->withInput($request->only('handle', 'invite_code'));
@@ -103,7 +106,7 @@ class AuthController extends Controller
       } elseif ($inviteCode->handle) {
         // did移行前や手動作成時などのためのフォールバック照合
         $expectedHandle = strtolower(ltrim($inviteCode->handle, '@'));
-        $actualHandle   = strtolower(ltrim($handle, '@'));
+        $actualHandle = strtolower(ltrim($handle, '@'));
         if ($expectedHandle !== $actualHandle) {
           return back()->withErrors([
             'handle' => 'このハンドル名では登録できません。申請時に使用したハンドルで登録してください。',
@@ -115,7 +118,7 @@ class AuthController extends Controller
       try {
         $profile = $this->blueskyService->getProfile($did, $token);
       } catch (Exception $e) {
-        Log::warning('Register: Failed to fetch profile details: ' . $e->getMessage());
+        Log::warning('Register: Failed to fetch profile details: '.$e->getMessage());
       }
 
       $displayName = $profile['displayName'] ?? $handle;
@@ -142,7 +145,7 @@ class AuthController extends Controller
 
         // ウェイトリストのステータスを登録済みに更新
         if ($inviteCode->waitlist_entry_id) {
-          \App\Models\WaitlistEntry::where('id', $inviteCode->waitlist_entry_id)
+          WaitlistEntry::where('id', $inviteCode->waitlist_entry_id)
             ->update(['status' => 'registered']);
         }
 
@@ -171,11 +174,12 @@ class AuthController extends Controller
       'app_password' => 'required|string',
     ]);
 
-    $throttleKey = 'login-attempt:' . $request->ip() . '|' . strtolower($credentials['handle']);
+    $throttleKey = 'login-attempt:'.$request->ip().'|'.strtolower($credentials['handle']);
 
     // 1分間に5回までのログイン試行制限
-    if (\Illuminate\Support\Facades\RateLimiter::tooManyAttempts($throttleKey, 5)) {
-      $seconds = \Illuminate\Support\Facades\RateLimiter::availableIn($throttleKey);
+    if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+      $seconds = RateLimiter::availableIn($throttleKey);
+
       return back()->withErrors([
         'handle' => "ログイン試行回数の上限を超えました。{$seconds}秒後に再度お試しください。",
       ])->withInput($request->only('handle'));
@@ -204,7 +208,7 @@ class AuthController extends Controller
           }
         }
 
-        if (!$session) {
+        if (! $session) {
           throw $authEx;
         }
       }
@@ -215,9 +219,9 @@ class AuthController extends Controller
 
       // 未登録ユーザーの処理
       $bskyAccount = BlueskyAccount::where('did', $did)->first();
-      if (!$bskyAccount) {
+      if (! $bskyAccount) {
         // ログイン試行制限をクリア（正しいパスワード・ログイン情報だが、SkLoG未登録という場合も一旦クリア）
-        \Illuminate\Support\Facades\RateLimiter::clear($throttleKey);
+        RateLimiter::clear($throttleKey);
 
         $normalizedHandle = strtolower(ltrim(trim($handle), '@'));
 
@@ -226,7 +230,7 @@ class AuthController extends Controller
           ->whereNull('used_at')
           ->exists();
 
-        $isInvitedInWaitlist = \App\Models\WaitlistEntry::where('handle', $normalizedHandle)
+        $isInvitedInWaitlist = WaitlistEntry::where('handle', $normalizedHandle)
           ->where('status', 'invited')
           ->exists();
 
@@ -246,7 +250,7 @@ class AuthController extends Controller
       try {
         $profile = $this->blueskyService->getProfile($did, $token);
       } catch (Exception $e) {
-        Log::warning('Login: Failed to fetch profile details: ' . $e->getMessage());
+        Log::warning('Login: Failed to fetch profile details: '.$e->getMessage());
       }
 
       $isPrivate = BlueskyAccount::isPrivateFromProfile($profile);
@@ -262,8 +266,9 @@ class AuthController extends Controller
             'profile' => $profile,
             'is_private' => $isPrivate,
             'throttle_key' => $throttleKey,
-          ]
+          ],
         ]);
+
         return redirect()->route('login.confirm_handle_change');
       }
 
@@ -284,7 +289,7 @@ class AuthController extends Controller
       ]);
 
       // ログイン成功時に試行制限カウントをクリア
-      \Illuminate\Support\Facades\RateLimiter::clear($throttleKey);
+      RateLimiter::clear($throttleKey);
 
       Auth::login($user, true);
 
@@ -293,7 +298,7 @@ class AuthController extends Controller
 
     } catch (Exception $e) {
       // ログイン失敗時に制限カウントを増やす（有効期限60秒）
-      \Illuminate\Support\Facades\RateLimiter::hit($throttleKey, 60);
+      RateLimiter::hit($throttleKey, 60);
 
       return back()->withErrors([
         'handle' => 'ハンドル名またはアプリパスワードが正しくありません。',
@@ -336,12 +341,12 @@ class AuthController extends Controller
     ]);
 
     $inviteCode = InviteCode::where('code', strtoupper(trim($request->expired_code)))->first();
-    if (!$inviteCode || $inviteCode->isUsed() || ($inviteCode->waitlistEntry && $inviteCode->waitlistEntry->status === 'registered')) {
+    if (! $inviteCode || $inviteCode->isUsed() || ($inviteCode->waitlistEntry && $inviteCode->waitlistEntry->status === 'registered')) {
       return back()->withErrors(['invite_code' => '無効な招待コードです。']);
     }
 
     $entry = $inviteCode->waitlistEntry;
-    if (!$entry) {
+    if (! $entry) {
       return back()->withErrors(['invite_code' => '無効な招待コードです。']);
     }
 
@@ -363,7 +368,7 @@ class AuthController extends Controller
     }
 
     $pending = session('handle_change_pending');
-    if (!$pending) {
+    if (! $pending) {
       return redirect()->route('login');
     }
 
@@ -379,7 +384,7 @@ class AuthController extends Controller
   public function confirmHandleChange(Request $request)
   {
     $pending = session('handle_change_pending');
-    if (!$pending) {
+    if (! $pending) {
       return redirect()->route('login');
     }
 
@@ -392,12 +397,14 @@ class AuthController extends Controller
 
     if ($action === 'cancel') {
       session()->forget('handle_change_pending');
+
       return redirect()->route('login')->with('info', 'ログインをキャンセルしました。');
     }
 
     $user = User::find($pending['user_id']);
-    if (!$user) {
+    if (! $user) {
       session()->forget('handle_change_pending');
+
       return redirect()->route('login')->withErrors(['handle' => 'ユーザーが見つかりません。']);
     }
 
@@ -407,6 +414,7 @@ class AuthController extends Controller
       });
 
       session()->forget('handle_change_pending');
+
       return redirect()->route('login')->with('success', 'アカウントとすべてのカレンダーデータを完全に削除しました。');
     }
 
@@ -431,7 +439,7 @@ class AuthController extends Controller
       ]);
 
       // 試行制限カウントをクリア
-      \Illuminate\Support\Facades\RateLimiter::clear($throttleKey);
+      RateLimiter::clear($throttleKey);
       session()->forget('handle_change_pending');
 
       Auth::login($user, true);

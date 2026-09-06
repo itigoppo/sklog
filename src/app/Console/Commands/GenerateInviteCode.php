@@ -9,6 +9,7 @@ use Illuminate\Support\Str;
 class GenerateInviteCode extends Command
 {
   protected $signature = 'invite:generate {--count=1 : 発行する件数}';
+
   protected $description = '招待コードを発行します';
 
   public function handle(): void

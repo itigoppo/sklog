@@ -20,7 +20,7 @@ class WaitlistAppliedMail extends Mailable
   public function envelope(): Envelope
   {
     return new Envelope(
-      subject: '[' . config('app.name') . '] 新しい参加申請があります',
+      subject: '['.config('app.name').'] 新しい参加申請があります',
     );
   }
 

@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Support\Carbon;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 #[Fillable([
   'user_id',
@@ -46,7 +49,7 @@ class Post extends Model
    */
   public function getBskyUrlAttribute(): ?string
   {
-    if (!$this->uri) {
+    if (! $this->uri) {
       return null;
     }
 
@@ -54,6 +57,7 @@ class Post extends Model
     if ($this->is_repost) {
       $originalUri = $this->raw_data['post']['uri'] ?? null;
       $originalHandle = $this->raw_data['post']['author']['handle'] ?? null;
+
       return $this->buildBskyUrl($originalUri, $originalHandle);
     }
 
@@ -61,11 +65,13 @@ class Post extends Model
     if (preg_match('/at:\/\/([^\/]+)\/app\.bsky\.feed\.post\/([^\/]+)/', $this->uri, $matches)) {
       $did = $matches[1];
       $rkey = $matches[2];
-      
+
       // 自身のハンドル名があればそれを使用し、無ければDIDをフォールバックにする
       $identifier = $this->user->blueskyAccount->handle ?? $did;
+
       return "https://bsky.app/profile/{$identifier}/post/{$rkey}";
     }
+
     return null;
   }
 
@@ -117,6 +123,7 @@ class Post extends Model
           'text' => 'この投稿はブロックされているため表示できません。',
         ];
       }
+
       return null;
     }
 
@@ -162,14 +169,16 @@ class Post extends Model
    */
   private function buildBskyUrl(?string $uri, ?string $did): ?string
   {
-    if (!$uri) {
+    if (! $uri) {
       return null;
     }
     if (preg_match('/at:\/\/[^\/]+\/app\.bsky\.feed\.post\/([^\/]+)/', $uri, $matches)) {
       $rkey = $matches[1];
       $did = $did ?? 'profile';
+
       return "https://bsky.app/profile/{$did}/post/{$rkey}";
     }
+
     return null;
   }
 
@@ -178,7 +187,7 @@ class Post extends Model
    */
   public function getIsRepostAttribute(): bool
   {
-    return isset($this->raw_data['reason']) && 
+    return isset($this->raw_data['reason']) &&
            (($this->raw_data['reason']['$type'] ?? '') === 'app.bsky.feed.defs#reasonRepost');
   }
 
@@ -187,11 +196,12 @@ class Post extends Model
    */
   public function getRepostAuthorAttribute(): ?array
   {
-    if (!$this->is_repost) {
+    if (! $this->is_repost) {
       return null;
     }
 
     $author = $this->raw_data['post']['author'] ?? [];
+
     return [
       'name' => $author['displayName'] ?? ($author['handle'] ?? 'Unknown'),
       'handle' => $author['handle'] ?? '',
@@ -213,13 +223,13 @@ class Post extends Model
    */
   public function getIsSelfThreadAttribute(): bool
   {
-    if (!$this->is_reply) {
+    if (! $this->is_reply) {
       return false;
     }
-    
+
     $parentDid = $this->raw_data['reply']['parent']['author']['did'] ?? null;
     $myDid = $this->user->blueskyAccount->did ?? null;
-    
+
     return $parentDid && $myDid && ($parentDid === $myDid);
   }
 
@@ -228,7 +238,7 @@ class Post extends Model
    */
   public function getIsReplyToOthersAttribute(): bool
   {
-    return $this->is_reply && !$this->is_self_thread;
+    return $this->is_reply && ! $this->is_self_thread;
   }
 
   /**
@@ -236,11 +246,12 @@ class Post extends Model
    */
   public function getReplyParentAuthorAttribute(): ?array
   {
-    if (!$this->is_reply) {
+    if (! $this->is_reply) {
       return null;
     }
 
     $author = $this->raw_data['reply']['parent']['author'] ?? [];
+
     return [
       'name' => $author['displayName'] ?? ($author['handle'] ?? 'Unknown'),
       'handle' => $author['handle'] ?? '',
@@ -254,7 +265,7 @@ class Post extends Model
    */
   public function getReplyParentUrlAttribute(): ?string
   {
-    if (!$this->is_reply) {
+    if (! $this->is_reply) {
       return null;
     }
 
@@ -278,12 +289,12 @@ class Post extends Model
    */
   public function isPrivateUser(?string $did): bool
   {
-    if (!$did) {
+    if (! $did) {
       return false;
     }
 
-    return \Illuminate\Support\Facades\Cache::remember('is-private-did:' . $did, 300, function() use ($did) {
-        return \App\Models\BlueskyAccount::where('did', $did)
+    return Cache::remember('is-private-did:'.$did, 300, function () use ($did) {
+        return BlueskyAccount::where('did', $did)
             ->where('is_private', true)
             ->exists();
     });
@@ -295,7 +306,7 @@ class Post extends Model
    */
   public static function formatTextToHtml(?string $text, ?array $rawData = null): string
   {
-    if (!$text) {
+    if (! $text) {
       return '';
     }
 
@@ -304,14 +315,14 @@ class Post extends Model
     if ($rawData) {
       // 1. 通常の投稿アイテム内の facets
       $facets = $rawData['post']['record']['facets'] ?? null;
-      
+
       // 2. 引用ポスト内レコードの facets
-      if (!$facets && isset($rawData['record']['facets'])) {
+      if (! $facets && isset($rawData['record']['facets'])) {
         $facets = $rawData['record']['facets'];
       }
-      
+
       // 3. プレーンな record オブジェクトの facets
-      if (!$facets && isset($rawData['facets'])) {
+      if (! $facets && isset($rawData['facets'])) {
         $facets = $rawData['facets'];
       }
 
@@ -363,7 +374,7 @@ class Post extends Model
 
         // 省略されたり途切れたりしているリンクテキスト自体を安全にエスケープ
         $origText = substr($bytes, $start, $end - $start);
-        
+
         // ドメイン名の自動注釈を追加（表示テキストがドメインと完全に一致しない場合）
         $annotation = '';
         $domain = parse_url($linkUrl, PHP_URL_HOST);
@@ -372,7 +383,7 @@ class Post extends Model
             $cleanOrigText = preg_replace('/^https?:\/\//i', '', trim(strtolower($origText)));
             $cleanOrigText = preg_replace('/^www\./i', '', $cleanOrigText);
             $cleanOrigText = rtrim($cleanOrigText, '/');
-            
+
             // 外部リンクカードのドメインと同じであるかを判定
             $isSameAsExternal = false;
             if ($externalUri) {
@@ -382,14 +393,14 @@ class Post extends Model
                     $isSameAsExternal = true;
                 }
             }
-            
-            if (!$isSameAsExternal) {
-                $annotation = ' <span class="text-[9px] text-slate-500 font-bold hover:no-underline select-none">(' . e($cleanDomain) . ')</span>';
+
+            if (! $isSameAsExternal) {
+                $annotation = ' <span class="text-[9px] text-slate-500 font-bold hover:no-underline select-none">('.e($cleanDomain).')</span>';
             }
         }
 
         // facets 内の完全なリンク先URLを使用して a タグを作成
-        $htmlParts[] = '<a href="' . e($linkUrl) . '" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline hover:text-sky-300 transition cursor-pointer">' . e($origText) . '</a>' . $annotation;
+        $htmlParts[] = '<a href="'.e($linkUrl).'" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline hover:text-sky-300 transition cursor-pointer">'.e($origText).'</a>'.$annotation;
 
         $lastOffset = $start;
       }
@@ -422,12 +433,12 @@ class Post extends Model
     $patternHttp = '/https?:\/\/[^\s\r\n<>]+/i';
     $links = [];
     $placeholderPrefix = '___LINK_PLACEHOLDER_';
-    
+
     $safeText = preg_replace_callback($patternHttp, function ($matches) use (&$links, $placeholderPrefix, $externalUri) {
       $url = $matches[0];
       $rawUrl = htmlspecialchars_decode($url, ENT_QUOTES);
-      $placeholder = $placeholderPrefix . count($links) . '___';
-      
+      $placeholder = $placeholderPrefix.count($links).'___';
+
       $annotation = '';
       $domain = parse_url($rawUrl, PHP_URL_HOST);
       if ($domain) {
@@ -435,7 +446,7 @@ class Post extends Model
           $cleanOrigText = preg_replace('/^https?:\/\//i', '', trim(strtolower($rawUrl)));
           $cleanOrigText = preg_replace('/^www\./i', '', $cleanOrigText);
           $cleanOrigText = rtrim($cleanOrigText, '/');
-          
+
           // 外部リンクカードのドメインと同じであるかを判定
           $isSameAsExternal = false;
           if ($externalUri) {
@@ -445,13 +456,14 @@ class Post extends Model
                   $isSameAsExternal = true;
               }
           }
-          
-          if (!$isSameAsExternal) {
-              $annotation = ' <span class="text-[9px] text-slate-500 font-bold hover:no-underline select-none">(' . e($cleanDomain) . ')</span>';
+
+          if (! $isSameAsExternal) {
+              $annotation = ' <span class="text-[9px] text-slate-500 font-bold hover:no-underline select-none">('.e($cleanDomain).')</span>';
           }
       }
-      
-      $links[$placeholder] = '<a href="' . $url . '" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline hover:text-sky-300 transition cursor-pointer">' . $url . '</a>' . $annotation;
+
+      $links[$placeholder] = '<a href="'.$url.'" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline hover:text-sky-300 transition cursor-pointer">'.$url.'</a>'.$annotation;
+
       return $placeholder;
     }, $safeText);
 
@@ -459,8 +471,8 @@ class Post extends Model
     $patternWww = '/www\.[^\s\r\n<>]+/i';
     $safeText = preg_replace_callback($patternWww, function ($matches) use ($externalUri) {
       $url = $matches[0];
-      $rawUrl = 'https://' . htmlspecialchars_decode($url, ENT_QUOTES);
-      
+      $rawUrl = 'https://'.htmlspecialchars_decode($url, ENT_QUOTES);
+
       $annotation = '';
       $domain = parse_url($rawUrl, PHP_URL_HOST);
       if ($domain) {
@@ -468,7 +480,7 @@ class Post extends Model
           $cleanOrigText = preg_replace('/^https?:\/\//i', '', trim(strtolower($rawUrl)));
           $cleanOrigText = preg_replace('/^www\./i', '', $cleanOrigText);
           $cleanOrigText = rtrim($cleanOrigText, '/');
-          
+
           // 外部リンクカードのドメインと同じであるかを判定
           $isSameAsExternal = false;
           if ($externalUri) {
@@ -478,17 +490,17 @@ class Post extends Model
                   $isSameAsExternal = true;
               }
           }
-          
-          if (!$isSameAsExternal) {
-              $annotation = ' <span class="text-[9px] text-slate-500 font-bold hover:no-underline select-none">(' . e($cleanDomain) . ')</span>';
+
+          if (! $isSameAsExternal) {
+              $annotation = ' <span class="text-[9px] text-slate-500 font-bold hover:no-underline select-none">('.e($cleanDomain).')</span>';
           }
       }
 
-      return '<a href="https://' . $url . '" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline hover:text-sky-300 transition cursor-pointer">' . $url . '</a>' . $annotation;
+      return '<a href="https://'.$url.'" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline hover:text-sky-300 transition cursor-pointer">'.$url.'</a>'.$annotation;
     }, $safeText);
 
     // プレースホルダーを元の a タグに復元
-    if (!empty($links)) {
+    if (! empty($links)) {
       $safeText = strtr($safeText, $links);
     }
 
@@ -497,11 +509,8 @@ class Post extends Model
 
   /**
    * 画像が含まれている投稿のみに絞り込むローカルスコープ。
-   *
-   * @param \Illuminate\Database\Eloquent\Builder $query
-   * @return \Illuminate\Database\Eloquent\Builder
    */
-  public function scopeHasImages(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+  public function scopeHasImages(Builder $query): Builder
   {
     return $query->where('raw_data', 'like', '%app.bsky.embed.images%');
   }
@@ -514,7 +523,7 @@ class Post extends Model
     $html = self::formatTextToHtml($this->text, $this->raw_data);
 
     // ハッシュタグのリンク化
-    $isOwner = \Illuminate\Support\Facades\Auth::check() && \Illuminate\Support\Facades\Auth::id() === $this->user_id;
+    $isOwner = Auth::check() && Auth::id() === $this->user_id;
     $isDemo = ($this->user->blueskyAccount->handle ?? null) === config('services.bluesky.demo_handle');
     $isOwnerOrDemo = $isOwner || $isDemo;
 
@@ -524,32 +533,35 @@ class Post extends Model
         // 1. すでに存在する a タグ（およびドメイン注釈を含む span タグ）をプレースホルダーに退避
         $placeholders = [];
         $placeholderPrefix = '___TAG_PLACEHOLDER_';
-        
+
         $html = preg_replace_callback('/<a\b[^>]*>.*?<\/a>(\s*<span\b[^>]*>.*?<\/span>)?/is', function ($matches) use (&$placeholders, $placeholderPrefix) {
-            $placeholder = $placeholderPrefix . count($placeholders) . '___';
+            $placeholder = $placeholderPrefix.count($placeholders).'___';
             $placeholders[$placeholder] = $matches[0];
+
             return $placeholder;
         }, $html);
 
         // 2. 残ったテキスト部分でハッシュタグをリンク化
-        $pattern = \App\Models\Tag::EXTRACT_REGEX;
+        $pattern = Tag::EXTRACT_REGEX;
         $html = preg_replace_callback($pattern, function ($matches) use ($handle, $isOwnerOrDemo) {
             $hashtag = $matches[0]; // 例: "#Laravel"
             $tagName = $matches[1]; // 例: "Laravel"
-            
+
             if ($isOwnerOrDemo) {
                 // 本人・デモ閲覧時は同一タブでローカル検索リンク
-                $url = route('calendar.show', ['handle' => $handle]) . '?q=' . urlencode('#' . $tagName);
-                return '<a href="' . e($url) . '" class="text-sky-400 hover:underline hover:text-sky-300 transition cursor-pointer">' . e($hashtag) . '</a>';
+                $url = route('calendar.show', ['handle' => $handle]).'?q='.urlencode('#'.$tagName);
+
+                return '<a href="'.e($url).'" class="text-sky-400 hover:underline hover:text-sky-300 transition cursor-pointer">'.e($hashtag).'</a>';
             } else {
                 // ゲスト閲覧時は別タブでBluesky公式検索リンク
-                $url = 'https://bsky.app/search?q=' . urlencode('#' . $tagName);
-                return '<a href="' . e($url) . '" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline hover:text-sky-300 transition cursor-pointer">' . e($hashtag) . '</a>';
+                $url = 'https://bsky.app/search?q='.urlencode('#'.$tagName);
+
+                return '<a href="'.e($url).'" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline hover:text-sky-300 transition cursor-pointer">'.e($hashtag).'</a>';
             }
         }, $html);
 
         // 3. 退避させた a タグを復元
-        if (!empty($placeholders)) {
+        if (! empty($placeholders)) {
             $html = strtr($html, $placeholders);
         }
     }

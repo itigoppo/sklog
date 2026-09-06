@@ -14,10 +14,10 @@ class AdminSecurityTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // ログイン試行制限のカウントを各テスト前にリセット
         RateLimiter::clear('admin-login:127.0.0.1');
-        
+
         // ダミー管理者パスワードをセット
         config(['services.admin.password' => 'super-secret-admin-pass']);
     }
@@ -122,11 +122,11 @@ class AdminSecurityTest extends TestCase
 
         $response->assertStatus(302);
         $response->assertSessionHasErrors(['password']);
-        
+
         // エラーメッセージに「ログイン試行回数が多すぎます」が含まれていることをアサート
         $errors = session('errors');
         $this->assertStringContainsString('ログイン試行回数が多すぎます', $errors->first('password'));
-        
+
         $this->assertNull(session('admin_authenticated'));
     }
 
@@ -143,7 +143,7 @@ class AdminSecurityTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('セキュリティ設定');
         $response->assertSee('新規セットアップ手順');
-        
+
         // セッションに仮のシークレットキーが格納されていることを検証
         $this->assertNotNull(session('admin_temp_2fa_secret'));
     }
@@ -197,7 +197,7 @@ class AdminSecurityTest extends TestCase
         $response->assertStatus(200);
         $response->assertJson([
             'success' => false,
-            'message' => 'ワンタイムパスワードが正しくありません。'
+            'message' => 'ワンタイムパスワードが正しくありません。',
         ]);
     }
 
@@ -233,10 +233,10 @@ class AdminSecurityTest extends TestCase
 
         $response->assertStatus(302);
         $response->assertRedirect('/admin/login');
-        
+
         // エラーセッションが返っていること
         $response->assertSessionHasErrors(['password' => 'セキュリティ設定が更新されました。再度ログインしてください。']);
-        
+
         // セッションが安全に破棄されていること
         $this->assertNull(session('admin_authenticated'));
         $this->assertNull(session('admin_2fa_verified'));

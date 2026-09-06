@@ -2,14 +2,21 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
-use App\Models\BlueskyAccount;
 use App\Jobs\SyncBlueskyPostsJob;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\RateLimiter;
+use App\Models\BlueskyAccount;
+use App\Models\Post;
+use App\Models\Tag;
+use App\Models\User;
+use App\Services\BlueskyService;
 use Exception;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 
 class CalendarController extends Controller
 {
@@ -22,7 +29,7 @@ class CalendarController extends Controller
 
     // 該当のBlueskyアカウントが存在するかチェック
     $bskyAccount = BlueskyAccount::where('handle', $handle)->first();
-    if (!$bskyAccount) {
+    if (! $bskyAccount) {
       abort(404, 'ユーザーが見つかりません。');
     }
 
@@ -30,7 +37,7 @@ class CalendarController extends Controller
 
     // 非公開アカウントの認可チェック
     if ($bskyAccount->is_private) {
-      if (!Auth::check() || Auth::id() !== $user->id) {
+      if (! Auth::check() || Auth::id() !== $user->id) {
         abort(404);
       }
     }
@@ -69,7 +76,7 @@ class CalendarController extends Controller
     // 検索キーワードのフィルタリング
     if (is_string($q) && trim($q) !== '') {
       // RTを含まないオプション（デフォルト）の場合はリポスト（他人の発言）を除外する
-      if (!$includeRt) {
+      if (! $includeRt) {
         $postsQuery->where('uri', 'not like', 'repost-%');
       }
 
@@ -83,8 +90,8 @@ class CalendarController extends Controller
         $postsQuery->where(function ($query) use ($keywords, $searchMode) {
           foreach ($keywords as $index => $keyword) {
             // キーワードがハッシュタグ形式であるかを判定 (例: "#SkLog")
-            $tagName = \App\Models\Tag::parseHashtag($keyword);
-            $isHashtag = !is_null($tagName);
+            $tagName = Tag::parseHashtag($keyword);
+            $isHashtag = ! is_null($tagName);
 
             if ($index === 0) {
               if ($isHashtag && $tagName) {
@@ -94,7 +101,7 @@ class CalendarController extends Controller
                 });
               } else {
                 // 通常の単語の場合は、LIKE で部分一致検索
-                $query->where('text', 'like', '%' . $keyword . '%');
+                $query->where('text', 'like', '%'.$keyword.'%');
               }
             } else {
               if ($searchMode === 'or') {
@@ -103,7 +110,7 @@ class CalendarController extends Controller
                     $q->whereRaw('lower(name) = ?', [strtolower($tagName)]);
                   });
                 } else {
-                  $query->orWhere('text', 'like', '%' . $keyword . '%');
+                  $query->orWhere('text', 'like', '%'.$keyword.'%');
                 }
               } else {
                 if ($isHashtag && $tagName) {
@@ -111,7 +118,7 @@ class CalendarController extends Controller
                     $q->whereRaw('lower(name) = ?', [strtolower($tagName)]);
                   });
                 } else {
-                  $query->where('text', 'like', '%' . $keyword . '%');
+                  $query->where('text', 'like', '%'.$keyword.'%');
                 }
               }
             }
@@ -149,7 +156,7 @@ class CalendarController extends Controller
 
     // 月ごとアーカイブのリストを取得（10件制限、もっと見るリンク判定のため11件取得）
     $allMonthArchives = $user->posts()
-      ->selectRaw("substr(posted_at, 1, 7) as month, count(*) as count")
+      ->selectRaw('substr(posted_at, 1, 7) as month, count(*) as count')
       ->groupBy('month')
       ->orderBy('month', 'desc')
       ->limit(11)
@@ -159,7 +166,7 @@ class CalendarController extends Controller
     $monthlyArchives = $hasMoreArchives ? $allMonthArchives->take(10) : $allMonthArchives;
 
     // 初回同期が必要かどうかの判定（投稿が0件かつ同期履歴がない）
-    $isFirstSyncNeeded = ($user->posts()->count() === 0 && !$bskyAccount->last_synced_at);
+    $isFirstSyncNeeded = ($user->posts()->count() === 0 && ! $bskyAccount->last_synced_at);
 
     // ページのタイトル表示用
     $title = 'すべてのログ';
@@ -196,7 +203,7 @@ class CalendarController extends Controller
     $handle = ltrim(trim($handle), '@');
 
     $bskyAccount = BlueskyAccount::where('handle', $handle)->first();
-    if (!$bskyAccount) {
+    if (! $bskyAccount) {
       abort(404, 'ユーザーが見つかりません。');
     }
 
@@ -206,7 +213,7 @@ class CalendarController extends Controller
     $isOwner = Auth::check() && Auth::id() === $user->id;
     $isDemo = $bskyAccount->handle === config('services.bluesky.demo_handle');
     $isOwnerOrDemo = $isOwner || $isDemo;
-    if (!$isOwnerOrDemo) {
+    if (! $isOwnerOrDemo) {
       abort(404);
     }
 
@@ -251,7 +258,7 @@ class CalendarController extends Controller
 
     // 月ごとアーカイブのリストを取得（10件制限、もっと見るリンク判定のため11件取得）
     $allMonthArchives = $user->posts()
-      ->selectRaw("substr(posted_at, 1, 7) as month, count(*) as count")
+      ->selectRaw('substr(posted_at, 1, 7) as month, count(*) as count')
       ->groupBy('month')
       ->orderBy('month', 'desc')
       ->limit(11)
@@ -290,7 +297,7 @@ class CalendarController extends Controller
     $handle = ltrim(trim($handle), '@');
 
     $bskyAccount = BlueskyAccount::where('handle', $handle)->first();
-    if (!$bskyAccount) {
+    if (! $bskyAccount) {
       abort(404, 'ユーザーが見つかりません。');
     }
 
@@ -300,7 +307,7 @@ class CalendarController extends Controller
     $isOwner = Auth::check() && Auth::id() === $user->id;
     $isDemo = $bskyAccount->handle === config('services.bluesky.demo_handle');
     $isOwnerOrDemo = $isOwner || $isDemo;
-    if (!$isOwnerOrDemo) {
+    if (! $isOwnerOrDemo) {
       abort(404);
     }
 
@@ -348,7 +355,7 @@ class CalendarController extends Controller
 
     // 月ごとアーカイブのリストを取得（10件制限、もっと見るリンク判定のため11件取得）
     $allMonthArchives = $user->posts()
-      ->selectRaw("substr(posted_at, 1, 7) as month, count(*) as count")
+      ->selectRaw('substr(posted_at, 1, 7) as month, count(*) as count')
       ->groupBy('month')
       ->orderBy('month', 'desc')
       ->limit(11)
@@ -385,7 +392,7 @@ class CalendarController extends Controller
     $handle = ltrim(trim($handle), '@');
 
     $bskyAccount = BlueskyAccount::where('handle', $handle)->first();
-    if (!$bskyAccount) {
+    if (! $bskyAccount) {
       abort(404, 'ユーザーが見つかりません。');
     }
 
@@ -395,11 +402,11 @@ class CalendarController extends Controller
     $isOwner = Auth::check() && Auth::id() === $user->id;
     $isDemo = $bskyAccount->handle === config('services.bluesky.demo_handle');
     $isOwnerOrDemo = $isOwner || $isDemo;
-    if (!$isOwnerOrDemo) {
+    if (! $isOwnerOrDemo) {
       abort(404);
     }
 
-    $targetYear = (int)$year;
+    $targetYear = (int) $year;
     $startOfYear = Carbon::createFromDate($targetYear, 1, 1)->startOfYear();
     $endOfYear = Carbon::createFromDate($targetYear, 12, 31)->endOfYear();
 
@@ -416,11 +423,11 @@ class CalendarController extends Controller
     foreach ($yearPosts as $post) {
       $m = $post->posted_at->month;
       $monthlyCounts[$m]++;
-      
+
       if ($monthlyImages[$m]) {
         continue;
       }
-      
+
       $embed = $post->raw_data['post']['embed'] ?? null;
       if ($embed && str_contains($embed['$type'] ?? '', 'app.bsky.embed.images')) {
         $monthlyImages[$m] = $embed['images'][0]['thumb'] ?? null;
@@ -455,11 +462,12 @@ class CalendarController extends Controller
 
     // レート制限のチェック（15分間に5回まで）
     $userId = Auth::id();
-    $limiterKey = 'sync-user:' . $userId;
+    $limiterKey = 'sync-user:'.$userId;
 
     if (RateLimiter::tooManyAttempts($limiterKey, 5)) {
       $seconds = RateLimiter::availableIn($limiterKey);
       $minutes = ceil($seconds / 60);
+
       return back()->with('error', "API制限保護のため、手動同期の回数上限を超えました。あと {$minutes} 分お待ちください。");
     }
 
@@ -467,11 +475,11 @@ class CalendarController extends Controller
       SyncBlueskyPostsJob::dispatchSync($user);
 
       // 同期完了時に統計キャッシュをクリア
-      \Illuminate\Support\Facades\Cache::forget('user-stats-summary:' . $user->id);
-      
+      Cache::forget('user-stats-summary:'.$user->id);
+
       // 同期成功時にレート制限のヒットを記録（15分間 = 900秒）
       RateLimiter::hit($limiterKey, 900);
-      
+
       if ($bskyAccount) {
         $bskyAccount->refresh();
         if ($bskyAccount->is_archive_complete) {
@@ -486,8 +494,8 @@ class CalendarController extends Controller
       // 認証エラーに起因する可能性がある場合に、ハンドル名の変更をチェック
       $errorMessage = $e->getMessage();
       if ($bskyAccount && (
-        str_contains($errorMessage, 'ハンドル名またはアプリパスワードが正しくありません') || 
-        str_contains($errorMessage, 'Authentication failed') || 
+        str_contains($errorMessage, 'ハンドル名またはアプリパスワードが正しくありません') ||
+        str_contains($errorMessage, 'Authentication failed') ||
         str_contains($errorMessage, 'Invalid identifier or password')
       )) {
         $redirect = $this->handleAuthFailureWithHandleCheck($bskyAccount);
@@ -496,7 +504,7 @@ class CalendarController extends Controller
         }
       }
 
-      return back()->with('error', '同期中にエラーが発生しました: ' . $e->getMessage());
+      return back()->with('error', '同期中にエラーが発生しました: '.$e->getMessage());
     }
   }
 
@@ -507,7 +515,7 @@ class CalendarController extends Controller
   {
     $handle = ltrim(trim($handle), '@');
     $bskyAccount = BlueskyAccount::where('handle', $handle)->first();
-    if (!$bskyAccount) {
+    if (! $bskyAccount) {
       return response()->json(['error' => 'User not found'], 404);
     }
     $user = $bskyAccount->user;
@@ -515,7 +523,7 @@ class CalendarController extends Controller
     $isOwner = Auth::check() && Auth::id() === $user->id;
     $isDemo = $bskyAccount->handle === config('services.bluesky.demo_handle');
     $isOwnerOrDemo = $isOwner || $isDemo;
-    if (!$isOwnerOrDemo) {
+    if (! $isOwnerOrDemo) {
       return response()->json(['error' => 'Unauthorized'], 403);
     }
 
@@ -562,7 +570,7 @@ class CalendarController extends Controller
   {
     $handle = ltrim(trim($handle), '@');
     $bskyAccount = BlueskyAccount::where('handle', $handle)->first();
-    if (!$bskyAccount) {
+    if (! $bskyAccount) {
       abort(404, 'ユーザーが見つかりません。');
     }
     $user = $bskyAccount->user;
@@ -571,13 +579,13 @@ class CalendarController extends Controller
     $isOwner = Auth::check() && Auth::id() === $user->id;
     $isDemo = $bskyAccount->handle === config('services.bluesky.demo_handle');
     $isOwnerOrDemo = $isOwner || $isDemo;
-    if (!$isOwnerOrDemo) {
+    if (! $isOwnerOrDemo) {
       abort(404);
     }
 
     // 全期間の月アーカイブを取得
     $allArchives = $user->posts()
-      ->selectRaw("substr(posted_at, 1, 7) as month, count(*) as count")
+      ->selectRaw('substr(posted_at, 1, 7) as month, count(*) as count')
       ->groupBy('month')
       ->orderBy('month', 'desc')
       ->get();
@@ -585,15 +593,15 @@ class CalendarController extends Controller
     // 各月の代表画像を取得
     $monthlyImages = [];
     foreach ($allArchives as $archive) {
-      $startOfMonth = Carbon::parse($archive->month . '-01')->startOfMonth();
-      $endOfMonth = Carbon::parse($archive->month . '-01')->endOfMonth();
-      
+      $startOfMonth = Carbon::parse($archive->month.'-01')->startOfMonth();
+      $endOfMonth = Carbon::parse($archive->month.'-01')->endOfMonth();
+
       $imagePost = $user->posts()
         ->whereBetween('posted_at', [$startOfMonth, $endOfMonth])
         ->where('raw_data', 'like', '%app.bsky.embed.images%')
         ->orderBy('posted_at', 'asc')
         ->first();
-      
+
       if ($imagePost) {
         $embed = $imagePost->raw_data['post']['embed'] ?? null;
         if ($embed && str_contains($embed['$type'] ?? '', 'app.bsky.embed.images')) {
@@ -619,7 +627,7 @@ class CalendarController extends Controller
   {
     $handle = ltrim(trim($handle), '@');
     $bskyAccount = BlueskyAccount::where('handle', $handle)->first();
-    if (!$bskyAccount) {
+    if (! $bskyAccount) {
       abort(404, 'ユーザーが見つかりません。');
     }
     $user = $bskyAccount->user;
@@ -628,12 +636,12 @@ class CalendarController extends Controller
     $isOwner = Auth::check() && Auth::id() === $user->id;
     $isDemo = $bskyAccount->handle === config('services.bluesky.demo_handle');
     $isOwnerOrDemo = $isOwner || $isDemo;
-    if (!$isOwnerOrDemo) {
+    if (! $isOwnerOrDemo) {
       abort(404);
     }
 
     // 全ハッシュタグを投稿件数の降順で取得してページネーション (1ページあたり30件)
-    $tags = \App\Models\Tag::join('post_tags', 'tags.id', '=', 'post_tags.tag_id')
+    $tags = Tag::join('post_tags', 'tags.id', '=', 'post_tags.tag_id')
       ->join('posts', 'post_tags.post_id', '=', 'posts.id')
       ->where('posts.user_id', $user->id)
       ->whereNull('posts.deleted_at')
@@ -648,13 +656,13 @@ class CalendarController extends Controller
   /**
    * ポストをローカルで削除（論理削除、またはBlueskyで消えている場合は物理削除）します。
    */
-  public function destroy(string $handle, \App\Models\Post $post)
+  public function destroy(string $handle, Post $post)
   {
     $user = Auth::user();
     $bskyAccount = $user->blueskyAccount;
 
     // 削除対象のポストがログインユーザー本人のものであるかを厳密にチェック
-    if ($post->user_id !== $user->id || !$bskyAccount || ltrim(trim($handle), '@') !== $bskyAccount->handle) {
+    if ($post->user_id !== $user->id || ! $bskyAccount || ltrim(trim($handle), '@') !== $bskyAccount->handle) {
       abort(403, 'この操作は許可されていません。');
     }
 
@@ -663,14 +671,14 @@ class CalendarController extends Controller
     // at:// で始まる本物の at-uri の場合のみ、Bluesky 側での存在チェックを行う
     if (str_starts_with($post->uri, 'at://')) {
       try {
-        $blueskyService = app(\App\Services\BlueskyService::class);
+        $blueskyService = app(BlueskyService::class);
         // レート制限やAPI接続安定のため、本人認証トークンを取得して呼び出す
         $session = $blueskyService->authenticate($bskyAccount->handle, $bskyAccount->encrypted_app_password);
         $token = $session['accessJwt'];
-        
+
         $response = $blueskyService->getPosts([$post->uri], $token);
         $posts = $response['posts'] ?? [];
-        
+
         // posts 配列が空、または該当するURIのポストが含まれていない場合、Bluesky上ですでに削除されているとみなす
         if (empty($posts)) {
           $isDeletedOnBluesky = true;
@@ -683,13 +691,14 @@ class CalendarController extends Controller
               break;
             }
           }
-          if (!$exists) {
+          if (! $exists) {
             $isDeletedOnBluesky = true;
           }
         }
-      } catch (\Exception $e) {
+      } catch (Exception $e) {
         // 認証エラーやAPIエラー等の例外が発生した場合は、処理を中断してエラーを返す
-        \Illuminate\Support\Facades\Log::error("Post destroy Bluesky check failed: " . $e->getMessage());
+        Log::error('Post destroy Bluesky check failed: '.$e->getMessage());
+
         return back()->with('error', 'Blueskyとの通信に失敗したため、削除処理を中断しました。しばらく時間をおいてから再度お試しください。');
       }
     }
@@ -705,8 +714,8 @@ class CalendarController extends Controller
     }
 
     // キャッシュをクリアして統計やタグ一覧を再計算させる
-    \Illuminate\Support\Facades\Cache::forget('user-tags:' . $user->id);
-    \Illuminate\Support\Facades\Cache::forget('user-stats-summary:' . $user->id);
+    Cache::forget('user-tags:'.$user->id);
+    Cache::forget('user-stats-summary:'.$user->id);
 
     return back()
       ->with('success', $successMessage)
@@ -721,12 +730,12 @@ class CalendarController extends Controller
     $user = Auth::user();
     $bskyAccount = $user->blueskyAccount;
 
-    if (!$bskyAccount || ltrim(trim($handle), '@') !== $bskyAccount->handle) {
+    if (! $bskyAccount || ltrim(trim($handle), '@') !== $bskyAccount->handle) {
       abort(403, 'この操作は許可されていません。');
     }
 
     // ソフトデリートされたものを含めて検索
-    $post = \App\Models\Post::withTrashed()->findOrFail($postId);
+    $post = Post::withTrashed()->findOrFail($postId);
 
     if ($post->user_id !== $user->id) {
       abort(403, 'この操作は許可されていません。');
@@ -735,8 +744,8 @@ class CalendarController extends Controller
     $post->restore();
 
     // キャッシュをクリアして統計やタグ一覧を再計算させる
-    \Illuminate\Support\Facades\Cache::forget('user-tags:' . $user->id);
-    \Illuminate\Support\Facades\Cache::forget('user-stats-summary:' . $user->id);
+    Cache::forget('user-tags:'.$user->id);
+    Cache::forget('user-stats-summary:'.$user->id);
 
     return back()->with('success', '投稿の削除を取り消しました。');
   }
@@ -747,14 +756,14 @@ class CalendarController extends Controller
   public function showSettings(string $handle)
   {
     $handle = ltrim(trim($handle), '@');
-    $bskyAccount = \App\Models\BlueskyAccount::where('handle', $handle)->first();
-    if (!$bskyAccount) {
+    $bskyAccount = BlueskyAccount::where('handle', $handle)->first();
+    if (! $bskyAccount) {
       abort(404, 'ユーザーが見つかりません。');
     }
     $user = $bskyAccount->user;
 
     // 本人確認
-    if (!Auth::check() || Auth::id() !== $user->id) {
+    if (! Auth::check() || Auth::id() !== $user->id) {
       abort(403, 'この操作は許可されていません。');
     }
 
@@ -769,17 +778,18 @@ class CalendarController extends Controller
     $user = Auth::user();
     $bskyAccount = $user->blueskyAccount;
 
-    if (!$bskyAccount || ltrim(trim($handle), '@') !== $bskyAccount->handle) {
+    if (! $bskyAccount || ltrim(trim($handle), '@') !== $bskyAccount->handle) {
       abort(403, 'この操作は許可されていません。');
     }
 
     // レート制限のチェック（15分間に5回まで）
     $userId = Auth::id();
-    $limiterKey = 'import-user:' . $userId;
+    $limiterKey = 'import-user:'.$userId;
 
-    if (\Illuminate\Support\Facades\RateLimiter::tooManyAttempts($limiterKey, 5)) {
-      $seconds = \Illuminate\Support\Facades\RateLimiter::availableIn($limiterKey);
+    if (RateLimiter::tooManyAttempts($limiterKey, 5)) {
+      $seconds = RateLimiter::availableIn($limiterKey);
       $minutes = ceil($seconds / 60);
+
       return back()->with('error', "API制限保護のため、個別インポートの回数上限を超えました。あと {$minutes} 分お待ちください。");
     }
 
@@ -816,6 +826,7 @@ class CalendarController extends Controller
         // 本人の投稿であることを検証（ハンドル名、またはDIDの完全一致）
         if ($handleOrDid !== $bskyAccount->handle && $handleOrDid !== $bskyAccount->did) {
           $failedCount++;
+
           continue;
         }
 
@@ -828,12 +839,12 @@ class CalendarController extends Controller
 
         if ($didOrHandle !== $bskyAccount->handle && $didOrHandle !== $bskyAccount->did) {
           $failedCount++;
+
           continue;
         }
 
         $atUris[] = "at://{$bskyAccount->did}/app.bsky.feed.post/{$rkey}";
-      }
-      else {
+      } else {
         $failedCount++;
       }
     }
@@ -841,7 +852,7 @@ class CalendarController extends Controller
     $toImport = [];
     foreach ($atUris as $atUri) {
       // ソフトデリートされたものも含めて検索
-      $existingPost = \App\Models\Post::withTrashed()->where('uri', $atUri)->first();
+      $existingPost = Post::withTrashed()->where('uri', $atUri)->first();
       if ($existingPost) {
         if ($existingPost->trashed()) {
           $existingPost->restore();
@@ -855,16 +866,16 @@ class CalendarController extends Controller
       }
     }
 
-    if (!empty($toImport)) {
+    if (! empty($toImport)) {
       try {
-        $blueskyService = app(\App\Services\BlueskyService::class);
+        $blueskyService = app(BlueskyService::class);
         $password = $bskyAccount->encrypted_app_password;
 
         try {
           $session = $blueskyService->authenticate($bskyAccount->handle, $password);
           $token = $session['accessJwt'];
-        } catch (\Exception $authEx) {
-          \Illuminate\Support\Facades\Log::error("ImportPosts Auth Exception: " . $authEx->getMessage());
+        } catch (Exception $authEx) {
+          Log::error('ImportPosts Auth Exception: '.$authEx->getMessage());
 
           // ハンドル名変更自動検知
           $redirect = $this->handleAuthFailureWithHandleCheck($bskyAccount);
@@ -872,7 +883,7 @@ class CalendarController extends Controller
             return $redirect;
           }
 
-          return back()->with('error', "Blueskyの認証に失敗しました。設定画面でアカウント情報（ハンドル名、アプリパスワード）が正しく設定されているか確認してください。 (詳細: " . $authEx->getMessage() . ")")->withInput();
+          return back()->with('error', 'Blueskyの認証に失敗しました。設定画面でアカウント情報（ハンドル名、アプリパスワード）が正しく設定されているか確認してください。 (詳細: '.$authEx->getMessage().')')->withInput();
         }
 
         // app.bsky.feed.getPosts API を叩く
@@ -887,15 +898,16 @@ class CalendarController extends Controller
           $text = $record['text'] ?? '';
           $createdAtString = $record['createdAt'] ?? null;
 
-          if (!$createdAtString) {
+          if (! $createdAtString) {
             $failedCount++;
+
             continue;
           }
 
-          $postedAt = \Illuminate\Support\Carbon::parse($createdAtString)->timezone('Asia/Tokyo');
+          $postedAt = Carbon::parse($createdAtString)->timezone('Asia/Tokyo');
 
           // インポートデータを保存
-          $post = \App\Models\Post::updateOrCreate(
+          $post = Post::updateOrCreate(
             ['uri' => $uri],
             [
               'user_id' => $user->id,
@@ -908,8 +920,8 @@ class CalendarController extends Controller
 
           // ハッシュタグの抽出と紐付け
           $tagIds = [];
-          foreach (\App\Models\Tag::extractTags($text) as $tagName) {
-            $tag = \App\Models\Tag::firstOrCreate(['name' => $tagName]);
+          foreach (Tag::extractTags($text) as $tagName) {
+            $tag = Tag::firstOrCreate(['name' => $tagName]);
             $tagIds[] = $tag->id;
           }
           $post->tags()->sync($tagIds);
@@ -921,18 +933,18 @@ class CalendarController extends Controller
         // 返ってこなかったURIを失敗としてカウント
         $failedCount += (count($toImport) - count($fetchedUris));
 
-      } catch (\Exception $e) {
-        \Illuminate\Support\Facades\Log::error("ImportPosts Exception: " . $e->getMessage());
+      } catch (Exception $e) {
+        Log::error('ImportPosts Exception: '.$e->getMessage());
         $failedCount += count($toImport);
       }
 
       // APIを呼び出した場合にのみレート制限のヒットを記録（15分間 = 900秒）
-      \Illuminate\Support\Facades\RateLimiter::hit($limiterKey, 900);
+      RateLimiter::hit($limiterKey, 900);
     }
 
     if ($restoredCount > 0 || $successCount > 0) {
-      \Illuminate\Support\Facades\Cache::forget('user-tags:' . $user->id);
-      \Illuminate\Support\Facades\Cache::forget('user-stats-summary:' . $user->id);
+      Cache::forget('user-tags:'.$user->id);
+      Cache::forget('user-stats-summary:'.$user->id);
     }
 
     // 処理結果のメッセージ生成
@@ -947,7 +959,7 @@ class CalendarController extends Controller
       $msgParts[] = "失敗（または対象外）: {$failedCount}件";
     }
 
-    $message = "インポート処理が完了しました。(" . implode(', ', $msgParts) . ")";
+    $message = 'インポート処理が完了しました。('.implode(', ', $msgParts).')';
 
     return back()->with('success', $message);
   }
@@ -955,9 +967,6 @@ class CalendarController extends Controller
   /**
    * クエリパラメータを安全にマージ・削除してURLを構築する。
    * 末尾に「?」だけが残るのを防止する。
-   *
-   * @param array $paramsToMerge
-   * @return string
    */
   public static function buildUrl(array $paramsToMerge = []): string
   {
@@ -971,39 +980,40 @@ class CalendarController extends Controller
     }
     // 空のパラメータを除外
     $queryParams = array_filter($queryParams, function ($val) {
-      return !is_null($val) && $val !== '';
+      return ! is_null($val) && $val !== '';
     });
-    
+
     $queryString = http_build_query($queryParams);
-    return request()->url() . ($queryString !== '' ? '?' . $queryString : '');
+
+    return request()->url().($queryString !== '' ? '?'.$queryString : '');
   }
 
   /**
    * ログインしたままアプリパスワードを更新し、同期エラーを復旧します。
    */
-  public function updatePassword(\Illuminate\Http\Request $request, string $handle)
+  public function updatePassword(Request $request, string $handle)
   {
     $handle = ltrim(trim($handle), '@');
     $request->validate([
       'app_password' => 'required|string',
     ]);
 
-    /** @var \App\Models\User $user */
-    $user = \Illuminate\Support\Facades\Auth::user();
+    /** @var User $user */
+    $user = Auth::user();
     $bskyAccount = $user->blueskyAccount;
 
     // 認可チェック: handleが一致していること
-    if (!$bskyAccount || strtolower($bskyAccount->handle) !== strtolower($handle)) {
+    if (! $bskyAccount || strtolower($bskyAccount->handle) !== strtolower($handle)) {
       abort(403);
     }
 
     try {
       // BlueskyServiceインスタンスを取得
-      $blueskyService = app(\App\Services\BlueskyService::class);
-      
+      $blueskyService = app(BlueskyService::class);
+
       // 新しいパスワードで認証ができるかテスト
       $blueskyService->authenticate($bskyAccount->handle, $request->app_password);
-      
+
       // 認証成功したため、パスワード更新およびエラーのリセット
       $bskyAccount->update([
         'encrypted_app_password' => $request->app_password,
@@ -1015,8 +1025,9 @@ class CalendarController extends Controller
 
       return back()->with('success', 'アプリパスワードを正常に更新し、自動同期を再有効化しました。');
 
-    } catch (\Exception $e) {
-      \Illuminate\Support\Facades\Log::error("Password Update Error for user {$user->id}: " . $e->getMessage());
+    } catch (Exception $e) {
+      Log::error("Password Update Error for user {$user->id}: ".$e->getMessage());
+
       return back()->withErrors([
         'app_password' => '入力されたアプリパスワードでのBluesky認証に失敗しました。正しいパスワードを入力してください。',
       ]);
@@ -1026,32 +1037,33 @@ class CalendarController extends Controller
   /**
    * カレンダーアカウントおよびデータをすべて物理削除し、退会します。
    */
-  public function deleteAccount(\Illuminate\Http\Request $request, string $handle)
+  public function deleteAccount(Request $request, string $handle)
   {
     $handle = ltrim(trim($handle), '@');
-    /** @var \App\Models\User $user */
-    $user = \Illuminate\Support\Facades\Auth::user();
+    /** @var User $user */
+    $user = Auth::user();
     $bskyAccount = $user->blueskyAccount;
 
     // 認可チェック
-    if (!$bskyAccount || strtolower($bskyAccount->handle) !== strtolower($handle)) {
+    if (! $bskyAccount || strtolower($bskyAccount->handle) !== strtolower($handle)) {
       abort(403);
     }
 
     try {
-      \Illuminate\Support\Facades\DB::transaction(function () use ($user) {
+      DB::transaction(function () use ($user) {
         // CascadeOnDeleteにより、Userに関連するBlueskyAccount、Post、中間テーブルなどは自動で物理削除されます
         $user->delete();
       });
 
-      \Illuminate\Support\Facades\Auth::logout();
+      Auth::logout();
       $request->session()->invalidate();
       $request->session()->regenerateToken();
 
       return redirect('/login')->with('success', 'アカウントとすべてのカレンダーデータを完全に削除し、退会しました。');
 
-    } catch (\Exception $e) {
-      \Illuminate\Support\Facades\Log::error("Delete Account Error for user {$user->id}: " . $e->getMessage());
+    } catch (Exception $e) {
+      Log::error("Delete Account Error for user {$user->id}: ".$e->getMessage());
+
       return back()->with('error', '退会処理中にエラーが発生しました。お手数ですがしばらく時間をおいてから再度お試しください。');
     }
   }
@@ -1060,21 +1072,18 @@ class CalendarController extends Controller
    * 認証エラー発生時に、ハンドル名の変更が原因であるかチェックし、
    * 変更されている場合はログアウトした上でハンドル変更確認画面へリダイレクトする。
    * ハンドル名が変更されていなければ null を返す。
-   *
-   * @param \App\Models\BlueskyAccount $bskyAccount
-   * @return \Illuminate\Http\RedirectResponse|null
    */
-  private function handleAuthFailureWithHandleCheck(\App\Models\BlueskyAccount $bskyAccount): ?\Illuminate\Http\RedirectResponse
+  private function handleAuthFailureWithHandleCheck(BlueskyAccount $bskyAccount): ?RedirectResponse
   {
     try {
-      $blueskyService = app(\App\Services\BlueskyService::class);
+      $blueskyService = app(BlueskyService::class);
       // パブリックAPI経由でDIDから最新プロフィールを取得（トークンなし）
       $profile = $blueskyService->getProfile($bskyAccount->did);
       $currentHandle = $profile['handle'] ?? null;
 
       if ($currentHandle && strtolower($bskyAccount->handle) !== strtolower($currentHandle)) {
-        $isPrivate = \App\Models\BlueskyAccount::isPrivateFromProfile($profile);
-        $throttleKey = 'login-attempt:' . request()->ip() . '|' . strtolower($currentHandle);
+        $isPrivate = BlueskyAccount::isPrivateFromProfile($profile);
+        $throttleKey = 'login-attempt:'.request()->ip().'|'.strtolower($currentHandle);
 
         session([
           'handle_change_pending' => [
@@ -1085,16 +1094,16 @@ class CalendarController extends Controller
             'profile' => $profile,
             'is_private' => $isPrivate,
             'throttle_key' => $throttleKey,
-          ]
+          ],
         ]);
 
-        \Illuminate\Support\Facades\Auth::logout();
+        Auth::logout();
 
         return redirect()->route('login.confirm_handle_change')
           ->with('info', 'Bluesky側でハンドル名の変更が検知されました。手続きを完了させてください。');
       }
-    } catch (\Exception $e) {
-      \Illuminate\Support\Facades\Log::warning("Handle Check failed on auth failure: " . $e->getMessage());
+    } catch (Exception $e) {
+      Log::warning('Handle Check failed on auth failure: '.$e->getMessage());
     }
 
     return null;

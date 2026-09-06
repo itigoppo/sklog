@@ -2,10 +2,10 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Model;
 
 #[Fillable([
   'user_id',
@@ -66,7 +66,7 @@ class BlueskyAccount extends Model
    */
   public static function isPrivateFromProfile(array $profile): bool
   {
-    if (!isset($profile['labels'])) {
+    if (! isset($profile['labels'])) {
       return false;
     }
 
@@ -97,8 +97,8 @@ class BlueskyAccount extends Model
 
     return preg_replace_callback($pattern, function ($matches) {
       $url = $matches[1];
-      return '<a href="' . $url . '" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline hover:text-sky-300 transition cursor-pointer inline-flex items-center gap-0.5">' . $url . '</a>';
+
+      return '<a href="'.$url.'" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline hover:text-sky-300 transition cursor-pointer inline-flex items-center gap-0.5">'.$url.'</a>';
     }, $escaped);
   }
 }
-

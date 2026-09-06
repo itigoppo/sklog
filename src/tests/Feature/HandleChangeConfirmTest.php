@@ -2,15 +2,16 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
 use App\Models\BlueskyAccount;
 use App\Models\Post;
 use App\Models\Tag;
+use App\Models\User;
 use App\Services\BlueskyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
-use Tests\TestCase;
+use Illuminate\Support\Str;
 use Mockery;
+use Tests\TestCase;
 
 class HandleChangeConfirmTest extends TestCase
 {
@@ -29,7 +30,7 @@ class HandleChangeConfirmTest extends TestCase
   {
     $user = User::create(['name' => 'テスト太郎']);
     $bskyAccount = BlueskyAccount::create([
-      'id' => \Illuminate\Support\Str::uuid(),
+      'id' => Str::uuid(),
       'user_id' => $user->id,
       'did' => 'did:plc:test777',
       'handle' => 'old-handle.bsky.social', // 古いハンドル名
@@ -81,7 +82,7 @@ class HandleChangeConfirmTest extends TestCase
   {
     $user = User::create(['name' => 'テスト太郎']);
     $bskyAccount = BlueskyAccount::create([
-      'id' => \Illuminate\Support\Str::uuid(),
+      'id' => Str::uuid(),
       'user_id' => $user->id,
       'did' => 'did:plc:test777',
       'handle' => 'old-handle.bsky.social', // 登録されている古いハンドル名
@@ -89,7 +90,7 @@ class HandleChangeConfirmTest extends TestCase
     ]);
 
     $blueskyService = Mockery::mock(BlueskyService::class);
-    
+
     // 1. 最初は古いハンドル名での認証要求で例外を発生させる
     $blueskyService->shouldReceive('authenticate')
       ->once()
@@ -166,7 +167,7 @@ class HandleChangeConfirmTest extends TestCase
         'user_id' => 1,
         'old_handle' => 'old-handle.bsky.social',
         'new_handle' => 'new-handle.bsky.social',
-      ]
+      ],
     ])->get('/login/confirm-handle-change');
 
     $response->assertStatus(200);
@@ -182,7 +183,7 @@ class HandleChangeConfirmTest extends TestCase
   {
     $user = User::create(['name' => 'テスト太郎']);
     $bskyAccount = BlueskyAccount::create([
-      'id' => \Illuminate\Support\Str::uuid(),
+      'id' => Str::uuid(),
       'user_id' => $user->id,
       'did' => 'did:plc:test777',
       'handle' => 'old-handle.bsky.social',
@@ -203,9 +204,9 @@ class HandleChangeConfirmTest extends TestCase
         ],
         'is_private' => false,
         'throttle_key' => 'login-attempt:127.0.0.1|new-handle.bsky.social',
-      ]
+      ],
     ])->post('/login/confirm-handle-change', [
-      'action' => 'consent'
+      'action' => 'consent',
     ]);
 
     $response->assertStatus(302);
@@ -231,7 +232,7 @@ class HandleChangeConfirmTest extends TestCase
   {
     $user = User::create(['name' => 'テスト太郎']);
     $bskyAccount = BlueskyAccount::create([
-      'id' => \Illuminate\Support\Str::uuid(),
+      'id' => Str::uuid(),
       'user_id' => $user->id,
       'did' => 'did:plc:test777',
       'handle' => 'old-handle.bsky.social',
@@ -240,7 +241,7 @@ class HandleChangeConfirmTest extends TestCase
 
     // 紐づくダミー投稿も作成
     $post = Post::create([
-      'id' => \Illuminate\Support\Str::uuid(),
+      'id' => Str::uuid(),
       'user_id' => $user->id,
       'uri' => 'at://did:plc:test777/app.bsky.feed.post/12345',
       'cid' => 'cid123',
@@ -261,9 +262,9 @@ class HandleChangeConfirmTest extends TestCase
         'profile' => [],
         'is_private' => false,
         'throttle_key' => 'login-attempt:127.0.0.1|new-handle.bsky.social',
-      ]
+      ],
     ])->post('/login/confirm-handle-change', [
-      'action' => 'delete'
+      'action' => 'delete',
     ]);
 
     $response->assertStatus(302);
@@ -290,7 +291,7 @@ class HandleChangeConfirmTest extends TestCase
   {
     $user = User::create(['name' => 'テスト太郎']);
     $bskyAccount = BlueskyAccount::create([
-      'id' => \Illuminate\Support\Str::uuid(),
+      'id' => Str::uuid(),
       'user_id' => $user->id,
       'did' => 'did:plc:test777',
       'handle' => 'old-handle.bsky.social',
@@ -306,9 +307,9 @@ class HandleChangeConfirmTest extends TestCase
         'profile' => [],
         'is_private' => false,
         'throttle_key' => 'login-attempt:127.0.0.1|new-handle.bsky.social',
-      ]
+      ],
     ])->post('/login/confirm-handle-change', [
-      'action' => 'cancel'
+      'action' => 'cancel',
     ]);
 
     $response->assertStatus(302);

@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
-use App\Models\User;
 use App\Jobs\SyncBlueskyPostsJob;
+use App\Models\User;
 use Illuminate\Console\Command;
 
 class SyncAllBlueskyPosts extends Command
@@ -35,18 +35,20 @@ class SyncAllBlueskyPosts extends Command
 
     if ($users->isEmpty()) {
       $this->warn('No users found with auto-sync enabled Bluesky accounts.');
+
       return Command::SUCCESS;
     }
 
     foreach ($users as $user) {
       $handle = $user->blueskyAccount->handle;
       $this->info("Dispatching sync job for user: @{$handle} (ID: {$user->id})");
-      
+
       // ジョブをキューへ投入
       SyncBlueskyPostsJob::dispatch($user);
     }
 
     $this->info('All sync jobs have been successfully dispatched.');
+
     return Command::SUCCESS;
   }
 }

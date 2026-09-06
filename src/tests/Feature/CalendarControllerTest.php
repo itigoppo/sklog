@@ -2,11 +2,18 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
+use App\Jobs\SyncBlueskyPostsJob;
 use App\Models\BlueskyAccount;
 use App\Models\Post;
+use App\Models\Tag;
+use App\Models\User;
+use App\Services\BlueskyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\RateLimiter;
 use Tests\TestCase;
 
 class CalendarControllerTest extends TestCase
@@ -14,6 +21,7 @@ class CalendarControllerTest extends TestCase
   use RefreshDatabase;
 
   private User $user;
+
   private BlueskyAccount $account;
 
   protected function setUp(): void
@@ -64,7 +72,7 @@ class CalendarControllerTest extends TestCase
       'posted_at' => Carbon::now(),
     ]);
 
-    $response = $this->get("/profile/test.bsky.social");
+    $response = $this->get('/profile/test.bsky.social');
 
     $response->assertStatus(200);
     $response->assertSee('テストユーザー');
@@ -86,7 +94,7 @@ class CalendarControllerTest extends TestCase
     // 投稿をすべて削除（念のため）
     Post::where('user_id', $this->user->id)->delete();
 
-    $response = $this->get("/profile/test.bsky.social");
+    $response = $this->get('/profile/test.bsky.social');
 
     $response->assertStatus(200);
     $response->assertViewHas('isFirstSyncNeeded', true);
@@ -115,15 +123,15 @@ class CalendarControllerTest extends TestCase
               'did' => 'did:plc:other98765',
               'handle' => 'quoted-author.bsky.social',
               'displayName' => '引用された親切な人',
-              'avatar' => 'https://example.com/avatar.jpg'
+              'avatar' => 'https://example.com/avatar.jpg',
             ],
             'value' => [
               'text' => 'これは引用された元の素晴らしい投稿文です。',
-              'createdAt' => '2026-05-26T06:00:00.000Z'
-            ]
-          ]
-        ]
-      ]
+              'createdAt' => '2026-05-26T06:00:00.000Z',
+            ],
+          ],
+        ],
+      ],
     ];
 
     Post::create([
@@ -135,7 +143,7 @@ class CalendarControllerTest extends TestCase
       'posted_at' => Carbon::now(),
     ]);
 
-    $response = $this->get("/profile/test.bsky.social");
+    $response = $this->get('/profile/test.bsky.social');
 
     $response->assertStatus(200);
     $response->assertSee('こちらの投稿を引用します！');
@@ -158,24 +166,24 @@ class CalendarControllerTest extends TestCase
           'did' => 'did:plc:other98765',
           'handle' => 'original-author.bsky.social',
           'displayName' => 'オリジナル投稿の作者',
-          'avatar' => 'https://example.com/original-avatar.jpg'
+          'avatar' => 'https://example.com/original-avatar.jpg',
         ],
         'record' => [
           'text' => 'これは元の誰かの素晴らしい投稿です。',
-          'createdAt' => '2026-05-26T05:00:00.000Z'
+          'createdAt' => '2026-05-26T05:00:00.000Z',
         ],
         'likeCount' => 10,
-        'repostCount' => 3
+        'repostCount' => 3,
       ],
       'reason' => [
         '$type' => 'app.bsky.feed.defs#reasonRepost',
         'by' => [
           'did' => $this->account->did,
           'handle' => $this->account->handle,
-          'displayName' => $this->user->name
+          'displayName' => $this->user->name,
         ],
-        'indexedAt' => '2026-05-26T06:00:00.000Z'
-      ]
+        'indexedAt' => '2026-05-26T06:00:00.000Z',
+      ],
     ];
 
     Post::create([
@@ -187,7 +195,7 @@ class CalendarControllerTest extends TestCase
       'posted_at' => Carbon::now(),
     ]);
 
-    $response = $this->get("/profile/test.bsky.social");
+    $response = $this->get('/profile/test.bsky.social');
 
     $response->assertStatus(200);
     $response->assertSee('これは元の誰かの素晴らしい投稿です。');
@@ -218,8 +226,8 @@ class CalendarControllerTest extends TestCase
     $response = $this->get("/profile/test.bsky.social/{$targetYear}");
 
     $response->assertStatus(200);
-    $response->assertSee("2025年のログ");
-    $response->assertSee("1 件のログ"); // 5月のカウント表示など
+    $response->assertSee('2025年のログ');
+    $response->assertSee('1 件のログ'); // 5月のカウント表示など
   }
 
   /**
@@ -306,7 +314,7 @@ class CalendarControllerTest extends TestCase
     $this->account->update(['is_private' => true]);
 
     // ゲスト（未ログイン）からのアクセス -> 404
-    $response = $this->get("/profile/test.bsky.social");
+    $response = $this->get('/profile/test.bsky.social');
     $response->assertStatus(404);
 
     // 別ユーザーからのアクセス -> 404
@@ -316,11 +324,11 @@ class CalendarControllerTest extends TestCase
       'password' => bcrypt('password'),
     ]);
 
-    $response = $this->actingAs($otherUser)->get("/profile/test.bsky.social");
+    $response = $this->actingAs($otherUser)->get('/profile/test.bsky.social');
     $response->assertStatus(404);
 
     // 本人からのアクセス -> 200 OK
-    $response = $this->actingAs($this->user)->get("/profile/test.bsky.social");
+    $response = $this->actingAs($this->user)->get('/profile/test.bsky.social');
     $response->assertStatus(200);
   }
 
@@ -357,11 +365,11 @@ class CalendarControllerTest extends TestCase
             'handle' => 'private-target.bsky.social',
             'displayName' => '非公開の秘密部屋',
             'avatar' => 'https://example.com/avatar.png',
-          ]
+          ],
         ],
         'reason' => [
-          '$type' => 'app.bsky.feed.defs#reasonRepost'
-        ]
+          '$type' => 'app.bsky.feed.defs#reasonRepost',
+        ],
       ],
       'posted_at' => Carbon::now(),
     ]);
@@ -387,10 +395,10 @@ class CalendarControllerTest extends TestCase
               'value' => [
                 'text' => '引用された非公開ユーザーの内緒の発言',
                 'createdAt' => Carbon::now()->toIso8601String(),
-              ]
-            ]
-          ]
-        ]
+              ],
+            ],
+          ],
+        ],
       ],
       'posted_at' => Carbon::now()->subMinute(),
     ]);
@@ -413,22 +421,22 @@ class CalendarControllerTest extends TestCase
             ],
             'record' => [
               'text' => '返信元の非公開ユーザーの内緒の発言',
-            ]
+            ],
           ],
           'root' => [
             'uri' => 'at://did:plc:private123456/app.bsky.feed.post/post456',
             'author' => [
               'did' => 'did:plc:private123456',
               'handle' => 'private-target.bsky.social',
-            ]
-          ]
-        ]
+            ],
+          ],
+        ],
       ],
       'posted_at' => Carbon::now()->subMinutes(2),
     ]);
 
     // 5. ゲスト（未ログイン）からのアクセス時のアサーション (マスキングされていること)
-    $response = $this->get("/profile/test.bsky.social");
+    $response = $this->get('/profile/test.bsky.social');
     $response->assertStatus(200);
 
     // リポスト元が非公開 -> 本文とアバター/表示名がマスキングされていること
@@ -447,7 +455,7 @@ class CalendarControllerTest extends TestCase
     $response->assertDontSee('返信元の非公開ユーザーの内緒の発言');
 
     // 6. カレンダーの所有者本人からのアクセス時のアサーション (すべて表示されていること)
-    $response2 = $this->actingAs($this->user)->get("/profile/test.bsky.social");
+    $response2 = $this->actingAs($this->user)->get('/profile/test.bsky.social');
     $response2->assertStatus(200);
 
     // リポスト元が非公開 -> 本文もアバター元の名前もそのまま見えていること
@@ -487,7 +495,7 @@ class CalendarControllerTest extends TestCase
     ]);
 
     // 「Laravel」で検索
-    $response = $this->get("/profile/test.bsky.social?q=Laravel");
+    $response = $this->get('/profile/test.bsky.social?q=Laravel');
 
     $response->assertStatus(200);
     $response->assertSee('Laravelのテストを書いています');
@@ -495,7 +503,7 @@ class CalendarControllerTest extends TestCase
     $response->assertSee('検索結果');
     $response->assertSee('1件');
   }
- 
+
   /**
    * キーワード検索時に、リポストされた他人の投稿（repost- 疑似URI）が検索結果から完全に除外されることを確認。
    */
@@ -511,7 +519,7 @@ class CalendarControllerTest extends TestCase
       'raw_data' => ['post' => []],
       'posted_at' => Carbon::now(),
     ]);
- 
+
     // 2. 検索ワード「Laravel」を含む他人の投稿（自分がリポストした投稿）
     Post::create([
       'user_id' => $this->user->id,
@@ -522,20 +530,20 @@ class CalendarControllerTest extends TestCase
         'post' => [],
         'reason' => [
           '$type' => 'app.bsky.feed.defs#reasonRepost',
-          'by' => ['did' => 'did:plc:test123456']
-        ]
+          'by' => ['did' => 'did:plc:test123456'],
+        ],
       ],
       'posted_at' => Carbon::now()->subHour(),
     ]);
- 
+
     // 「Laravel」で検索
-    $response = $this->get("/profile/test.bsky.social?q=Laravel");
- 
+    $response = $this->get('/profile/test.bsky.social?q=Laravel');
+
     $response->assertStatus(200);
     // オリジナル投稿は表示され、リポストは非表示になっていることを確認
     $response->assertSee('Laravelの勉強は本当に楽しいですね。');
     $response->assertDontSee('他人の発言：Laravelは非常に強力なフレームワークです。');
-    
+
     // 検索件数が 1件 であることを検証
     $response->assertSee('1件');
   }
@@ -565,7 +573,7 @@ class CalendarControllerTest extends TestCase
     ]);
 
     // 「今日 天気」でAND検索（全角スペースと半角スペース両方を混在）
-    $response = $this->get("/profile/test.bsky.social?q=今日　天気&mode=and");
+    $response = $this->get('/profile/test.bsky.social?q=今日　天気&mode=and');
 
     $response->assertStatus(200);
     $response->assertSee('今日は天気が良くて暖かいですね。お散歩日和です。');
@@ -606,7 +614,7 @@ class CalendarControllerTest extends TestCase
     ]);
 
     // 「PHP Ruby」でOR検索
-    $response = $this->get("/profile/test.bsky.social?q=PHP+Ruby&mode=or");
+    $response = $this->get('/profile/test.bsky.social?q=PHP+Ruby&mode=or');
 
     $response->assertStatus(200);
     $response->assertSee('PHPの勉強中');
@@ -632,7 +640,7 @@ class CalendarControllerTest extends TestCase
       ]);
     }
 
-    $response = $this->get("/profile/test.bsky.social?q=検索テスト対象&mode=and");
+    $response = $this->get('/profile/test.bsky.social?q=検索テスト対象&mode=and');
 
     $response->assertStatus(200);
     // 2ページ目へのリンクに「q=検索テスト対象」と「mode=and」が含まれていることを検証
@@ -648,9 +656,9 @@ class CalendarControllerTest extends TestCase
     $this->actingAs($this->user);
 
     // RateLimiterをクリア
-    \Illuminate\Support\Facades\RateLimiter::clear('sync-user:' . $this->user->id);
+    RateLimiter::clear('sync-user:'.$this->user->id);
 
-    $blueskyService = \Mockery::mock(\App\Services\BlueskyService::class);
+    $blueskyService = \Mockery::mock(BlueskyService::class);
     $blueskyService->shouldReceive('authenticate')->andReturn([
       'accessJwt' => 'mock_token',
       'did' => 'did:plc:test123456',
@@ -662,17 +670,17 @@ class CalendarControllerTest extends TestCase
       'feed' => [],
       'cursor' => null,
     ]);
-    $this->app->instance(\App\Services\BlueskyService::class, $blueskyService);
+    $this->app->instance(BlueskyService::class, $blueskyService);
 
     // 5回までは正常に同期できること
     for ($i = 0; $i < 5; $i++) {
-      $response = $this->post("/sync");
+      $response = $this->post('/sync');
       $response->assertStatus(302);
       $response->assertSessionHas('success');
     }
 
     // 6回目はレート制限がかかること
-    $response = $this->post("/sync");
+    $response = $this->post('/sync');
     $response->assertStatus(302);
     $response->assertSessionHas('error');
     $this->assertStringContainsString('手動同期の回数上限を超えました', session('error'));
@@ -689,7 +697,7 @@ class CalendarControllerTest extends TestCase
     $this->account->update(['is_syncing' => true]);
 
     // 同期をリクエスト
-    $response = $this->post("/sync");
+    $response = $this->post('/sync');
 
     $response->assertStatus(302);
     $response->assertSessionHas('error');
@@ -722,23 +730,23 @@ class CalendarControllerTest extends TestCase
     ]);
 
     // 中間テーブル post_tags に手動登録
-    $tagLaravel = \App\Models\Tag::create(['name' => 'Laravel']);
-    $tagPHP = \App\Models\Tag::create(['name' => 'PHP']);
+    $tagLaravel = Tag::create(['name' => 'Laravel']);
+    $tagPHP = Tag::create(['name' => 'PHP']);
 
     $post1->tags()->sync([$tagLaravel->id, $tagPHP->id]);
     $post2->tags()->sync([$tagLaravel->id]);
 
     // キャッシュをクリア
-    \Illuminate\Support\Facades\Cache::forget('user-tags:' . $this->user->id);
+    Cache::forget('user-tags:'.$this->user->id);
 
     // カレンダーブログページを表示
-    $response = $this->get("/profile/test.bsky.social");
+    $response = $this->get('/profile/test.bsky.social');
 
     $response->assertStatus(200);
     // サイドバーのタグ一覧に表示されているか検証
     $response->assertSee('Laravel');
     $response->assertSee('PHP');
-    
+
     // 頻度順での件数（Laravel: 2, PHP: 1）が表示されているか
     $response->assertSee('2');
     $response->assertSee('1');
@@ -749,7 +757,7 @@ class CalendarControllerTest extends TestCase
    */
   public function test_sync_all_command_only_syncs_users_with_auto_sync_enabled(): void
   {
-    \Illuminate\Support\Facades\Bus::fake();
+    Bus::fake();
 
     // ユーザーA: 自動同期有効
     $userA = User::create([
@@ -757,7 +765,7 @@ class CalendarControllerTest extends TestCase
       'email' => 'usera@example.com',
       'password' => bcrypt('password'),
     ]);
-    \App\Models\BlueskyAccount::create([
+    BlueskyAccount::create([
       'user_id' => $userA->id,
       'did' => 'did:plc:usera123',
       'handle' => 'usera.bsky.social',
@@ -772,7 +780,7 @@ class CalendarControllerTest extends TestCase
       'email' => 'userb@example.com',
       'password' => bcrypt('password'),
     ]);
-    \App\Models\BlueskyAccount::create([
+    BlueskyAccount::create([
       'user_id' => $userB->id,
       'did' => 'did:plc:userb123',
       'handle' => 'userb.bsky.social',
@@ -786,18 +794,20 @@ class CalendarControllerTest extends TestCase
       ->assertSuccessful();
 
     // ユーザーAのジョブはディスパッチされたことを検証
-    \Illuminate\Support\Facades\Bus::assertDispatched(\App\Jobs\SyncBlueskyPostsJob::class, function ($job) use ($userA) {
+    Bus::assertDispatched(SyncBlueskyPostsJob::class, function ($job) use ($userA) {
       $refJob = new \ReflectionClass($job);
       $refProp = $refJob->getProperty('user');
       $refProp->setAccessible(true);
+
       return $refProp->getValue($job)->id === $userA->id;
     });
 
     // ユーザーBのジョブはディスパッチされなかったことを検証
-    \Illuminate\Support\Facades\Bus::assertNotDispatched(\App\Jobs\SyncBlueskyPostsJob::class, function ($job) use ($userB) {
+    Bus::assertNotDispatched(SyncBlueskyPostsJob::class, function ($job) use ($userB) {
       $refJob = new \ReflectionClass($job);
       $refProp = $refJob->getProperty('user');
       $refProp->setAccessible(true);
+
       return $refProp->getValue($job)->id === $userB->id;
     });
   }
@@ -818,7 +828,7 @@ class CalendarControllerTest extends TestCase
       'posted_at' => Carbon::create(2026, 8, 15, 12, 0, 0),
     ]);
 
-    $response = $this->get("/profile/test.bsky.social/calendar-api/2026/08");
+    $response = $this->get('/profile/test.bsky.social/calendar-api/2026/08');
 
     $response->assertStatus(200);
     // カレンダーの月表示や、投稿日（15日）のリンクが含まれているか確認
@@ -837,11 +847,11 @@ class CalendarControllerTest extends TestCase
     $this->account->update(['is_private' => true]);
 
     // ゲストアクセス -> 403 Forbidden
-    $response = $this->get("/profile/test.bsky.social/calendar-api/2026/08");
+    $response = $this->get('/profile/test.bsky.social/calendar-api/2026/08');
     $response->assertStatus(403);
 
     // 本人アクセス -> 200 OK
-    $response = $this->actingAs($this->user)->get("/profile/test.bsky.social/calendar-api/2026/08");
+    $response = $this->actingAs($this->user)->get('/profile/test.bsky.social/calendar-api/2026/08');
     $response->assertStatus(200);
   }
 
@@ -862,10 +872,10 @@ class CalendarControllerTest extends TestCase
           'embed' => [
             '$type' => 'app.bsky.embed.images#view',
             'images' => [
-              ['thumb' => 'https://example.com/thumb5.jpg']
-            ]
-          ]
-        ]
+              ['thumb' => 'https://example.com/thumb5.jpg'],
+            ],
+          ],
+        ],
       ],
       'posted_at' => Carbon::create(2026, 5, 10, 12, 0, 0),
     ]);
@@ -880,7 +890,7 @@ class CalendarControllerTest extends TestCase
       'posted_at' => Carbon::create(2025, 12, 25, 12, 0, 0),
     ]);
 
-    $response = $this->get("/profile/test.bsky.social/archives");
+    $response = $this->get('/profile/test.bsky.social/archives');
 
     $response->assertStatus(200);
     $response->assertSee('月別アーカイブ');
@@ -900,11 +910,11 @@ class CalendarControllerTest extends TestCase
     $this->account->update(['is_private' => true]);
 
     // ゲストアクセス -> 404
-    $response = $this->get("/profile/test.bsky.social/archives");
+    $response = $this->get('/profile/test.bsky.social/archives');
     $response->assertStatus(404);
 
     // 本人アクセス -> 200 OK
-    $response = $this->actingAs($this->user)->get("/profile/test.bsky.social/archives");
+    $response = $this->actingAs($this->user)->get('/profile/test.bsky.social/archives');
     $response->assertStatus(200);
   }
 
@@ -924,12 +934,12 @@ class CalendarControllerTest extends TestCase
       'posted_at' => Carbon::now(),
     ]);
 
-    $tagLaravel = \App\Models\Tag::create(['name' => 'Laravel']);
-    $tagPHP = \App\Models\Tag::create(['name' => 'PHP']);
+    $tagLaravel = Tag::create(['name' => 'Laravel']);
+    $tagPHP = Tag::create(['name' => 'PHP']);
 
     $post1->tags()->sync([$tagLaravel->id, $tagPHP->id]);
 
-    $response = $this->get("/profile/test.bsky.social/tags");
+    $response = $this->get('/profile/test.bsky.social/tags');
 
     $response->assertStatus(200);
     $response->assertSee('タグ一覧');
@@ -947,11 +957,11 @@ class CalendarControllerTest extends TestCase
     $this->account->update(['is_private' => true]);
 
     // ゲストアクセス -> 404
-    $response = $this->get("/profile/test.bsky.social/tags");
+    $response = $this->get('/profile/test.bsky.social/tags');
     $response->assertStatus(404);
 
     // 本人アクセス -> 200 OK
-    $response = $this->actingAs($this->user)->get("/profile/test.bsky.social/tags");
+    $response = $this->actingAs($this->user)->get('/profile/test.bsky.social/tags');
     $response->assertStatus(200);
   }
 
@@ -988,9 +998,9 @@ class CalendarControllerTest extends TestCase
     ]);
 
     // キャッシュをクリア
-    \Illuminate\Support\Facades\Cache::forget('user-stats-summary:' . $this->user->id);
+    Cache::forget('user-stats-summary:'.$this->user->id);
 
-    $response = $this->get("/profile/test.bsky.social");
+    $response = $this->get('/profile/test.bsky.social');
 
     $response->assertStatus(200);
     $response->assertSee('Stats');
@@ -1002,19 +1012,19 @@ class CalendarControllerTest extends TestCase
     $this->account->update([
       'registered_at' => Carbon::create(2024, 10, 15, 12, 0, 0),
     ]);
-    \Illuminate\Support\Facades\Cache::forget('user-stats-summary:' . $this->user->id);
+    Cache::forget('user-stats-summary:'.$this->user->id);
 
-    $response2 = $this->get("/profile/test.bsky.social");
+    $response2 = $this->get('/profile/test.bsky.social');
     $response2->assertStatus(200);
     $response2->assertSee('Bluesky参加日');
     $response2->assertSee('2024年10月15日'); // 本物の登録日
 
     // 登録記念日の検証（タイムゾーンを揃えて本日の午前0時に設定し、確実に月日一致と満2年経過を両立）
     $this->account->update([
-      'registered_at' => Carbon::now('Asia/Tokyo')->subYears(2)->startOfDay(), 
+      'registered_at' => Carbon::now('Asia/Tokyo')->subYears(2)->startOfDay(),
     ]);
 
-    $response3 = $this->get("/profile/test.bsky.social");
+    $response3 = $this->get('/profile/test.bsky.social');
     $response3->assertStatus(200);
     $response3->assertSee('Happy Anniv.');
     $response3->assertSee('Bluesky Anniversary');
@@ -1025,7 +1035,7 @@ class CalendarControllerTest extends TestCase
       'registered_at' => Carbon::create(2020, 5, 5, 12, 0, 0), // 今日と異なる日
     ]);
 
-    $response4 = $this->get("/profile/test.bsky.social?anniversary=1");
+    $response4 = $this->get('/profile/test.bsky.social?anniversary=1');
     $response4->assertStatus(200);
     $response4->assertSee('Happy Anniv.');
     $response4->assertSee('Bluesky Anniversary');
@@ -1050,25 +1060,25 @@ class CalendarControllerTest extends TestCase
     ]);
 
     // 未ログイン（他者）として、デモアカウントの各フル機能エンドポイントへリクエスト
-    $responseShow = $this->get("/profile/test.bsky.social");
+    $responseShow = $this->get('/profile/test.bsky.social');
     $responseShow->assertStatus(200);
     $responseShow->assertSee('デモ体験ページのため、すべての機能（カレンダー・検索・統計など）が特別に解放されています。');
     $responseShow->assertSee('Stats'); // サイドバーが表示されていること
 
-    $responseMonth = $this->get("/profile/test.bsky.social/2026/05");
+    $responseMonth = $this->get('/profile/test.bsky.social/2026/05');
     $responseMonth->assertStatus(200);
     $responseMonth->assertSee('2026年');
     $responseMonth->assertSee('5月のログ');
 
-    $responseYear = $this->get("/profile/test.bsky.social/2026");
+    $responseYear = $this->get('/profile/test.bsky.social/2026');
     $responseYear->assertStatus(200);
     $responseYear->assertSee('2026年');
 
-    $responseArchives = $this->get("/profile/test.bsky.social/archives");
+    $responseArchives = $this->get('/profile/test.bsky.social/archives');
     $responseArchives->assertStatus(200);
     $responseArchives->assertSee('月別アーカイブ');
 
-    $responseTags = $this->get("/profile/test.bsky.social/tags");
+    $responseTags = $this->get('/profile/test.bsky.social/tags');
     $responseTags->assertStatus(200);
     $responseTags->assertSee('タグ一覧');
   }
@@ -1081,29 +1091,29 @@ class CalendarControllerTest extends TestCase
   {
     // 公開アカウントの場合 -> 他者、本人いずれも noindex が出力されないこと
     $this->account->update(['is_private' => false]);
-    
-    $responseGuest = $this->get("/profile/test.bsky.social");
+
+    $responseGuest = $this->get('/profile/test.bsky.social');
     $responseGuest->assertStatus(200);
     $responseGuest->assertDontSee('<meta name="robots" content="noindex, nofollow">', false);
 
-    $responseOwner = $this->actingAs($this->user)->get("/profile/test.bsky.social");
+    $responseOwner = $this->actingAs($this->user)->get('/profile/test.bsky.social');
     $responseOwner->assertStatus(200);
     $responseOwner->assertDontSee('<meta name="robots" content="noindex, nofollow">', false);
 
     // 非公開アカウントの場合 -> ログイン本人のみアクセスでき、noindex が出力されること
     $this->account->update(['is_private' => true]);
-    $responsePrivateOwner = $this->actingAs($this->user)->get("/profile/test.bsky.social");
+    $responsePrivateOwner = $this->actingAs($this->user)->get('/profile/test.bsky.social');
     $responsePrivateOwner->assertStatus(200);
     $responsePrivateOwner->assertSee('<meta name="robots" content="noindex, nofollow">', false);
 
     // 設定ページ（settings）の場合 -> アカウントの公開・非公開設定にかかわらず、常に noindex が出力されること
     $this->account->update(['is_private' => false]);
-    $responseSettingsOpen = $this->actingAs($this->user)->get("/profile/test.bsky.social/settings");
+    $responseSettingsOpen = $this->actingAs($this->user)->get('/profile/test.bsky.social/settings');
     $responseSettingsOpen->assertStatus(200);
     $responseSettingsOpen->assertSee('<meta name="robots" content="noindex, nofollow">', false);
 
     $this->account->update(['is_private' => true]);
-    $responseSettingsPrivate = $this->actingAs($this->user)->get("/profile/test.bsky.social/settings");
+    $responseSettingsPrivate = $this->actingAs($this->user)->get('/profile/test.bsky.social/settings');
     $responseSettingsPrivate->assertStatus(200);
     $responseSettingsPrivate->assertSee('<meta name="robots" content="noindex, nofollow">', false);
   }
@@ -1146,8 +1156,8 @@ class CalendarControllerTest extends TestCase
    */
   public function test_post_text_facets_linking_with_shortened_url(): void
   {
-    $text = "チェックインしました！ app.foursquare.com/share/checki...";
-    
+    $text = 'チェックインしました！ app.foursquare.com/share/checki...';
+
     // 省略されたURLのバイト開始位置（UTF-8）を正確にモック
     // 「チェックインしました！」は日本語（3バイト文字）×11文字 = 33バイト
     // さらに半角スペース（1バイト）を含めて、URLの開始位置は34バイト。
@@ -1169,12 +1179,12 @@ class CalendarControllerTest extends TestCase
                 [
                   '$type' => 'app.bsky.richtext.facet#link',
                   'uri' => 'https://app.foursquare.com/share/checkin/1234567890abcdef',
-                ]
-              ]
-            ]
-          ]
-        ]
-      ]
+                ],
+              ],
+            ],
+          ],
+        ],
+      ],
     ];
 
     $post = Post::create([
@@ -1203,7 +1213,7 @@ class CalendarControllerTest extends TestCase
    */
   public function test_post_text_linking_skips_domain_annotation_when_matching_external_card(): void
   {
-    $text = "チェックインしました！ app.foursquare.com/share/checki...";
+    $text = 'チェックインしました！ app.foursquare.com/share/checki...';
     $byteStart = 34;
     $byteEnd = 68;
 
@@ -1221,20 +1231,20 @@ class CalendarControllerTest extends TestCase
                 [
                   '$type' => 'app.bsky.richtext.facet#link',
                   'uri' => 'https://app.foursquare.com/share/checkin/1234567890abcdef',
-                ]
-              ]
-            ]
-          ]
+                ],
+              ],
+            ],
+          ],
         ],
         'embed' => [
           '$type' => 'app.bsky.embed.external#view',
           'external' => [
             'uri' => 'https://app.foursquare.com/share/checkin/1234567890abcdef',
             'title' => "Hisato Sakanoue's check in at Tokyo Station",
-            'description' => "チェックインしました",
-          ]
-        ]
-      ]
+            'description' => 'チェックインしました',
+          ],
+        ],
+      ],
     ];
 
     $post = Post::create([
@@ -1250,7 +1260,7 @@ class CalendarControllerTest extends TestCase
 
     // リンクタグ自体は正しく生成されていること
     $this->assertStringContainsString('<a href="https://app.foursquare.com/share/checkin/1234567890abcdef" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline hover:text-sky-300 transition cursor-pointer">app.foursquare.com/share/checki...</a>', $htmlText);
-    
+
     // 同一ドメインの外部リンクカードが紐づいているため、ドメイン注釈 (app.foursquare.com) が【付加されていない】こと
     $this->assertStringNotContainsString('(app.foursquare.com)', $htmlText);
   }
@@ -1264,7 +1274,7 @@ class CalendarControllerTest extends TestCase
     // 本文中に2つのURLが含まれる
     // 1. https://standard.site/long-path (カードドメインと一致するため注釈はスキップされるべき)
     // 2. https://substack.com/app (カードドメインと一致しないため (substack.com) 注釈が表示されるべき)
-    $text = "リンク2個: https://standard.site/long-path と https://substack.com/app です。";
+    $text = 'リンク2個: https://standard.site/long-path と https://substack.com/app です。';
 
     $rawData = [
       'post' => [
@@ -1275,11 +1285,11 @@ class CalendarControllerTest extends TestCase
           '$type' => 'app.bsky.embed.external#view',
           'external' => [
             'uri' => 'https://standard.site/long-path',
-            'title' => "Standard.site - One schema",
-            'description' => "Standard.site provides shared lexicons",
-          ]
-        ]
-      ]
+            'title' => 'Standard.site - One schema',
+            'description' => 'Standard.site provides shared lexicons',
+          ],
+        ],
+      ],
     ];
 
     $post = Post::create([
@@ -1316,14 +1326,14 @@ class CalendarControllerTest extends TestCase
       'user_id' => $this->user->id,
       'uri' => 'at://did:plc:test123456/app.bsky.feed.post/parent_post_cross',
       'cid' => 'cidparentcross',
-      'text' => "親投稿（5月28日）",
+      'text' => '親投稿（5月28日）',
       'raw_data' => [
         'post' => [
           'uri' => 'at://did:plc:test123456/app.bsky.feed.post/parent_post_cross',
           'cid' => 'cidparentcross',
           'author' => ['did' => $this->user->blueskyAccount->did],
-          'record' => ['text' => "親投稿（5月28日）"]
-        ]
+          'record' => ['text' => '親投稿（5月28日）'],
+        ],
       ],
       'posted_at' => $date1,
     ]);
@@ -1333,24 +1343,24 @@ class CalendarControllerTest extends TestCase
       'user_id' => $this->user->id,
       'uri' => 'at://did:plc:test123456/app.bsky.feed.post/child_post_cross',
       'cid' => 'cidchildcross',
-      'text' => "子投稿（5月29日・返信）",
+      'text' => '子投稿（5月29日・返信）',
       'raw_data' => [
         'post' => [
           'uri' => 'at://did:plc:test123456/app.bsky.feed.post/child_post_cross',
           'cid' => 'cidchildcross',
           'author' => ['did' => $this->user->blueskyAccount->did],
-          'record' => ['text' => "子投稿（5月29日・返信）"]
+          'record' => ['text' => '子投稿（5月29日・返信）'],
         ],
         'reply' => [
           'parent' => [
             'uri' => 'at://did:plc:test123456/app.bsky.feed.post/parent_post_cross',
-            'author' => ['did' => $this->user->blueskyAccount->did]
+            'author' => ['did' => $this->user->blueskyAccount->did],
           ],
           'root' => [
             'uri' => 'at://did:plc:test123456/app.bsky.feed.post/parent_post_cross',
-            'author' => ['did' => $this->user->blueskyAccount->did]
-          ]
-        ]
+            'author' => ['did' => $this->user->blueskyAccount->did],
+          ],
+        ],
       ],
       'posted_at' => $date2,
     ]);
@@ -1362,13 +1372,13 @@ class CalendarControllerTest extends TestCase
     $response->assertStatus(200);
 
     // 両方の投稿が表示されていること
-    $response->assertSee("親投稿（5月28日）");
-    $response->assertSee("子投稿（5月29日・返信）");
+    $response->assertSee('親投稿（5月28日）');
+    $response->assertSee('子投稿（5月29日・返信）');
 
     // 日付ヘッダーとして「2026年05月28日」が存在し、翌日の日付「2026年05月29日」は日付ヘッダーとして表示されないこと
     // （5月29日の子投稿が5月28日のセクションにグループ化されているため）
-    $response->assertSee("2026年05月28日");
-    $response->assertDontSee("2026年05月29日 (");
+    $response->assertSee('2026年05月28日');
+    $response->assertDontSee('2026年05月29日 (');
   }
 
   /**
@@ -1380,23 +1390,23 @@ class CalendarControllerTest extends TestCase
       'user_id' => $this->user->id,
       'uri' => 'at://did:plc:test123456/app.bsky.feed.post/post_tag_linking_1',
       'cid' => 'cidtaglink1',
-      'text' => "今日は、 #Laravel の日！詳細はこちら: https://example.com/info #PHP も楽しいね！",
+      'text' => '今日は、 #Laravel の日！詳細はこちら: https://example.com/info #PHP も楽しいね！',
       'raw_data' => ['post' => []],
       'posted_at' => Carbon::now(),
     ]);
 
     // 1. ゲストユーザー（非ログイン）が閲覧したとき
-    \Illuminate\Support\Facades\Auth::logout();
+    Auth::logout();
 
     $htmlGuest = $post->html_text;
-    
+
     // URLは自動リンク化されていること
     $this->assertStringContainsString('href="https://example.com/info"', $htmlGuest);
-    
+
     // ハッシュタグはBluesky公式検索（別タブ）リンクに自動リンク化されていること
     $this->assertStringContainsString('<a href="https://bsky.app/search?q=%23Laravel" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline hover:text-sky-300 transition cursor-pointer">#Laravel</a>', $htmlGuest);
     $this->assertStringContainsString('<a href="https://bsky.app/search?q=%23PHP" target="_blank" rel="noopener noreferrer" class="text-sky-400 hover:underline hover:text-sky-300 transition cursor-pointer">#PHP</a>', $htmlGuest);
-    
+
     // ローカル検索リンクは含まれていないこと
     $this->assertStringNotContainsString('/profile/test.bsky.social?q=%23Laravel', $htmlGuest);
 
@@ -1406,25 +1416,25 @@ class CalendarControllerTest extends TestCase
 
     // URLは自動リンク化されていること
     $this->assertStringContainsString('href="https://example.com/info"', $htmlOwner);
-    
+
     // ハッシュタグは同一タブのローカル検索リンクに自動リンク化されていること
-    $expectedUrlLaravel = route('calendar.show', ['handle' => $this->user->blueskyAccount->handle]) . '?q=' . urlencode('#Laravel');
-    $expectedUrlPHP = route('calendar.show', ['handle' => $this->user->blueskyAccount->handle]) . '?q=' . urlencode('#PHP');
-    
-    $this->assertStringContainsString('<a href="' . $expectedUrlLaravel . '" class="text-sky-400 hover:underline hover:text-sky-300 transition cursor-pointer">#Laravel</a>', $htmlOwner);
-    $this->assertStringContainsString('<a href="' . $expectedUrlPHP . '" class="text-sky-400 hover:underline hover:text-sky-300 transition cursor-pointer">#PHP</a>', $htmlOwner);
-    
+    $expectedUrlLaravel = route('calendar.show', ['handle' => $this->user->blueskyAccount->handle]).'?q='.urlencode('#Laravel');
+    $expectedUrlPHP = route('calendar.show', ['handle' => $this->user->blueskyAccount->handle]).'?q='.urlencode('#PHP');
+
+    $this->assertStringContainsString('<a href="'.$expectedUrlLaravel.'" class="text-sky-400 hover:underline hover:text-sky-300 transition cursor-pointer">#Laravel</a>', $htmlOwner);
+    $this->assertStringContainsString('<a href="'.$expectedUrlPHP.'" class="text-sky-400 hover:underline hover:text-sky-300 transition cursor-pointer">#PHP</a>', $htmlOwner);
+
     // 外部リンク（target="_blank"）やBluesky検索は含まれていないこと
     $this->assertStringNotContainsString('https://bsky.app/search?q=%23Laravel', $htmlOwner);
 
     // 3. デモアカウント閲覧時 (非ログインでも、デモハンドル設定されていればローカル検索に化けること)
-    \Illuminate\Support\Facades\Auth::logout();
+    Auth::logout();
     config(['services.bluesky.demo_handle' => 'test.bsky.social']);
 
     $htmlDemo = $post->html_text;
-    
+
     // デモアカウント扱いなので、ローカル検索リンクになっていること
-    $this->assertStringContainsString('<a href="' . $expectedUrlLaravel . '" class="text-sky-400 hover:underline hover:text-sky-300 transition cursor-pointer">#Laravel</a>', $htmlDemo);
+    $this->assertStringContainsString('<a href="'.$expectedUrlLaravel.'" class="text-sky-400 hover:underline hover:text-sky-300 transition cursor-pointer">#Laravel</a>', $htmlDemo);
     $this->assertStringNotContainsString('https://bsky.app/search?q=%23Laravel', $htmlDemo);
   }
 
@@ -1443,11 +1453,11 @@ class CalendarControllerTest extends TestCase
       'user_id' => $this->user->id,
       'uri' => 'at://did:plc:test123456/app.bsky.feed.post/tag_strict_1',
       'cid' => 'cidstrict1',
-      'text' => "ハッシュタグテスト #sklog",
+      'text' => 'ハッシュタグテスト #sklog',
       'raw_data' => ['post' => []],
       'posted_at' => Carbon::now(),
     ]);
-    $tagSklog = \App\Models\Tag::create(['name' => 'sklog']);
+    $tagSklog = Tag::create(['name' => 'sklog']);
     $post1->tags()->sync([$tagSklog->id]);
 
     // 2. ハッシュタグが正常検知され、かつ「勉強」という単語を含む投稿
@@ -1455,7 +1465,7 @@ class CalendarControllerTest extends TestCase
       'user_id' => $this->user->id,
       'uri' => 'at://did:plc:test123456/app.bsky.feed.post/tag_strict_2',
       'cid' => 'cidstrict2',
-      'text' => "#sklog の勉強中！",
+      'text' => '#sklog の勉強中！',
       'raw_data' => ['post' => []],
       'posted_at' => Carbon::now()->subMinutes(10),
     ]);
@@ -1466,14 +1476,14 @@ class CalendarControllerTest extends TestCase
       'user_id' => $this->user->id,
       'uri' => 'at://did:plc:test123456/app.bsky.feed.post/tag_strict_noise',
       'cid' => 'cidstrictnoise',
-      'text' => "公式は句読点のあと、#sklog ハッシュって判定してんの？勉強になります。",
+      'text' => '公式は句読点のあと、#sklog ハッシュって判定してんの？勉強になります。',
       'raw_data' => ['post' => []],
       'posted_at' => Carbon::now()->subMinutes(20),
     ]);
 
     // A. 単一のハッシュタグ検索 ("#sklog" もしくは大文字混ざりの "#SkLoG")
     // 大文字小文字の差異があっても、リレーションで同一タグと見なされヒットすることを検証
-    $responseA = $this->get("/profile/test.bsky.social?q=%23SkLoG");
+    $responseA = $this->get('/profile/test.bsky.social?q=%23SkLoG');
     $responseA->assertStatus(200);
     $responseA->assertSee('ハッシュタグテスト');
     $responseA->assertSee('#sklog');
@@ -1483,7 +1493,7 @@ class CalendarControllerTest extends TestCase
     $responseA->assertDontSee('公式は句読点のあと、#sklog ハッシュって判定してんの？');
 
     // B. ハッシュタグと通常語句の複合AND検索 ("#sklog 勉強")
-    $responseB = $this->get("/profile/test.bsky.social?q=%23sklog+%E5%8B%89%E5%BC%B7&mode=and");
+    $responseB = $this->get('/profile/test.bsky.social?q=%23sklog+%E5%8B%89%E5%BC%B7&mode=and');
     $responseB->assertStatus(200);
     // 「#sklog が登録されており、かつ『勉強』を含む」投稿のみがヒットすること
     $responseB->assertSee('#sklog');
@@ -1513,7 +1523,7 @@ class CalendarControllerTest extends TestCase
     ]);
 
     // BlueskyService のモック (存在する想定)
-    $blueskyService = \Mockery::mock(\App\Services\BlueskyService::class);
+    $blueskyService = \Mockery::mock(BlueskyService::class);
     $blueskyService->shouldReceive('authenticate')
       ->once()
       ->with($this->account->handle, $this->account->encrypted_app_password)
@@ -1526,13 +1536,13 @@ class CalendarControllerTest extends TestCase
       ->with([$post->uri], 'mock_jwt_token')
       ->andReturn([
         'posts' => [
-          ['uri' => $post->uri]
-        ]
+          ['uri' => $post->uri],
+        ],
       ]);
-    $this->app->instance(\App\Services\BlueskyService::class, $blueskyService);
+    $this->app->instance(BlueskyService::class, $blueskyService);
 
     // 削除前の確認
-    $responseBefore = $this->get("/profile/test.bsky.social");
+    $responseBefore = $this->get('/profile/test.bsky.social');
     $responseBefore->assertStatus(200);
     $responseBefore->assertSee('削除される予定のローカルつぶやき');
 
@@ -1545,7 +1555,7 @@ class CalendarControllerTest extends TestCase
     // 削除後の確認（DBには論理削除で残るが、取得・表示されなくなる）
     $this->assertSoftDeleted('posts', ['id' => $post->id]);
 
-    $responseAfter = $this->get("/profile/test.bsky.social");
+    $responseAfter = $this->get('/profile/test.bsky.social');
     $responseAfter->assertStatus(200);
     $responseAfter->assertDontSee('削除される予定のローカルつぶやき');
   }
@@ -1567,7 +1577,7 @@ class CalendarControllerTest extends TestCase
     ]);
 
     // BlueskyService のモック (存在しない想定)
-    $blueskyService = \Mockery::mock(\App\Services\BlueskyService::class);
+    $blueskyService = \Mockery::mock(BlueskyService::class);
     $blueskyService->shouldReceive('authenticate')
       ->once()
       ->with($this->account->handle, $this->account->encrypted_app_password)
@@ -1579,9 +1589,9 @@ class CalendarControllerTest extends TestCase
       ->once()
       ->with([$post->uri], 'mock_jwt_token')
       ->andReturn([
-        'posts' => [] // 空配列を返す
+        'posts' => [], // 空配列を返す
       ]);
-    $this->app->instance(\App\Services\BlueskyService::class, $blueskyService);
+    $this->app->instance(BlueskyService::class, $blueskyService);
 
     // 削除リクエストの送信
     $response = $this->delete("/profile/test.bsky.social/posts/{$post->id}/delete");
@@ -1610,12 +1620,12 @@ class CalendarControllerTest extends TestCase
     ]);
 
     // BlueskyService のモック (認証で例外をスロー)
-    $blueskyService = \Mockery::mock(\App\Services\BlueskyService::class);
+    $blueskyService = \Mockery::mock(BlueskyService::class);
     $blueskyService->shouldReceive('authenticate')
       ->once()
       ->with($this->account->handle, $this->account->encrypted_app_password)
       ->andThrow(new \Exception('Connection timeout'));
-    $this->app->instance(\App\Services\BlueskyService::class, $blueskyService);
+    $this->app->instance(BlueskyService::class, $blueskyService);
 
     // 削除リクエストの送信
     $response = $this->delete("/profile/test.bsky.social/posts/{$post->id}/delete");
@@ -1656,7 +1666,7 @@ class CalendarControllerTest extends TestCase
       'email' => 'other_user@example.com',
       'password' => bcrypt('password'),
     ]);
-    
+
     $responseOther = $this->actingAs($otherUser)->delete("/profile/test.bsky.social/posts/{$post->id}/delete");
     $responseOther->assertStatus(403);
     $this->assertDatabaseHas('posts', ['id' => $post->id, 'deleted_at' => null]);
@@ -1684,9 +1694,9 @@ class CalendarControllerTest extends TestCase
           'author' => ['did' => 'did:plc:test123456'],
           'record' => [
             'text' => '削除後に同期しても復活しないテスト投稿',
-            'createdAt' => Carbon::now()->toIso8601String()
-          ]
-        ]
+            'createdAt' => Carbon::now()->toIso8601String(),
+          ],
+        ],
       ],
       'posted_at' => Carbon::now(),
     ]);
@@ -1704,12 +1714,12 @@ class CalendarControllerTest extends TestCase
         ],
         'record' => [
           'text' => '削除後に同期しても復活しないテスト投稿',
-          'createdAt' => Carbon::now()->toIso8601String()
-        ]
-      ]
+          'createdAt' => Carbon::now()->toIso8601String(),
+        ],
+      ],
     ];
 
-    $blueskyService = \Mockery::mock(\App\Services\BlueskyService::class);
+    $blueskyService = \Mockery::mock(BlueskyService::class);
     $blueskyService->shouldReceive('authenticate')->andReturn([
       'accessJwt' => 'mock_token',
       'did' => 'did:plc:test123456',
@@ -1722,17 +1732,17 @@ class CalendarControllerTest extends TestCase
       'feed' => [$feedItem], // 削除されたものと同じ feed アイテムを返す
       'cursor' => null,
     ]);
-    $this->app->instance(\App\Services\BlueskyService::class, $blueskyService);
+    $this->app->instance(BlueskyService::class, $blueskyService);
 
     // 同期処理の実行
-    $job = new \App\Jobs\SyncBlueskyPostsJob($this->user);
+    $job = new SyncBlueskyPostsJob($this->user);
     $job->handle($blueskyService);
 
     // 論理削除されたままである（復活していない）ことをアサート
     $this->assertSoftDeleted('posts', ['id' => $post->id]);
-    
+
     // カレンダー画面上でも表示されないことを確認
-    $response = $this->get("/profile/test.bsky.social");
+    $response = $this->get('/profile/test.bsky.social');
     $response->assertStatus(200);
     $response->assertDontSee('削除後に同期しても復活しないテスト投稿');
   }
@@ -1765,7 +1775,7 @@ class CalendarControllerTest extends TestCase
     $this->assertDatabaseHas('posts', ['id' => $post->id, 'deleted_at' => null]);
 
     // カレンダー画面に再度表示されていることをアサート
-    $responseAfter = $this->get("/profile/test.bsky.social");
+    $responseAfter = $this->get('/profile/test.bsky.social');
     $responseAfter->assertStatus(200);
     $responseAfter->assertSee('復元される予定のつぶやき');
   }
@@ -1808,7 +1818,7 @@ class CalendarControllerTest extends TestCase
   public function test_settings_access_control(): void
   {
     // 1. 未ログインゲスト -> 302 リダイレクト
-    $responseGuest = $this->get("/profile/test.bsky.social/settings");
+    $responseGuest = $this->get('/profile/test.bsky.social/settings');
     $responseGuest->assertStatus(302);
 
     // 2. 他ユーザー -> 403
@@ -1817,11 +1827,11 @@ class CalendarControllerTest extends TestCase
       'email' => 'other_user3@example.com',
       'password' => bcrypt('password'),
     ]);
-    $responseOther = $this->actingAs($otherUser)->get("/profile/test.bsky.social/settings");
+    $responseOther = $this->actingAs($otherUser)->get('/profile/test.bsky.social/settings');
     $responseOther->assertStatus(403);
 
     // 3. 本人ログイン時 -> 200
-    $responseOwner = $this->actingAs($this->user)->get("/profile/test.bsky.social/settings");
+    $responseOwner = $this->actingAs($this->user)->get('/profile/test.bsky.social/settings');
     $responseOwner->assertStatus(200);
     $responseOwner->assertSee('特定のポストを取り込む');
   }
@@ -1853,11 +1863,11 @@ class CalendarControllerTest extends TestCase
       'record' => [
         'text' => '新しくインポートされるつぶやき #ハッシュタグ',
         'createdAt' => Carbon::now()->toIso8601String(),
-      ]
+      ],
     ];
 
     // BlueskyService のモック作成
-    $blueskyService = \Mockery::mock(\App\Services\BlueskyService::class);
+    $blueskyService = \Mockery::mock(BlueskyService::class);
     $blueskyService->shouldReceive('authenticate')->andReturn([
       'accessJwt' => 'mock_token_import',
       'did' => 'did:plc:test123456',
@@ -1866,16 +1876,16 @@ class CalendarControllerTest extends TestCase
     $blueskyService->shouldReceive('getPosts')
       ->with([$newUri], 'mock_token_import')
       ->andReturn([
-        'posts' => [$newPostData]
+        'posts' => [$newPostData],
       ]);
-    $this->app->instance(\App\Services\BlueskyService::class, $blueskyService);
+    $this->app->instance(BlueskyService::class, $blueskyService);
 
     // インポート実行リクエスト
-    $urlsInput = "https://bsky.app/profile/profile/test.bsky.social/post/to_import_restore\n" . 
-                 "https://bsky.app/profile/profile/test.bsky.social/post/to_import_new\n" .
-                 "https://bsky.app/profile/other.bsky.social/post/invalid"; // 他人のURL（除外対象）
+    $urlsInput = "https://bsky.app/profile/profile/test.bsky.social/post/to_import_restore\n".
+                 "https://bsky.app/profile/profile/test.bsky.social/post/to_import_new\n".
+                 'https://bsky.app/profile/other.bsky.social/post/invalid'; // 他人のURL（除外対象）
 
-    $response = $this->post("/profile/test.bsky.social/settings/import-posts", [
+    $response = $this->post('/profile/test.bsky.social/settings/import-posts', [
       'urls' => $urlsInput,
     ]);
 
@@ -1889,7 +1899,7 @@ class CalendarControllerTest extends TestCase
     $this->assertDatabaseHas('posts', [
       'uri' => $newUri,
       'text' => '新しくインポートされるつぶやき #ハッシュタグ',
-      'deleted_at' => null
+      'deleted_at' => null,
     ]);
 
     // 新規投稿のタグが生成・紐付けられていること
@@ -1909,17 +1919,17 @@ class CalendarControllerTest extends TestCase
     $newUri = 'at://did:plc:test123456/app.bsky.feed.post/to_import_auth_fail';
 
     // BlueskyService のモック作成 (認証で例外をスローさせる)
-    $blueskyService = \Mockery::mock(\App\Services\BlueskyService::class);
+    $blueskyService = \Mockery::mock(BlueskyService::class);
     $blueskyService->shouldReceive('authenticate')
       ->once()
       ->with('test.bsky.social', $this->account->encrypted_app_password)
       ->andThrow(new \Exception('Invalid identifier or password'));
-    $this->app->instance(\App\Services\BlueskyService::class, $blueskyService);
+    $this->app->instance(BlueskyService::class, $blueskyService);
 
     // インポート実行リクエスト
-    $urlsInput = "https://bsky.app/profile/profile/test.bsky.social/post/to_import_auth_fail";
+    $urlsInput = 'https://bsky.app/profile/profile/test.bsky.social/post/to_import_auth_fail';
 
-    $response = $this->post("/profile/test.bsky.social/settings/import-posts", [
+    $response = $this->post('/profile/test.bsky.social/settings/import-posts', [
       'urls' => $urlsInput,
     ]);
 
@@ -1945,12 +1955,12 @@ class CalendarControllerTest extends TestCase
     $newUri = 'at://did:plc:test123456/app.bsky.feed.post/to_import_auth_fail';
 
     // BlueskyService のモック作成 (認証で例外、かつ getProfile で新しいハンドル名を返す)
-    $blueskyService = \Mockery::mock(\App\Services\BlueskyService::class);
+    $blueskyService = \Mockery::mock(BlueskyService::class);
     $blueskyService->shouldReceive('authenticate')
       ->once()
       ->with('test.bsky.social', $this->account->encrypted_app_password)
       ->andThrow(new \Exception('Invalid identifier or password'));
-    
+
     // パブリックAPI呼び出しをシミュレート
     $blueskyService->shouldReceive('getProfile')
       ->once()
@@ -1961,18 +1971,18 @@ class CalendarControllerTest extends TestCase
         'displayName' => '新しい名前',
       ]);
 
-    $this->app->instance(\App\Services\BlueskyService::class, $blueskyService);
+    $this->app->instance(BlueskyService::class, $blueskyService);
 
     // インポート実行リクエスト
-    $urlsInput = "https://bsky.app/profile/profile/test.bsky.social/post/to_import_auth_fail";
+    $urlsInput = 'https://bsky.app/profile/profile/test.bsky.social/post/to_import_auth_fail';
 
-    $response = $this->post("/profile/test.bsky.social/settings/import-posts", [
+    $response = $this->post('/profile/test.bsky.social/settings/import-posts', [
       'urls' => $urlsInput,
     ]);
 
     // ハンドル変更確認画面へリダイレクトされること
     $response->assertRedirect(route('login.confirm_handle_change'));
-    
+
     // セッションに保留データが格納されていること
     $this->assertTrue(session()->has('handle_change_pending'));
     $this->assertEquals('new-handle.bsky.social', session('handle_change_pending.new_handle'));
@@ -1991,7 +2001,7 @@ class CalendarControllerTest extends TestCase
     $this->actingAs($this->user);
 
     // BlueskyService のモック作成 (認証で例外、かつ getProfile で新しいハンドル名を返す)
-    $blueskyService = \Mockery::mock(\App\Services\BlueskyService::class);
+    $blueskyService = \Mockery::mock(BlueskyService::class);
     $blueskyService->shouldReceive('authenticate')
       ->once()
       ->with('test.bsky.social', $this->account->encrypted_app_password)
@@ -2007,7 +2017,7 @@ class CalendarControllerTest extends TestCase
         'displayName' => '新しい名前',
       ]);
 
-    $this->app->instance(\App\Services\BlueskyService::class, $blueskyService);
+    $this->app->instance(BlueskyService::class, $blueskyService);
 
     // 同期実行リクエスト
     $response = $this->post('/sync');
@@ -2045,11 +2055,11 @@ class CalendarControllerTest extends TestCase
               [
                 'thumb' => 'https://example.com/thumb.jpg',
                 'fullsize' => 'https://example.com/full.jpg',
-                'alt' => 'テスト画像'
-              ]
-            ]
-          ]
-        ]
+                'alt' => 'テスト画像',
+              ],
+            ],
+          ],
+        ],
       ],
       'posted_at' => Carbon::now(),
     ]);
@@ -2081,24 +2091,24 @@ class CalendarControllerTest extends TestCase
               [
                 'thumb' => 'https://example.com/repost-thumb.jpg',
                 'fullsize' => 'https://example.com/repost-full.jpg',
-                'alt' => 'リポスト画像'
-              ]
-            ]
-          ]
-        ]
+                'alt' => 'リポスト画像',
+              ],
+            ],
+          ],
+        ],
       ],
       'posted_at' => Carbon::now()->subMinutes(2),
     ]);
 
     // 4. 通常状態でアクセス -> 投稿やリポストが表示されること
-    $responseNormal = $this->get("/profile/test.bsky.social");
+    $responseNormal = $this->get('/profile/test.bsky.social');
     $responseNormal->assertStatus(200);
     $responseNormal->assertSee('画像があるよ');
     $responseNormal->assertSee('テキストだけだよ');
     $responseNormal->assertSee('repost-thumb.jpg');
 
     // 5. 画像絞り込みを有効にしてアクセス -> 自投稿の画像ありのみ表示され、リポスト画像は除外されること
-    $responseFiltered = $this->get("/profile/test.bsky.social?media=1");
+    $responseFiltered = $this->get('/profile/test.bsky.social?media=1');
     $responseFiltered->assertStatus(200);
     $responseFiltered->assertSee('画像があるよ');
     $responseFiltered->assertDontSee('テキストだけだよ');
@@ -2116,7 +2126,7 @@ class CalendarControllerTest extends TestCase
       'auth_failure_count' => 2,
     ]);
 
-    $blueskyService = \Mockery::mock(\App\Services\BlueskyService::class);
+    $blueskyService = \Mockery::mock(BlueskyService::class);
     $blueskyService->shouldReceive('authenticate')
       ->once()
       ->with('test.bsky.social', 'new_valid_password')
@@ -2124,10 +2134,10 @@ class CalendarControllerTest extends TestCase
         'accessJwt' => 'mock_token',
         'did' => 'did:plc:test123456',
       ]);
-    $this->app->instance(\App\Services\BlueskyService::class, $blueskyService);
+    $this->app->instance(BlueskyService::class, $blueskyService);
 
     $response = $this->actingAs($this->user)
-      ->post("/profile/test.bsky.social/settings/update-password", [
+      ->post('/profile/test.bsky.social/settings/update-password', [
         'app_password' => 'new_valid_password',
       ]);
 
@@ -2144,14 +2154,14 @@ class CalendarControllerTest extends TestCase
 
   public function test_owner_cannot_update_app_password_with_invalid_credentials(): void
   {
-    $blueskyService = \Mockery::mock(\App\Services\BlueskyService::class);
+    $blueskyService = \Mockery::mock(BlueskyService::class);
     $blueskyService->shouldReceive('authenticate')
       ->once()
       ->andThrow(new \Exception('Authentication failed'));
-    $this->app->instance(\App\Services\BlueskyService::class, $blueskyService);
+    $this->app->instance(BlueskyService::class, $blueskyService);
 
     $response = $this->actingAs($this->user)
-      ->post("/profile/test.bsky.social/settings/update-password", [
+      ->post('/profile/test.bsky.social/settings/update-password', [
         'app_password' => 'invalid_password',
       ]);
 
@@ -2165,7 +2175,7 @@ class CalendarControllerTest extends TestCase
   public function test_owner_can_delete_account_and_is_logged_out(): void
   {
     $response = $this->actingAs($this->user)
-      ->post("/profile/test.bsky.social/settings/delete-account");
+      ->post('/profile/test.bsky.social/settings/delete-account');
 
     $response->assertRedirect('/login');
     $response->assertSessionHas('success');
@@ -2184,7 +2194,7 @@ class CalendarControllerTest extends TestCase
     ]);
 
     $response = $this->actingAs($otherUser)
-      ->post("/profile/test.bsky.social/settings/delete-account");
+      ->post('/profile/test.bsky.social/settings/delete-account');
 
     $response->assertStatus(403);
     $this->assertDatabaseHas('users', ['id' => $this->user->id]); // 削除されていないこと
@@ -2193,22 +2203,20 @@ class CalendarControllerTest extends TestCase
   public function test_calendar_page_ogp_meta_tags(): void
   {
     // 1. 公開アカウント時の OGP タグの検証
-    $response = $this->get("/profile/test.bsky.social");
+    $response = $this->get('/profile/test.bsky.social');
     $response->assertStatus(200);
     $response->assertSee('<meta property="og:title" content="テストユーザー のカレンダー | ', false);
     $response->assertSee('<meta property="og:description" content="テストプロフィールです', false);
 
     // 2. 非公開アカウント時の OGP マスクの検証
     $this->account->update(['is_private' => true]);
-    
+
     // ゲスト状態でアクセス（非公開なので 403 / リダイレクトなどを期待するが、テストでの振る舞いを確認）
     // カレンダーはプライベート状態のとき、ゲストアクセスするとログイン画面にリダイレクトされる仕様。
     // そのため、所有者ログイン状態でアクセスしてOGPを見る。
-    $responsePrivate = $this->actingAs($this->user)->get("/profile/test.bsky.social");
+    $responsePrivate = $this->actingAs($this->user)->get('/profile/test.bsky.social');
     $responsePrivate->assertStatus(200);
     $responsePrivate->assertSee('<meta property="og:title" content="非公開のカレンダー | ', false);
     $responsePrivate->assertSee('<meta property="og:description" content="このカレンダーは所有者本人にのみ公開されています。', false);
   }
 }
-
-

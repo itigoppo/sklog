@@ -2,14 +2,15 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Model;
 
 class InviteCode extends Model
 {
   use HasUuids;
 
   protected $keyType = 'string';
+
   public $incrementing = false;
 
   protected $fillable = ['code', 'handle', 'did', 'waitlist_entry_id', 'used_by_user_id', 'used_at', 'expires_at'];
@@ -26,12 +27,12 @@ class InviteCode extends Model
 
   public function waitlistEntry()
   {
-    return $this->belongsTo(\App\Models\WaitlistEntry::class);
+    return $this->belongsTo(WaitlistEntry::class);
   }
 
   public function isUsed(): bool
   {
-    return !is_null($this->used_by_user_id);
+    return ! is_null($this->used_by_user_id);
   }
 
   public function isExpired(): bool

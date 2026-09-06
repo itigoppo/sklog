@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Mail\InviteCodeMail;
 use App\Models\InviteCode;
+use App\Models\User;
 use App\Models\WaitlistEntry;
 use App\Services\TotpService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
@@ -38,28 +40,31 @@ class AdminController extends Controller
     $request->validate($rules);
 
     // ログイン制限のキー定義（IPごと）
-    $throttleKey = 'admin-login:' . $request->ip();
+    $throttleKey = 'admin-login:'.$request->ip();
 
     // 試行回数チェック（1分間に5回まで）
     if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
       $seconds = RateLimiter::availableIn($throttleKey);
+
       return back()->withErrors([
-        'password' => "ログイン試行回数が多すぎます。{$seconds}秒後に再試行してください。"
+        'password' => "ログイン試行回数が多すぎます。{$seconds}秒後に再試行してください。",
       ])->withInput();
     }
 
     // パスワード照合
     $adminPassword = config('services.admin.password');
-    if (!$adminPassword || $request->password !== $adminPassword) {
+    if (! $adminPassword || $request->password !== $adminPassword) {
       RateLimiter::hit($throttleKey, 60);
+
       return back()->withErrors(['password' => 'パスワードが正しくありません。'])->withInput();
     }
 
     // 二要素認証の検証
     if ($is2faEnabled) {
       $secret = config('services.admin.2fa_secret');
-      if (!$secret || !TotpService::verify($secret, $request->totp_code)) {
+      if (! $secret || ! TotpService::verify($secret, $request->totp_code)) {
         RateLimiter::hit($throttleKey, 60);
+
         return back()->withErrors(['totp_code' => 'ワンタイムパスワードが正しくありません。'])->withInput();
       }
       session(['admin_2fa_verified' => true]);
@@ -74,7 +79,7 @@ class AdminController extends Controller
     session(['admin_authenticated' => true]);
 
     // 2FAが無効な場合はセキュリティ設定画面に強制遷移
-    if (!config('services.admin.2fa_enabled')) {
+    if (! config('services.admin.2fa_enabled')) {
       return redirect()->route('admin.security')->with('warning', '個人情報を保護するため、まず二要素認証 (2FA) の設定を完了してください。');
     }
 
@@ -91,16 +96,16 @@ class AdminController extends Controller
   public function index(Request $request)
   {
     // 2FAが有効化されていない場合は、申請者一覧を表示させずセキュリティ画面へ強制リダイレクト
-    if (!config('services.admin.2fa_enabled')) {
+    if (! config('services.admin.2fa_enabled')) {
       return redirect()->route('admin.security')->with('error', 'ウェイトリストを閲覧するには、二要素認証 (2FA) を有効化する必要があります。');
     }
 
     // 全体の統計情報を取得（フィルタ条件にかかわらず常に全体の総数を出す）
     $stats = [
-      'total'           => WaitlistEntry::count(),
-      'pending'         => WaitlistEntry::where('status', 'pending')->count(),
-      'invited'         => WaitlistEntry::where('status', 'invited')->count(),
-      'registered'      => WaitlistEntry::where('status', 'registered')->count(),
+      'total' => WaitlistEntry::count(),
+      'pending' => WaitlistEntry::where('status', 'pending')->count(),
+      'invited' => WaitlistEntry::where('status', 'invited')->count(),
+      'registered' => WaitlistEntry::where('status', 'registered')->count(),
       'expired_pending' => WaitlistEntry::where('status', 'expired_pending')->count(),
     ];
 
@@ -111,7 +116,7 @@ class AdminController extends Controller
     if ($request->filled('handle')) {
       $handle = trim($request->handle);
       $handle = ltrim($handle, '@'); // @が付いている場合は除去
-      $query->where('handle', 'like', '%' . $handle . '%');
+      $query->where('handle', 'like', '%'.$handle.'%');
     }
 
     // ステータスでのフィルタ
@@ -130,16 +135,16 @@ class AdminController extends Controller
   public function users(Request $request)
   {
     // 2FAが有効化されていない場合は、申請者一覧を表示させずセキュリティ画面へ強制リダイレクト
-    if (!config('services.admin.2fa_enabled')) {
+    if (! config('services.admin.2fa_enabled')) {
       return redirect()->route('admin.security')->with('error', 'ユーザー一覧を閲覧するには、二要素認証 (2FA) を有効化する必要があります。');
     }
 
     // 全体の統計情報を取得
     $stats = [
-      'total'           => WaitlistEntry::count(),
-      'pending'         => WaitlistEntry::where('status', 'pending')->count(),
-      'invited'         => WaitlistEntry::where('status', 'invited')->count(),
-      'registered'      => WaitlistEntry::where('status', 'registered')->count(),
+      'total' => WaitlistEntry::count(),
+      'pending' => WaitlistEntry::where('status', 'pending')->count(),
+      'invited' => WaitlistEntry::where('status', 'invited')->count(),
+      'registered' => WaitlistEntry::where('status', 'registered')->count(),
       'expired_pending' => WaitlistEntry::where('status', 'expired_pending')->count(),
     ];
 
@@ -150,7 +155,7 @@ class AdminController extends Controller
     if ($request->filled('handle')) {
       $handle = trim($request->handle);
       $handle = ltrim($handle, '@'); // @が付いている場合は除去
-      $query->where('handle', 'like', '%' . $handle . '%');
+      $query->where('handle', 'like', '%'.$handle.'%');
     }
 
     // 同期状況でのフィルタ
@@ -186,13 +191,13 @@ class AdminController extends Controller
     $tempSecret = null;
     $qrCodeUrl = null;
 
-    if (!config('services.admin.2fa_enabled')) {
+    if (! config('services.admin.2fa_enabled')) {
       // セキュリティ上の理由から、画面が開かれる（リロードされる）たびに常に新しいシークレットキーを新規生成する
       $tempSecret = TotpService::generateSecret();
       session(['admin_temp_2fa_secret' => $tempSecret]);
-      
+
       $label = 'admin';
-      $issuer = config('app.name', 'SkLoG') . ' Admin';
+      $issuer = config('app.name', 'SkLoG').' Admin';
       $qrCodeUrl = TotpService::getQrCodeUrl($label, $tempSecret, $issuer);
     }
 
@@ -204,7 +209,7 @@ class AdminController extends Controller
     $request->validate(['code' => 'required|string|size:6']);
 
     $tempSecret = session('admin_temp_2fa_secret');
-    if (!$tempSecret) {
+    if (! $tempSecret) {
       return response()->json(['success' => false, 'message' => 'セッションの有効期限が切れました。ページを再読み込みしてください。']);
     }
 
@@ -217,22 +222,22 @@ class AdminController extends Controller
 
   public function sendInvite(WaitlistEntry $entry)
   {
-    if (!$entry->isPending()) {
+    if (! $entry->isPending()) {
       return back()->with('error', 'すでに招待済みまたは登録済みです。');
     }
 
     $code = strtoupper(implode('-', str_split(Str::random(12), 4)));
 
     $inviteCode = InviteCode::create([
-      'code'              => $code,
-      'handle'            => $entry->handle,
-      'did'               => $entry->did,
+      'code' => $code,
+      'handle' => $entry->handle,
+      'did' => $entry->did,
       'waitlist_entry_id' => $entry->id,
-      'expires_at'        => Carbon::now()->addHours(config('services.admin.invite_expiry_hours', 24)), // 設定された有効期限
+      'expires_at' => Carbon::now()->addHours(config('services.admin.invite_expiry_hours', 24)), // 設定された有効期限
     ]);
 
     $entry->update([
-      'status'     => 'invited',
+      'status' => 'invited',
       'invited_at' => Carbon::now(),
     ]);
 
@@ -258,15 +263,15 @@ class AdminController extends Controller
     $code = strtoupper(implode('-', str_split(Str::random(12), 4)));
 
     $inviteCode = InviteCode::create([
-      'code'              => $code,
-      'handle'            => $entry->handle,
-      'did'               => $entry->did,
+      'code' => $code,
+      'handle' => $entry->handle,
+      'did' => $entry->did,
       'waitlist_entry_id' => $entry->id,
-      'expires_at'        => Carbon::now()->addHours(config('services.admin.invite_expiry_hours', 24)), // 設定された有効期限で延長
+      'expires_at' => Carbon::now()->addHours(config('services.admin.invite_expiry_hours', 24)), // 設定された有効期限で延長
     ]);
 
     $entry->update([
-      'status'     => 'invited',
+      'status' => 'invited',
       'invited_at' => Carbon::now(),
     ]);
 
@@ -286,20 +291,21 @@ class AdminController extends Controller
     if ($entry->status === 'registered') {
       $inviteCode = $entry->inviteCode;
       if ($inviteCode && $inviteCode->used_by_user_id) {
-        $user = \App\Models\User::find($inviteCode->used_by_user_id);
+        $user = User::find($inviteCode->used_by_user_id);
         if ($user) {
-          \Illuminate\Support\Facades\DB::transaction(function () use ($user, $entry, $inviteCode) {
+          DB::transaction(function () use ($user, $entry, $inviteCode) {
             $user->delete(); // カスケード削除により、BlueskyAccountやPostデータも消えます
             $inviteCode->delete();
             $entry->delete();
           });
+
           return redirect()->route('admin.users')->with('success', "@{$handle} を強制退会させ、カレンダーおよび全データを完全に削除しました。");
         }
       }
     }
 
     // まだ登録されていない、またはUserデータが見つからない場合も、安全のため申請エントリーとコードを削除
-    \Illuminate\Support\Facades\DB::transaction(function () use ($entry) {
+    DB::transaction(function () use ($entry) {
       if ($entry->inviteCode) {
         $entry->inviteCode->delete();
       }

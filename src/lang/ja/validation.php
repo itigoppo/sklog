@@ -6,7 +6,7 @@ return [
     'accepted' => ':attribute に同意する必要があります。',
     'string' => ':attribute は文字列で入力してください。',
     'in' => '選択された :attribute は無効です。',
-    
+
     'attributes' => [
         'urls' => 'ポストのURL',
         'app_password' => 'アプリパスワード',

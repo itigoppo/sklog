@@ -2,9 +2,10 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use App\Models\BlueskyAccount;
 use App\Models\Post;
+use App\Models\Tag;
+use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
@@ -107,7 +108,7 @@ class DatabaseSeeder extends Seeder
             'user_id' => $publicUser->id,
             'uri' => 'at://did:plc:publicfriend22222/app.bsky.feed.post/friend_post_1',
             'cid' => 'cidfriendpost1',
-            'text' => "週末に開発者向けのオープンミートアップを開催します！",
+            'text' => '週末に開発者向けのオープンミートアップを開催します！',
             'raw_data' => [
                 'post' => [
                     'uri' => 'at://did:plc:publicfriend22222/app.bsky.feed.post/friend_post_1',
@@ -116,10 +117,10 @@ class DatabaseSeeder extends Seeder
                     'repostCount' => 2,
                     'author' => $this->createAuthorField($publicAccount, $publicUserDisplayName),
                     'record' => [
-                        'text' => "週末に開発者向けのオープンミートアップを開催します！",
+                        'text' => '週末に開発者向けのオープンミートアップを開催します！',
                         'createdAt' => $now->copy()->subDays(1)->subHours(3)->subMinutes(5)->toIso8601String(),
-                    ]
-                ]
+                    ],
+                ],
             ],
             'posted_at' => $now->copy()->subDays(1)->subHours(3)->subMinutes(5),
         ]);
@@ -129,7 +130,7 @@ class DatabaseSeeder extends Seeder
             'user_id' => $publicUser->id,
             'uri' => 'at://did:plc:publicfriend22222/app.bsky.feed.post/friend_post_2',
             'cid' => 'cidfriendpost2',
-            'text' => "生産性を倍にするための最新ショートカットキー一覧をまとめました！",
+            'text' => '生産性を倍にするための最新ショートカットキー一覧をまとめました！',
             'raw_data' => [
                 'post' => [
                     'uri' => 'at://did:plc:publicfriend22222/app.bsky.feed.post/friend_post_2',
@@ -138,10 +139,10 @@ class DatabaseSeeder extends Seeder
                     'repostCount' => 12,
                     'author' => $this->createAuthorField($publicAccount, $publicUserDisplayName),
                     'record' => [
-                        'text' => "生産性を倍にするための最新ショートカットキー一覧をまとめました！",
+                        'text' => '生産性を倍にするための最新ショートカットキー一覧をまとめました！',
                         'createdAt' => $now->copy()->subDays(1)->subHours(6)->subMinutes(5)->toIso8601String(),
-                    ]
-                ]
+                    ],
+                ],
             ],
             'posted_at' => $now->copy()->subDays(1)->subHours(6)->subMinutes(5),
         ]);
@@ -151,7 +152,7 @@ class DatabaseSeeder extends Seeder
             'user_id' => $publicUser->id,
             'uri' => 'at://did:plc:publicfriend22222/app.bsky.feed.post/friend_post_3',
             'cid' => 'cidfriendpost3',
-            'text' => "美味しいコーヒーの淹れ方について、徹底解説記事を書きました！ぜひご一読を。",
+            'text' => '美味しいコーヒーの淹れ方について、徹底解説記事を書きました！ぜひご一読を。',
             'raw_data' => [
                 'post' => [
                     'uri' => 'at://did:plc:publicfriend22222/app.bsky.feed.post/friend_post_3',
@@ -160,10 +161,10 @@ class DatabaseSeeder extends Seeder
                     'repostCount' => 45,
                     'author' => $this->createAuthorField($publicAccount, $publicUserDisplayName),
                     'record' => [
-                        'text' => "美味しいコーヒーの淹れ方について、徹底解説記事を書きました！ぜひご一読を。",
+                        'text' => '美味しいコーヒーの淹れ方について、徹底解説記事を書きました！ぜひご一読を。',
                         'createdAt' => $now->copy()->subDays(1)->subHours(7)->toIso8601String(),
-                    ]
-                ]
+                    ],
+                ],
             ],
             'posted_at' => $now->copy()->subDays(1)->subHours(7)->subMinutes(5),
         ]);
@@ -173,7 +174,7 @@ class DatabaseSeeder extends Seeder
             'user_id' => $publicUser->id,
             'uri' => 'at://did:plc:publicfriend22222/app.bsky.feed.post/friend_post_pizza',
             'cid' => 'cidfriendpizza',
-            'text' => "今日のお昼は自家製窯焼きピザです！とろーりチーズが最高に美味しい。 #pizza",
+            'text' => '今日のお昼は自家製窯焼きピザです！とろーりチーズが最高に美味しい。 #pizza',
             'raw_data' => [
                 'post' => [
                     'uri' => 'at://did:plc:publicfriend22222/app.bsky.feed.post/friend_post_pizza',
@@ -182,7 +183,7 @@ class DatabaseSeeder extends Seeder
                     'repostCount' => 12,
                     'author' => $this->createAuthorField($publicAccount, $publicUserDisplayName),
                     'record' => [
-                        'text' => "今日のお昼は自家製窯焼きピザです！とろーりチーズが最高に美味しい。 #pizza",
+                        'text' => '今日のお昼は自家製窯焼きピザです！とろーりチーズが最高に美味しい。 #pizza',
                         'createdAt' => $now->copy()->subDays(1)->subHours(9)->toIso8601String(),
                     ],
                     'embed' => [
@@ -192,10 +193,10 @@ class DatabaseSeeder extends Seeder
                                 'thumb' => 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=600&q=80',
                                 'fullsize' => 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=1200&q=80',
                                 'alt' => '美味しそうなチーズピザ',
-                            ]
-                        ]
-                    ]
-                ]
+                            ],
+                        ],
+                    ],
+                ],
             ],
             'posted_at' => $now->copy()->subDays(1)->subHours(9),
         ]);
@@ -205,7 +206,7 @@ class DatabaseSeeder extends Seeder
             'user_id' => $publicUser->id,
             'uri' => 'at://did:plc:publicfriend22222/app.bsky.feed.post/friend_post_nature',
             'cid' => 'cidfriendnature',
-            'text' => "今朝ハイキング中に撮った素晴らしい森と光のコントラストです。自然の力に癒やされます。 #nature #hiking",
+            'text' => '今朝ハイキング中に撮った素晴らしい森と光のコントラストです。自然の力に癒やされます。 #nature #hiking',
             'raw_data' => [
                 'post' => [
                     'uri' => 'at://did:plc:publicfriend22222/app.bsky.feed.post/friend_post_nature',
@@ -214,7 +215,7 @@ class DatabaseSeeder extends Seeder
                     'repostCount' => 5,
                     'author' => $this->createAuthorField($publicAccount, $publicUserDisplayName),
                     'record' => [
-                        'text' => "今朝ハイキング中に撮った素晴らしい森と光のコントラストです。自然の力に癒やされます。 #nature #hiking",
+                        'text' => '今朝ハイキング中に撮った素晴らしい森と光のコントラストです。自然の力に癒やされます。 #nature #hiking',
                         'createdAt' => $now->copy()->subDays(1)->subHours(11)->toIso8601String(),
                     ],
                     'embed' => [
@@ -224,10 +225,10 @@ class DatabaseSeeder extends Seeder
                                 'thumb' => 'https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?auto=format&fit=crop&w=600&q=80',
                                 'fullsize' => 'https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?auto=format&fit=crop&w=1200&q=80',
                                 'alt' => '光が差し込む森の小道',
-                            ]
-                        ]
-                    ]
-                ]
+                            ],
+                        ],
+                    ],
+                ],
             ],
             'posted_at' => $now->copy()->subDays(1)->subHours(11),
         ]);
@@ -237,7 +238,7 @@ class DatabaseSeeder extends Seeder
             'user_id' => $publicUser->id,
             'uri' => 'at://did:plc:publicfriend22222/app.bsky.feed.post/friend_post_keyboard',
             'cid' => 'cidfriendkeyboard',
-            'text' => "新しいメカニカルキーボードを購入しました！打鍵感とRGBライティングが素晴らしいです。 https://keychron.com",
+            'text' => '新しいメカニカルキーボードを購入しました！打鍵感とRGBライティングが素晴らしいです。 https://keychron.com',
             'raw_data' => [
                 'post' => [
                     'uri' => 'at://did:plc:publicfriend22222/app.bsky.feed.post/friend_post_keyboard',
@@ -246,7 +247,7 @@ class DatabaseSeeder extends Seeder
                     'repostCount' => 2,
                     'author' => $this->createAuthorField($publicAccount, $publicUserDisplayName),
                     'record' => [
-                        'text' => "新しいメカニカルキーボードを購入しました！打鍵感とRGBライティングが素晴らしいです。 https://keychron.com",
+                        'text' => '新しいメカニカルキーボードを購入しました！打鍵感とRGBライティングが素晴らしいです。 https://keychron.com',
                         'createdAt' => $now->copy()->subDays(1)->subHours(12)->toIso8601String(),
                     ],
                     'embed' => [
@@ -256,9 +257,9 @@ class DatabaseSeeder extends Seeder
                             'title' => 'Keychron - Mechanical Keyboards for Mac, Windows and Phones',
                             'description' => 'Keychron designs wireless mechanical keyboards for various platforms, featuring premium hot-swappable keycaps.',
                             'thumb' => 'https://images.unsplash.com/photo-1618384887929-16ec33fab9ef?auto=format&fit=crop&w=600&q=80',
-                        ]
-                    ]
-                ]
+                        ],
+                    ],
+                ],
             ],
             'posted_at' => $now->copy()->subDays(1)->subHours(12),
         ]);
@@ -268,7 +269,7 @@ class DatabaseSeeder extends Seeder
             'user_id' => $privateUser->id,
             'uri' => 'at://did:plc:privateboss111111/app.bsky.feed.post/boss_post_1',
             'cid' => 'cidbosspost1',
-            'text' => "【非公開アカウントの元の投稿】ログイン中のみこの内容と私のアイコンが見えます。",
+            'text' => '【非公開アカウントの元の投稿】ログイン中のみこの内容と私のアイコンが見えます。',
             'raw_data' => [
                 'post' => [
                     'uri' => 'at://did:plc:privateboss111111/app.bsky.feed.post/boss_post_1',
@@ -277,10 +278,10 @@ class DatabaseSeeder extends Seeder
                     'repostCount' => 0,
                     'author' => $this->createAuthorField($privateAccount, $privateUserDisplayName),
                     'record' => [
-                        'text' => "【非公開アカウントの元の投稿】ログイン中のみこの内容と私のアイコンが見えます。",
+                        'text' => '【非公開アカウントの元の投稿】ログイン中のみこの内容と私のアイコンが見えます。',
                         'createdAt' => $now->copy()->subDays(1)->subHours(2)->subMinutes(5)->toIso8601String(),
-                    ]
-                ]
+                    ],
+                ],
             ],
             'posted_at' => $now->copy()->subDays(1)->subHours(2)->subMinutes(5),
         ]);
@@ -289,7 +290,7 @@ class DatabaseSeeder extends Seeder
             'user_id' => $privateUser->id,
             'uri' => 'at://did:plc:privateboss111111/app.bsky.feed.post/boss_post_2',
             'cid' => 'cidbosspost2',
-            'text' => "【非公開の引用元】来月以降のクローズドなロードマップについて話し合っています。",
+            'text' => '【非公開の引用元】来月以降のクローズドなロードマップについて話し合っています。',
             'raw_data' => [
                 'post' => [
                     'uri' => 'at://did:plc:privateboss111111/app.bsky.feed.post/boss_post_2',
@@ -298,10 +299,10 @@ class DatabaseSeeder extends Seeder
                     'repostCount' => 1,
                     'author' => $this->createAuthorField($privateAccount, $privateUserDisplayName),
                     'record' => [
-                        'text' => "【非公開の引用元】来月以降のクローズドなロードマップについて話し合っています。",
+                        'text' => '【非公開の引用元】来月以降のクローズドなロードマップについて話し合っています。',
                         'createdAt' => $now->copy()->subDays(1)->subHours(6)->subMinutes(5)->toIso8601String(),
-                    ]
-                ]
+                    ],
+                ],
             ],
             'posted_at' => $now->copy()->subDays(1)->subHours(6)->subMinutes(5),
         ]);
@@ -310,7 +311,7 @@ class DatabaseSeeder extends Seeder
             'user_id' => $privateUser->id,
             'uri' => 'at://did:plc:privateboss111111/app.bsky.feed.post/boss_post_3',
             'cid' => 'cidbosspost3',
-            'text' => "【非公開のリポスト元】極秘会議のメモを関係者のみに共有しました。他者がこのページを見ると内容が非表示になり、リポスト主の名前もマスクされます。",
+            'text' => '【非公開のリポスト元】極秘会議のメモを関係者のみに共有しました。他者がこのページを見ると内容が非表示になり、リポスト主の名前もマスクされます。',
             'raw_data' => [
                 'post' => [
                     'uri' => 'at://did:plc:privateboss111111/app.bsky.feed.post/boss_post_3',
@@ -319,14 +320,13 @@ class DatabaseSeeder extends Seeder
                     'repostCount' => 0,
                     'author' => $this->createAuthorField($privateAccount, $privateUserDisplayName),
                     'record' => [
-                        'text' => "【非公開のリポスト元】極秘会議のメモを関係者のみに共有しました。他者がこのページを見ると内容が非表示になり、リポスト主の名前もマスクされます。",
+                        'text' => '【非公開のリポスト元】極秘会議のメモを関係者のみに共有しました。他者がこのページを見ると内容が非表示になり、リポスト主の名前もマスクされます。',
                         'createdAt' => $now->copy()->subDays(1)->subHours(8)->toIso8601String(),
-                    ]
-                ]
+                    ],
+                ],
             ],
             'posted_at' => $now->copy()->subDays(1)->subHours(8)->subMinutes(5),
         ]);
-
 
         // ==========================================
         // 2. 基本的な投稿パターンのシード
@@ -337,7 +337,7 @@ class DatabaseSeeder extends Seeder
             'user_id' => $user->id,
             'uri' => 'at://did:plc:testuser1234567890/app.bsky.feed.post/normal_1',
             'cid' => 'cidnormal1',
-            'text' => "ログカレンダーのテスト投稿です。非常にシンプルで美しいダークテーマのUIが確認できます。",
+            'text' => 'ログカレンダーのテスト投稿です。非常にシンプルで美しいダークテーマのUIが確認できます。',
             'raw_data' => [
                 'post' => [
                     'uri' => 'at://did:plc:testuser1234567890/app.bsky.feed.post/normal_1',
@@ -346,34 +346,34 @@ class DatabaseSeeder extends Seeder
                     'repostCount' => 0,
                     'author' => $this->createAuthorField($bskyAccount, $testUserDisplayName),
                     'record' => [
-                        'text' => "ログカレンダーのテスト投稿です。非常にシンプルで美しいダークテーマのUIが確認できます。",
+                        'text' => 'ログカレンダーのテスト投稿です。非常にシンプルで美しいダークテーマのUIが確認できます。',
                         'createdAt' => $now->copy()->subDays(1)->subHours(5)->toIso8601String(),
-                    ]
-                ]
+                    ],
+                ],
             ],
             'posted_at' => $now->copy()->subDays(1)->subHours(5),
         ]);
 
         // 2-1.5 ハッシュタグ付きの投稿 (1日前)
-        $tagLaravel = \App\Models\Tag::firstOrCreate(['name' => 'Laravel']);
-        $tagPHP = \App\Models\Tag::firstOrCreate(['name' => 'PHP']);
-        $tagCoffee = \App\Models\Tag::firstOrCreate(['name' => 'coffee']);
+        $tagLaravel = Tag::firstOrCreate(['name' => 'Laravel']);
+        $tagPHP = Tag::firstOrCreate(['name' => 'PHP']);
+        $tagCoffee = Tag::firstOrCreate(['name' => 'coffee']);
 
         $taggedPost1 = Post::create([
             'user_id' => $user->id,
             'uri' => 'at://did:plc:testuser1234567890/app.bsky.feed.post/tagged_post_1',
             'cid' => 'cidtaggedpost1',
-            'text' => "今日は朝から #coffee を飲みながら、#Laravel の新しいルーティング設計を考えています。生産性が高い！",
+            'text' => '今日は朝から #coffee を飲みながら、#Laravel の新しいルーティング設計を考えています。生産性が高い！',
             'raw_data' => [
                 'post' => [
                     'uri' => 'at://did:plc:testuser1234567890/app.bsky.feed.post/tagged_post_1',
                     'cid' => 'cidtaggedpost1',
                     'author' => $this->createAuthorField($bskyAccount, $testUserDisplayName),
                     'record' => [
-                        'text' => "今日は朝から #coffee を飲みながら、#Laravel の新しいルーティング設計を考えています。生産性が高い！",
+                        'text' => '今日は朝から #coffee を飲みながら、#Laravel の新しいルーティング設計を考えています。生産性が高い！',
                         'createdAt' => $now->copy()->subDays(1)->subHours(8)->toIso8601String(),
-                    ]
-                ]
+                    ],
+                ],
             ],
             'posted_at' => $now->copy()->subDays(1)->subHours(8),
         ]);
@@ -383,17 +383,17 @@ class DatabaseSeeder extends Seeder
             'user_id' => $user->id,
             'uri' => 'at://did:plc:testuser1234567890/app.bsky.feed.post/tagged_post_2',
             'cid' => 'cidtaggedpost2',
-            'text' => "昨夜は遅くまで #PHP のパフォーマンス改善に取り組んでいました。メモリ使用量が激減して大満足。 #Laravel",
+            'text' => '昨夜は遅くまで #PHP のパフォーマンス改善に取り組んでいました。メモリ使用量が激減して大満足。 #Laravel',
             'raw_data' => [
                 'post' => [
                     'uri' => 'at://did:plc:testuser1234567890/app.bsky.feed.post/tagged_post_2',
                     'cid' => 'cidtaggedpost2',
                     'author' => $this->createAuthorField($bskyAccount, $testUserDisplayName),
                     'record' => [
-                        'text' => "昨夜は遅くまで #PHP のパフォーマンス改善に取り組んでいました。メモリ使用量が激減して大満足。 #Laravel",
+                        'text' => '昨夜は遅くまで #PHP のパフォーマンス改善に取り組んでいました。メモリ使用量が激減して大満足。 #Laravel',
                         'createdAt' => $now->copy()->subDays(1)->subHours(14)->toIso8601String(),
-                    ]
-                ]
+                    ],
+                ],
             ],
             'posted_at' => $now->copy()->subDays(1)->subHours(14),
         ]);
@@ -404,7 +404,7 @@ class DatabaseSeeder extends Seeder
             'user_id' => $user->id,
             'uri' => 'at://did:plc:testuser1234567890/app.bsky.feed.post/image_1',
             'cid' => 'cidimage1',
-            'text' => "今日はオフィスからきれいな夕焼けが見えました！画像表示テストです。",
+            'text' => '今日はオフィスからきれいな夕焼けが見えました！画像表示テストです。',
             'raw_data' => [
                 'post' => [
                     'uri' => 'at://did:plc:testuser1234567890/app.bsky.feed.post/image_1',
@@ -413,7 +413,7 @@ class DatabaseSeeder extends Seeder
                     'repostCount' => 3,
                     'author' => $this->createAuthorField($bskyAccount, $testUserDisplayName),
                     'record' => [
-                        'text' => "今日はオフィスからきれいな夕焼けが見えました！画像表示テストです。",
+                        'text' => '今日はオフィスからきれいな夕焼けが見えました！画像表示テストです。',
                         'createdAt' => $now->copy()->subDays(1)->subHours(4)->toIso8601String(),
                     ],
                     'embed' => [
@@ -428,10 +428,10 @@ class DatabaseSeeder extends Seeder
                                 'thumb' => 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=600&q=80',
                                 'fullsize' => 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1200&q=80',
                                 'alt' => '霧がかった森 of 自然',
-                            ]
-                        ]
-                    ]
-                ]
+                            ],
+                        ],
+                    ],
+                ],
             ],
             'posted_at' => $now->copy()->subDays(1)->subHours(4),
         ]);
@@ -445,15 +445,15 @@ class DatabaseSeeder extends Seeder
             'user_id' => $user->id,
             'uri' => 'at://did:plc:testuser1234567890/app.bsky.feed.post/reply_to_public',
             'cid' => 'cidreplypublic',
-            'text' => "こちらのイベント、とても楽しみですね！",
+            'text' => 'こちらのイベント、とても楽しみですね！',
             'raw_data' => [
                 'post' => [
                     'uri' => 'at://did:plc:testuser1234567890/app.bsky.feed.post/reply_to_public',
                     'cid' => 'cidreplypublic',
                     'author' => $this->createAuthorField($bskyAccount, $testUserDisplayName),
-                    'record' => ['text' => "こちらのイベント、とても楽しみですね！"]
+                    'record' => ['text' => 'こちらのイベント、とても楽しみですね！'],
                 ],
-                'reply' => $this->createReplyField($friendPost1)
+                'reply' => $this->createReplyField($friendPost1),
             ],
             'posted_at' => $now->copy()->subDays(1)->subHours(3),
         ]);
@@ -463,15 +463,15 @@ class DatabaseSeeder extends Seeder
             'user_id' => $user->id,
             'uri' => 'at://did:plc:testuser1234567890/app.bsky.feed.post/reply_to_private',
             'cid' => 'cidreplyprivate',
-            'text' => "非公開の相手への返信テストです。この画面にログインしていない『第三者（他者）』がこのページを見ると、返信相手のアイコンがダミーになり、名前も『非公開ユーザー（@private.user）』にマスクされ、会話トグルも非表示になります。ログアウトして動作を比較してみてください！",
+            'text' => '非公開の相手への返信テストです。この画面にログインしていない『第三者（他者）』がこのページを見ると、返信相手のアイコンがダミーになり、名前も『非公開ユーザー（@private.user）』にマスクされ、会話トグルも非表示になります。ログアウトして動作を比較してみてください！',
             'raw_data' => [
                 'post' => [
                     'uri' => 'at://did:plc:testuser1234567890/app.bsky.feed.post/reply_to_private',
                     'cid' => 'cidreplyprivate',
                     'author' => $this->createAuthorField($bskyAccount, $testUserDisplayName),
-                    'record' => ['text' => "非公開の相手への返信テストです。この画面にログインしていない『第三者（他者）』がこのページを見ると、返信相手のアイコンがダミーになり、名前も『非公開ユーザー（@private.user）』にマスクされ、会話トグルも非表示になります。ログアウトして動作を比較してみてください！"]
+                    'record' => ['text' => '非公開の相手への返信テストです。この画面にログインしていない『第三者（他者）』がこのページを見ると、返信相手のアイコンがダミーになり、名前も『非公開ユーザー（@private.user）』にマスクされ、会話トグルも非表示になります。ログアウトして動作を比較してみてください！'],
                 ],
-                'reply' => $this->createReplyField($bossPost1)
+                'reply' => $this->createReplyField($bossPost1),
             ],
             'posted_at' => $now->copy()->subDays(1)->subHours(2),
         ]);
@@ -481,15 +481,15 @@ class DatabaseSeeder extends Seeder
             'user_id' => $user->id,
             'uri' => 'at://did:plc:testuser1234567890/app.bsky.feed.post/quote_public',
             'cid' => 'cidquotepublic',
-            'text' => "これは誰にでも役立つ素晴らしい情報ですね！シェアさせていただきます。",
+            'text' => 'これは誰にでも役立つ素晴らしい情報ですね！シェアさせていただきます。',
             'raw_data' => [
                 'post' => [
                     'uri' => 'at://did:plc:testuser1234567890/app.bsky.feed.post/quote_public',
                     'cid' => 'cidquotepublic',
                     'author' => $this->createAuthorField($bskyAccount, $testUserDisplayName),
-                    'record' => ['text' => "これは誰にでも役立つ素晴らしい情報ですね！シェアさせていただきます。"],
-                    'embed' => $this->createQuoteEmbedField($friendPost2)
-                ]
+                    'record' => ['text' => 'これは誰にでも役立つ素晴らしい情報ですね！シェアさせていただきます。'],
+                    'embed' => $this->createQuoteEmbedField($friendPost2),
+                ],
             ],
             'posted_at' => $now->copy()->subDays(1)->subHours(1),
         ]);
@@ -499,15 +499,15 @@ class DatabaseSeeder extends Seeder
             'user_id' => $user->id,
             'uri' => 'at://did:plc:testuser1234567890/app.bsky.feed.post/quote_private',
             'cid' => 'cidquoteprivate',
-            'text' => "非公開の相手の引用テストです。ログインしていない他者が見ると、下部の引用カード全体が『非公開アカウントの投稿のため表示できません。』と完全に非表示（マスク）になります。ログアウトして確かめてみてください。",
+            'text' => '非公開の相手の引用テストです。ログインしていない他者が見ると、下部の引用カード全体が『非公開アカウントの投稿のため表示できません。』と完全に非表示（マスク）になります。ログアウトして確かめてみてください。',
             'raw_data' => [
                 'post' => [
                     'uri' => 'at://did:plc:testuser1234567890/app.bsky.feed.post/quote_private',
                     'cid' => 'cidquoteprivate',
                     'author' => $this->createAuthorField($bskyAccount, $testUserDisplayName),
-                    'record' => ['text' => "非公開の相手の引用テストです。ログインしていない他者が見ると、下部の引用カード全体が『非公開アカウントの投稿のため表示できません。』と完全に非表示（マスク）になります。ログアウトして確かめてみてください。"],
-                    'embed' => $this->createQuoteEmbedField($bossPost2)
-                ]
+                    'record' => ['text' => '非公開の相手の引用テストです。ログインしていない他者が見ると、下部の引用カード全体が『非公開アカウントの投稿のため表示できません。』と完全に非表示（マスク）になります。ログアウトして確かめてみてください。'],
+                    'embed' => $this->createQuoteEmbedField($bossPost2),
+                ],
             ],
             'posted_at' => $now->copy()->subDays(1)->subMinutes(30),
         ]);
@@ -517,13 +517,13 @@ class DatabaseSeeder extends Seeder
             'user_id' => $user->id,
             'uri' => 'repost-public-repost-12345',
             'cid' => 'cidrepostpublic',
-            'text' => "（公開アカウントのリポスト）",
+            'text' => '（公開アカウントのリポスト）',
             'raw_data' => [
                 'reason' => [
                     '$type' => 'app.bsky.feed.defs#reasonRepost',
-                    'by' => $this->createAuthorField($bskyAccount, $testUserDisplayName)
+                    'by' => $this->createAuthorField($bskyAccount, $testUserDisplayName),
                 ],
-                'post' => $this->createPostField($friendPost3)
+                'post' => $this->createPostField($friendPost3),
             ],
             'posted_at' => $now->copy()->subDays(1)->subHours(6),
         ]);
@@ -533,17 +533,16 @@ class DatabaseSeeder extends Seeder
             'user_id' => $user->id,
             'uri' => 'repost-private-repost-12345',
             'cid' => 'cidrepostprivate',
-            'text' => "（非公開アカウントのリポスト）",
+            'text' => '（非公開アカウントのリポスト）',
             'raw_data' => [
                 'reason' => [
                     '$type' => 'app.bsky.feed.defs#reasonRepost',
-                    'by' => $this->createAuthorField($bskyAccount, $testUserDisplayName)
+                    'by' => $this->createAuthorField($bskyAccount, $testUserDisplayName),
                 ],
-                'post' => $this->createPostField($bossPost3)
+                'post' => $this->createPostField($bossPost3),
             ],
             'posted_at' => $now->copy()->subDays(1)->subHours(7),
         ]);
-
 
         // ==========================================
         // 3.5 追加の応用・リッチ埋め込み表示パターン (1日前)
@@ -554,13 +553,13 @@ class DatabaseSeeder extends Seeder
             'user_id' => $user->id,
             'uri' => 'repost-public-repost-pizza-image',
             'cid' => 'cidrepostpizza',
-            'text' => "（画像付きリポスト）",
+            'text' => '（画像付きリポスト）',
             'raw_data' => [
                 'reason' => [
                     '$type' => 'app.bsky.feed.defs#reasonRepost',
-                    'by' => $this->createAuthorField($bskyAccount, $testUserDisplayName)
+                    'by' => $this->createAuthorField($bskyAccount, $testUserDisplayName),
                 ],
-                'post' => $this->createPostField($friendPostPizza)
+                'post' => $this->createPostField($friendPostPizza),
             ],
             'posted_at' => $now->copy()->subDays(1)->subHours(9),
         ]);
@@ -570,7 +569,7 @@ class DatabaseSeeder extends Seeder
             'user_id' => $user->id,
             'uri' => 'at://did:plc:testuser1234567890/app.bsky.feed.post/gif_cat',
             'cid' => 'cidgifcat',
-            'text' => "週末だーー！テンション爆上がりのネコGIFです。 #cats",
+            'text' => '週末だーー！テンション爆上がりのネコGIFです。 #cats',
             'raw_data' => [
                 'post' => [
                     'uri' => 'at://did:plc:testuser1234567890/app.bsky.feed.post/gif_cat',
@@ -579,7 +578,7 @@ class DatabaseSeeder extends Seeder
                     'repostCount' => 1,
                     'author' => $this->createAuthorField($bskyAccount, $testUserDisplayName),
                     'record' => [
-                        'text' => "週末だーー！テンション爆上がりのネコGIFです。 #cats",
+                        'text' => '週末だーー！テンション爆上がりのネコGIFです。 #cats',
                         'createdAt' => $now->copy()->subDays(1)->subHours(10)->toIso8601String(),
                     ],
                     'embed' => [
@@ -589,9 +588,9 @@ class DatabaseSeeder extends Seeder
                             'title' => 'Excited Cat GIF - Giphy',
                             'description' => 'A super excited cat jumping around in joy.',
                             'thumb' => 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM2FqdTV0Z2I2MnU2cHpmZ21pZmh6dHY1azhicnloZGF3ZHBpeXZiZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/31lPv5L3a10dm/giphy.gif',
-                        ]
-                    ]
-                ]
+                        ],
+                    ],
+                ],
             ],
             'posted_at' => $now->copy()->subDays(1)->subHours(10),
         ]);
@@ -601,15 +600,15 @@ class DatabaseSeeder extends Seeder
             'user_id' => $user->id,
             'uri' => 'at://did:plc:testuser1234567890/app.bsky.feed.post/quote_nature_image',
             'cid' => 'cidquotenature',
-            'text' => "素晴らしい景色ですね！今度ここに行ってみたいです。",
+            'text' => '素晴らしい景色ですね！今度ここに行ってみたいです。',
             'raw_data' => [
                 'post' => [
                     'uri' => 'at://did:plc:testuser1234567890/app.bsky.feed.post/quote_nature_image',
                     'cid' => 'cidquotenature',
                     'author' => $this->createAuthorField($bskyAccount, $testUserDisplayName),
-                    'record' => ['text' => "素晴らしい景色ですね！今度ここに行ってみたいです。"],
-                    'embed' => $this->createQuoteEmbedField($friendPostNature)
-                ]
+                    'record' => ['text' => '素晴らしい景色ですね！今度ここに行ってみたいです。'],
+                    'embed' => $this->createQuoteEmbedField($friendPostNature),
+                ],
             ],
             'posted_at' => $now->copy()->subDays(1)->subHours(11),
         ]);
@@ -619,19 +618,18 @@ class DatabaseSeeder extends Seeder
             'user_id' => $user->id,
             'uri' => 'at://did:plc:testuser1234567890/app.bsky.feed.post/reply_to_keyboard_external',
             'cid' => 'cidreplykeyboard',
-            'text' => "この打鍵感、最高に気持ちよさそうですね。私もキーボード買い換えようかな。",
+            'text' => 'この打鍵感、最高に気持ちよさそうですね。私もキーボード買い換えようかな。',
             'raw_data' => [
                 'post' => [
                     'uri' => 'at://did:plc:testuser1234567890/app.bsky.feed.post/reply_to_keyboard_external',
                     'cid' => 'cidreplykeyboard',
                     'author' => $this->createAuthorField($bskyAccount, $testUserDisplayName),
-                    'record' => ['text' => "この打鍵感、最高に気持ちよさそうですね。私もキーボード買い換えようかな。"]
+                    'record' => ['text' => 'この打鍵感、最高に気持ちよさそうですね。私もキーボード買い換えようかな。'],
                 ],
-                'reply' => $this->createReplyField($friendKeyboardPost)
+                'reply' => $this->createReplyField($friendKeyboardPost),
             ],
             'posted_at' => $now->copy()->subDays(1)->subHours(12),
         ]);
-
 
         // ==========================================
         // 4. ドメイン表示・複数URL・二重表示排除 (一昨日)
@@ -639,10 +637,10 @@ class DatabaseSeeder extends Seeder
 
         // 4-1. リンクカードなし・複数URLの投稿
         $text3_part1 = "リンクが2個あるとき（カードなし）\n\n";
-        $text3_part2 = "standard.site";
+        $text3_part2 = 'standard.site';
         $text3_part3 = "\n\n";
-        $text3_part4 = "substack.com/app";
-        $text3 = $text3_part1 . $text3_part2 . $text3_part3 . $text3_part4;
+        $text3_part4 = 'substack.com/app';
+        $text3 = $text3_part1.$text3_part2.$text3_part3.$text3_part4;
 
         $start3_1 = strlen($text3_part1);
         $end3_1 = $start3_1 + strlen($text3_part2);
@@ -667,15 +665,15 @@ class DatabaseSeeder extends Seeder
                         'facets' => [
                             [
                                 'index' => ['byteStart' => $start3_1, 'byteEnd' => $end3_1],
-                                'features' => [['$type' => 'app.bsky.richtext.facet#link', 'uri' => 'https://standard.site']]
+                                'features' => [['$type' => 'app.bsky.richtext.facet#link', 'uri' => 'https://standard.site']],
                             ],
                             [
                                 'index' => ['byteStart' => $start3_2, 'byteEnd' => $end3_2],
-                                'features' => [['$type' => 'app.bsky.richtext.facet#link', 'uri' => 'https://substack.com/app']]
-                            ]
-                        ]
-                    ]
-                ]
+                                'features' => [['$type' => 'app.bsky.richtext.facet#link', 'uri' => 'https://substack.com/app']],
+                            ],
+                        ],
+                    ],
+                ],
             ],
             'posted_at' => $baseDate->copy()->subHours(10),
         ]);
@@ -686,10 +684,10 @@ class DatabaseSeeder extends Seeder
 
         // 5-1. 親投稿（外部リンクカード付き）
         $text1_part1 = "リンクが2個あるとき（サムネイルあり）\n\n";
-        $text1_part2 = "standard.site";
+        $text1_part2 = 'standard.site';
         $text1_part3 = "\n\n";
-        $text1_part4 = "substack.com/app";
-        $text1 = $text1_part1 . $text1_part2 . $text1_part3 . $text1_part4;
+        $text1_part4 = 'substack.com/app';
+        $text1 = $text1_part1.$text1_part2.$text1_part3.$text1_part4;
 
         $start1_1 = strlen($text1_part1);
         $end1_1 = $start1_1 + strlen($text1_part2);
@@ -714,13 +712,13 @@ class DatabaseSeeder extends Seeder
                         'facets' => [
                             [
                                 'index' => ['byteStart' => $start1_1, 'byteEnd' => $end1_1],
-                                'features' => [['$type' => 'app.bsky.richtext.facet#link', 'uri' => 'https://standard.site']]
+                                'features' => [['$type' => 'app.bsky.richtext.facet#link', 'uri' => 'https://standard.site']],
                             ],
                             [
                                 'index' => ['byteStart' => $start1_2, 'byteEnd' => $end1_2],
-                                'features' => [['$type' => 'app.bsky.richtext.facet#link', 'uri' => 'https://substack.com/app']]
-                            ]
-                        ]
+                                'features' => [['$type' => 'app.bsky.richtext.facet#link', 'uri' => 'https://substack.com/app']],
+                            ],
+                        ],
                     ],
                     'embed' => [
                         '$type' => 'app.bsky.embed.external#view',
@@ -729,9 +727,9 @@ class DatabaseSeeder extends Seeder
                             'title' => 'Standard.site - One schema. Every platform.',
                             'description' => 'Standard.site provides shared lexicons for long-form publishing on AT Protocol.',
                             'thumb' => 'https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?auto=format&fit=crop&w=800&q=80',
-                        ]
-                    ]
-                ]
+                        ],
+                    ],
+                ],
             ],
             'posted_at' => $baseDate,
         ]);
@@ -741,7 +739,7 @@ class DatabaseSeeder extends Seeder
             'user_id' => $user->id,
             'uri' => 'at://did:plc:testuser1234567890/app.bsky.feed.post/demo_child_1',
             'cid' => 'cidchild1',
-            'text' => "日付が変わったけど、スレッドが繋がっているおかげで1つの日記として読みやすい。",
+            'text' => '日付が変わったけど、スレッドが繋がっているおかげで1つの日記として読みやすい。',
             'raw_data' => [
                 'post' => [
                     'uri' => 'at://did:plc:testuser1234567890/app.bsky.feed.post/demo_child_1',
@@ -750,11 +748,11 @@ class DatabaseSeeder extends Seeder
                     'repostCount' => 0,
                     'author' => $this->createAuthorField($bskyAccount, $testUserDisplayName),
                     'record' => [
-                        'text' => "日付が変わったけど、スレッドが繋がっているおかげで1つの日記として読みやすい。",
+                        'text' => '日付が変わったけど、スレッドが繋がっているおかげで1つの日記として読みやすい。',
                         'createdAt' => $nextDate->toIso8601String(),
-                    ]
+                    ],
                 ],
-                'reply' => $this->createReplyField($parentPost)
+                'reply' => $this->createReplyField($parentPost),
             ],
             'posted_at' => $nextDate,
         ]);
@@ -770,14 +768,14 @@ class DatabaseSeeder extends Seeder
         $previousPost = null;
 
         for ($i = 1; $i <= 18; $i++) {
-            $postUri = $threadUriPrefix . $i;
-            $postCid = $threadCidPrefix . $i;
+            $postUri = $threadUriPrefix.$i;
+            $postCid = $threadCidPrefix.$i;
             $postedAt = $threadStartDate->copy()->addMinutes(($i - 1) * 10);
             $text = "ページまたぎスレッド検証用投稿 #{$i}。このスレッドは全部で18件あります。";
             if ($i === 1) {
-                $text .= " これが最初の投稿（親）です。";
+                $text .= ' これが最初の投稿（親）です。';
             } elseif ($i === 18) {
-                $text .= " これが最後の投稿（18件目）です。ページネーションを超えて連結されているはずです。";
+                $text .= ' これが最後の投稿（18件目）です。ページネーションを超えて連結されているはずです。';
             }
 
             $rawReply = null;
@@ -800,9 +798,9 @@ class DatabaseSeeder extends Seeder
                         'record' => [
                             'text' => $text,
                             'createdAt' => $postedAt->toIso8601String(),
-                        ]
+                        ],
                     ],
-                    'reply' => $rawReply
+                    'reply' => $rawReply,
                 ],
                 'posted_at' => $postedAt,
             ]);
@@ -833,7 +831,7 @@ class DatabaseSeeder extends Seeder
     private function createPostField(Post $post): array
     {
         $account = $post->user->blueskyAccount;
-        
+
         $postData = [
             'uri' => $post->uri,
             'cid' => $post->cid,
@@ -843,11 +841,11 @@ class DatabaseSeeder extends Seeder
             'record' => [
                 'text' => $post->text,
                 'createdAt' => $post->posted_at->toIso8601String(),
-            ]
+            ],
         ];
 
         // 親投稿に画像や外部リンクなどの embed 要素があれば引き継ぐ
-        if (!empty($post->raw_data['post']['embed'])) {
+        if (! empty($post->raw_data['post']['embed'])) {
             $postData['embed'] = $post->raw_data['post']['embed'];
         }
 
@@ -861,7 +859,7 @@ class DatabaseSeeder extends Seeder
     {
         $parentPostField = $this->createPostField($parentPost);
         $rootPostField = $rootPost ? $this->createPostField($rootPost) : $parentPostField;
-        
+
         return [
             'parent' => [
                 'uri' => $parentPostField['uri'],
@@ -874,8 +872,8 @@ class DatabaseSeeder extends Seeder
                 'author' => [
                     'did' => $rootPostField['author']['did'],
                     'handle' => $rootPostField['author']['handle'],
-                ]
-            ]
+                ],
+            ],
         ];
     }
 
@@ -885,7 +883,7 @@ class DatabaseSeeder extends Seeder
     private function createQuoteEmbedField(Post $quotedPost): array
     {
         $account = $quotedPost->user->blueskyAccount;
-        
+
         $recordData = [
             '$type' => 'app.bsky.embed.record#view',
             'record' => [
@@ -895,23 +893,23 @@ class DatabaseSeeder extends Seeder
                 'value' => [
                     'text' => $quotedPost->text,
                     'createdAt' => $quotedPost->posted_at->toIso8601String(),
-                ]
-            ]
+                ],
+            ],
         ];
 
         // 引用ポスト内に画像等があれば embeds として引き継ぐ
-        if (!empty($quotedPost->raw_data['post']['embed'])) {
+        if (! empty($quotedPost->raw_data['post']['embed'])) {
             $embed = $quotedPost->raw_data['post']['embed'];
             $type = $embed['$type'] ?? '';
-            
+
             if ($type === 'app.bsky.embed.images#view') {
                 $recordData['record']['embeds'] = [
-                    $embed
+                    $embed,
                 ];
             } elseif ($type === 'app.bsky.embed.recordWithMedia#view' && isset($embed['media'])) {
                 // メディア付き引用の場合、中のメディアを引き継ぐ
                 $recordData['record']['embeds'] = [
-                    $embed['media']
+                    $embed['media'],
                 ];
             }
         }
@@ -919,4 +917,3 @@ class DatabaseSeeder extends Seeder
         return $recordData;
     }
 }
-

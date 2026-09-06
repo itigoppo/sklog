@@ -2,21 +2,22 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
+use App\Jobs\SyncBlueskyPostsJob;
 use App\Models\BlueskyAccount;
 use App\Models\Post;
-use App\Jobs\SyncBlueskyPostsJob;
+use App\Models\User;
 use App\Services\BlueskyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
-use Tests\TestCase;
 use Mockery;
+use Tests\TestCase;
 
 class SyncBlueskyPostsJobTest extends TestCase
 {
   use RefreshDatabase;
 
   private User $user;
+
   private BlueskyAccount $account;
 
   protected function setUp(): void
@@ -355,6 +356,7 @@ class SyncBlueskyPostsJobTest extends TestCase
       ->andReturnUsing(function () {
         $this->account->refresh();
         $this->assertTrue($this->account->is_syncing);
+
         return [
           'description' => 'テストプロフィールです',
         ];
@@ -421,7 +423,7 @@ class SyncBlueskyPostsJobTest extends TestCase
                 'handle' => 'test.bsky.social',
               ],
               'indexedAt' => Carbon::now()->toIso8601String(),
-            ]
+            ],
           ],
         ],
         'cursor' => null,
@@ -493,7 +495,7 @@ class SyncBlueskyPostsJobTest extends TestCase
                 'handle' => 'test.bsky.social',
               ],
               'indexedAt' => Carbon::now()->toIso8601String(), // 自分がリポストした時間（最新）
-            ]
+            ],
           ],
         ],
         'cursor' => null,
@@ -537,8 +539,8 @@ class SyncBlueskyPostsJobTest extends TestCase
       ->andReturn([
         'description' => 'テストプロフィールです',
         'labels' => [
-          ['val' => '!no-unauthenticated']
-        ]
+          ['val' => '!no-unauthenticated'],
+        ],
       ]);
 
     $blueskyService->shouldReceive('getAuthorFeed')
@@ -733,7 +735,8 @@ class SyncBlueskyPostsJobTest extends TestCase
     // 1回目の失敗
     try {
       SyncBlueskyPostsJob::dispatchSync($this->user);
-    } catch (\Exception $e) {}
+    } catch (\Exception $e) {
+    }
     $this->account->refresh();
     $this->assertTrue($this->account->is_auto_sync_enabled);
     $this->assertEquals(1, $this->account->auth_failure_count);
@@ -742,7 +745,8 @@ class SyncBlueskyPostsJobTest extends TestCase
     // 2回目の失敗
     try {
       SyncBlueskyPostsJob::dispatchSync($this->user);
-    } catch (\Exception $e) {}
+    } catch (\Exception $e) {
+    }
     $this->account->refresh();
     $this->assertTrue($this->account->is_auto_sync_enabled);
     $this->assertEquals(2, $this->account->auth_failure_count);
@@ -750,7 +754,8 @@ class SyncBlueskyPostsJobTest extends TestCase
     // 3回目の失敗（ここで is_auto_sync_enabled が false になる）
     try {
       SyncBlueskyPostsJob::dispatchSync($this->user);
-    } catch (\Exception $e) {}
+    } catch (\Exception $e) {
+    }
     $this->account->refresh();
     $this->assertFalse($this->account->is_auto_sync_enabled);
     $this->assertEquals(3, $this->account->auth_failure_count);
@@ -796,4 +801,3 @@ class SyncBlueskyPostsJobTest extends TestCase
     $this->assertTrue($this->account->is_auto_sync_enabled);
   }
 }
-

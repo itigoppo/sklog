@@ -2,14 +2,14 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
 use App\Models\InviteCode;
+use App\Models\User;
 use App\Models\WaitlistEntry;
 use App\Services\BlueskyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
-use Tests\TestCase;
 use Mockery;
+use Tests\TestCase;
 
 class WaitlistAndRegistrationTest extends TestCase
 {
@@ -938,4 +938,3 @@ class WaitlistAndRegistrationTest extends TestCase
     $this->assertNull(session('admin_2fa_verified'));
   }
 }
-
