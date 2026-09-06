@@ -1,8 +1,21 @@
 .PHONY: \
+	setup setup-fresh setup-worktree \
 	docker-up docker-down docker-build docker-rebuild docker-web docker-db docker-mail \
 	run build \
 	migrate migrate-fresh migrate-fresh-seed cache-clear \
 	test test-coverage
+
+# Set up the local development environment
+setup:
+	./setup.sh
+
+# Set up the local development environment from scratch (recreate DB)
+setup-fresh:
+	./setup.sh --fresh
+
+# Set up a git worktree (copy .env from main, install deps; no Docker)
+setup-worktree:
+	bash .orca/setup.sh
 
 # Start Docker containers
 docker-up:

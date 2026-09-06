@@ -1,34 +1,74 @@
 # SKLOG
 
-## 初回セットアップ
+## セットアップ（推奨）
 
-### Docker起動
+`setup.sh` が下記の「手動セットアップ」の内容（Docker 起動 → `.env` 作成 → composer install → APP_KEY 生成 → マイグレーション → pnpm install）を自動で行います。何度実行しても安全です。
+
+```
+./setup.sh
+```
+
+または
+
+```
+make setup
+```
+
+| オプション | 内容 |
+| --- | --- |
+| `--fresh` | DB を作り直す（`migrate:fresh --seed`） |
+| `--no-node` | ホスト側の `pnpm install` をスキップ |
+| `--no-build` | Docker イメージのビルドをスキップ |
+
+完了後、必要に応じて `src/.env` の管理画面・Bluesky まわりの設定（`ADMIN_PASSWORD`、`ADMIN_NOTIFICATION_EMAIL`、`BLUESKY_DEMO_HANDLE` など）を編集してください。
+
+## ワークツリー用セットアップ
+
+Orca でワークツリーを作成したときに走らせるスクリプトです。git 管理外のファイル（`src/.env` / `src/vendor` / `src/node_modules`）は新しいワークツリーには無いため、これで揃えます。
+
+```
+bash .orca/setup.sh
+```
+
+Orca の repo 設定 → Setup script に上記を登録しておくと、ワークツリー作成時に自動で実行されます。
+
+- `src/.env` は main チェックアウトからコピーします
+- `src/node_modules` はホストの `pnpm install` で作ります
+- `src/vendor` は使い捨ての `composer:2` コンテナで作ります（ホストに PHP 不要。`--no-scripts`）
+- **Docker は起動しません。** `docker-compose.yml` は `container_name` とポートが固定のため、main チェックアウトの環境と衝突します。アプリの動作確認は main 側（`cd ~/git/sklog && make docker-up`）で行ってください
+- `vendor` が既にある場合はスキップします。作り直すときは `bash .orca/setup.sh --force`
+
+## 手動セットアップ
+
+### 初回セットアップ
+
+#### Docker起動
 
 ```
 docker compose up -d --build
 ```
 
-### 依存関係のインストール (PHP)
+#### 依存関係のインストール (PHP)
 
 ```
 docker compose exec web composer install
 ```
 
-## Laravel初期設定
+### Laravel初期設定
 
-### .env作成
+#### .env作成
 
 ```
 cp src/.env.example src/.env
 ```
 
-### APP_KEY生成
+#### APP_KEY生成
 
 ```
 docker compose exec web php artisan key:generate
 ```
 
-### DB設定
+#### DB設定
 
 src/.env
 
@@ -41,7 +81,7 @@ DB_USERNAME=user
 DB_PASSWORD=password
 ```
 
-### Mail設定
+#### Mail設定
 
 src/.env
 
@@ -56,19 +96,19 @@ MAIL_FROM_ADDRESS="hello@example.com"
 MAIL_FROM_NAME="${APP_NAME}"
 ```
 
-### マイグレーション
+#### マイグレーション
 
 ```
 docker compose exec web php artisan migrate
 ```
 
-### アクセス先
+#### アクセス先
 
 Laravel: http://localhost:18080 , https://localhost:18443
 
 Mailpit: http://localhost:18025
 
-## Vite(Node)
+### Vite(Node)
 
 docker内じゃないよ
 
