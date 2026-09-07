@@ -5,6 +5,10 @@
   $isConnectedToNext = $isConnectedToNext ?? false;
   $isConnectedToPrev = $isConnectedToPrev ?? false;
 
+  // 連投の通し番号 ['index' => 何番目, 'total' => 件数]。1件だけの場合は出さない
+  $threadNumber = $threadNumber ?? null;
+  $hasThreadNumber = $threadNumber && ($threadNumber['total'] ?? 1) > 1;
+
   // 前のページ・前日からの継続判定
   $isContinuationFromPrev = $post->is_self_thread && !$isConnectedToPrev;
 
@@ -277,7 +281,7 @@
   @if ($shouldMaskRepost)
     <p class="text-sm md:text-base text-slate-500 italic whitespace-pre-wrap leading-relaxed mb-2">非公開アカウントの投稿（リポスト）のため、内容は表示できません。</p>
   @else
-    <p class="text-sm md:text-base text-slate-200 whitespace-pre-wrap leading-relaxed mb-2">{!! $post->html_text !!}</p>
+    <p class="text-sm md:text-base text-slate-200 whitespace-pre-wrap leading-relaxed mb-2">{!! $post->html_text !!}@if ($hasThreadNumber)<span class="inline-block align-middle ml-1.5 px-1.5 py-0.5 rounded-md bg-slate-800/80 text-[10px] font-bold text-slate-400 leading-none tracking-wide select-none" title="この連投の{{ $threadNumber['total'] }}件中{{ $threadNumber['index'] }}件目">{{ $threadNumber['index'] }}/{{ $threadNumber['total'] }}</span>@endif</p>
   @endif
 
   <!-- 引用ポスト -->

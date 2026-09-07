@@ -580,6 +580,116 @@ class Post extends Model
   }
 
   /**
+   * 渡した投稿について、自分の連投（スレッド）の通し番号 (1/n) を算出します。
+   *
+   * Bluesky の API には番号を表す項目が無い（postView にも threadContext にも無く、
+   * unspecced の getPostThreadV2 が持つのは depth のみ）ため、自前で数えます。
+   *
+   * 1ページ分のリストだけで数えると、日付やページをまたいだ連投を数え落として
+   * 実際より小さい n になってしまうため、スレッド全体を root uri から引き直します。
+   *
+   * 番号は「親子リンクでつながった自分の投稿の並び」での位置。他人の投稿への返信は
+   * 親がこの集合に含まれないため、そこが起点 (1件目) になります。同じ相手へ別々に
+   * 返信しただけの投稿は、つながらないので n = 1 となり番号は付きません。
+   *
+   * @param  iterable<self>  $posts  番号を出したい投稿
+   * @return array<string, array{index: int, total: int}> post id をキーにした番号
+   */
+  public static function threadNumbers(iterable $posts): array
+  {
+    $posts = collect($posts);
+
+    // 番号の対象になるスレッド (root uri) を集める。リポストは対象外
+    $rootUris = [];
+    $userIds = [];
+    foreach ($posts as $post) {
+      if ($post->is_repost) {
+        continue;
+      }
+      if ($rootUri = self::threadRootUri($post)) {
+        $rootUris[$rootUri] = true;
+        $userIds[$post->user_id] = true;
+      }
+    }
+
+    if (empty($rootUris)) {
+      return [];
+    }
+
+    $rootUris = array_keys($rootUris);
+
+    // スレッドに属する自分の投稿を一括取得する（ルート自身は uri 側で一致する）
+    $threadPosts = self::query()
+      ->whereIn('user_id', array_keys($userIds))
+      ->where(function (Builder $query) use ($rootUris) {
+        $query->whereIn('raw_data->reply->root->uri', $rootUris)
+          ->orWhereIn('uri', $rootUris);
+      })
+      ->orderBy('posted_at')
+      ->get(['id', 'uri', 'user_id', 'raw_data', 'posted_at']);
+
+    $byUri = [];
+    foreach ($threadPosts as $threadPost) {
+      if ($threadPost->is_repost || ! $threadPost->uri) {
+        continue;
+      }
+      $byUri[$threadPost->uri] = $threadPost;
+    }
+
+    // 親リンクを上へ辿り、連投の起点と起点からの位置を求める
+    $startOf = [];
+    $indexOf = [];
+    foreach ($byUri as $uri => $threadPost) {
+      $chain = [];
+      $current = $threadPost;
+      $startUri = $threadPost->uri;
+
+      while ($current && ! isset($chain[$current->uri])) {
+        $chain[$current->uri] = true;
+        $startUri = $current->uri;
+        $parentUri = $current->raw_data['reply']['parent']['uri'] ?? null;
+        $current = $parentUri ? ($byUri[$parentUri] ?? null) : null;
+      }
+
+      $startOf[$uri] = $startUri;
+      $indexOf[$uri] = count($chain);
+    }
+
+    // 起点ごとの最大位置がその連投の件数になる
+    $totalOf = [];
+    foreach ($indexOf as $uri => $index) {
+      $start = $startOf[$uri];
+      $totalOf[$start] = max($totalOf[$start] ?? 0, $index);
+    }
+
+    $numbers = [];
+    foreach ($posts as $post) {
+      if (! $post->uri || ! isset($indexOf[$post->uri])) {
+        continue;
+      }
+
+      $numbers[$post->id] = [
+        'index' => $indexOf[$post->uri],
+        'total' => $totalOf[$startOf[$post->uri]] ?? 1,
+      ];
+    }
+
+    return $numbers;
+  }
+
+  /**
+   * その投稿が属するスレッドの起点 (root) の uri を返します。
+   */
+  private static function threadRootUri(self $post): ?string
+  {
+    if ($post->is_reply) {
+      return $post->raw_data['reply']['root']['uri'] ?? null;
+    }
+
+    return $post->uri;
+  }
+
+  /**
    * 画像が含まれている投稿のみに絞り込むローカルスコープ。
    */
   public function scopeHasImages(Builder $query): Builder

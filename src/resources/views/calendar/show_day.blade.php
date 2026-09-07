@@ -79,6 +79,9 @@
           @php
             $postsList = $posts->values();
 
+            // 連投の通し番号 (1/n) をまとめて算出する
+            $threadNumbers = \App\Models\Post::threadNumbers($postsList);
+
             // --- スレッド内古い順 (昇順), スレッド間新しい順 (降順) に並び替え ---
             $postsByUri = [];
             foreach ($postsList as $p) {
@@ -147,7 +150,8 @@
               @include('calendar._post_card', [
                 'post' => $post,
                 'isConnectedToNext' => $isConnectedToNext,
-                'isConnectedToPrev' => $isConnectedToPrev
+                'isConnectedToPrev' => $isConnectedToPrev,
+                'threadNumber' => $threadNumbers[$post->id] ?? null
               ])
             @endforeach
           </div>

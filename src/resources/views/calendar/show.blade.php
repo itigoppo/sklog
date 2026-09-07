@@ -201,6 +201,9 @@
 
             $rootPosts = \App\Models\Post::whereIn('uri', $rootUris)->get()->keyBy('uri');
 
+            // 連投の通し番号 (1/n) をページ単位でまとめて算出する
+            $threadNumbers = \App\Models\Post::threadNumbers($posts->getCollection());
+
             // 現在のページの投稿を、スレッド開始元の投稿日（なければ自身の投稿日）でグループ化
             $postsGroupedByDay = $posts->getCollection()->groupBy(function($post) use ($rootPosts) {
                 $rootUri = $post->is_self_thread ? ($post->raw_data['reply']['root']['uri'] ?? null) : null;
@@ -295,7 +298,8 @@
                   @include('calendar._post_card', [
                     'post' => $post,
                     'isConnectedToNext' => $isConnectedToNext,
-                    'isConnectedToPrev' => $isConnectedToPrev
+                    'isConnectedToPrev' => $isConnectedToPrev,
+                    'threadNumber' => $threadNumbers[$post->id] ?? null
                   ])
                 @endforeach
               </div>
