@@ -69,6 +69,8 @@
         </a>
       @endif
     @endif
+
+    @include('calendar._account_switcher')
   @else
     <!-- ログインしていない場合はログイン画面へのリンク -->
     <a href="{{ route('login') }}" class="w-full py-2.5 rounded-xl bg-linear-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-xs shadow-lg transition duration-300 flex items-center justify-center gap-1.5 active:scale-[0.98]">

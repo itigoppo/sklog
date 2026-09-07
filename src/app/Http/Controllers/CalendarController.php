@@ -8,6 +8,7 @@ use App\Models\Post;
 use App\Models\Tag;
 use App\Models\User;
 use App\Services\BlueskyService;
+use App\Support\AccountSession;
 use Exception;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -1055,7 +1056,13 @@ class CalendarController extends Controller
         $user->delete();
       });
 
-      Auth::logout();
+      // 他にログイン中のアカウントが残っていれば、そちらへ切り替えて退会を完了する
+      $next = AccountSession::logoutCurrentAndSwitchNext();
+      if ($next) {
+        return redirect()->route('calendar.show', ['handle' => $next->blueskyAccount->handle])
+          ->with('success', 'アカウントとすべてのカレンダーデータを完全に削除し、退会しました。@'.$next->blueskyAccount->handle.' に切り替えています。');
+      }
+
       $request->session()->invalidate();
       $request->session()->regenerateToken();
 
@@ -1094,10 +1101,12 @@ class CalendarController extends Controller
             'profile' => $profile,
             'is_private' => $isPrivate,
             'throttle_key' => $throttleKey,
+            'is_adding' => false,
           ],
         ]);
 
-        Auth::logout();
+        // 認証が切れたアカウントだけをログアウトし、他が残っていればそちらへ切り替える
+        AccountSession::logoutCurrentAndSwitchNext();
 
         return redirect()->route('login.confirm_handle_change')
           ->with('info', 'Bluesky側でハンドル名の変更が検知されました。手続きを完了させてください。');

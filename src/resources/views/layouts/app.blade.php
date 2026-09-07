@@ -431,6 +431,22 @@
       if (overlay) overlay.addEventListener('click', closeDrawer);
     });
 
+    // ================= アカウント切り替えパネルの開閉 =================
+    // サイドバーはPC版とモバイルドロワーで2回描画されるため、id ではなくクラスで委譲処理する
+    document.addEventListener('click', (e) => {
+      const toggle = e.target.closest('.js-account-switcher-toggle');
+      if (!toggle) return;
+
+      const switcher = toggle.closest('.js-account-switcher');
+      const panel = switcher?.querySelector('.js-account-switcher-panel');
+      if (!panel) return;
+
+      const willOpen = panel.classList.contains('hidden');
+      panel.classList.toggle('hidden', !willOpen);
+      toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+      toggle.querySelector('.js-account-switcher-chevron')?.classList.toggle('rotate-180', willOpen);
+    });
+
     // ================= ページ上部スクロールボタン (Back to Top) ロジック =================
     document.addEventListener('DOMContentLoaded', () => {
       const backToTopBtn = document.getElementById('backToTopBtn');

@@ -7,6 +7,7 @@ use App\Models\InviteCode;
 use App\Models\User;
 use App\Models\WaitlistEntry;
 use App\Services\BlueskyService;
+use App\Support\AccountSession;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -35,21 +36,77 @@ class AuthController extends Controller
       return redirect()->route('calendar.show', ['handle' => $handle]);
     }
 
-    return view('auth.login');
+    return view('auth.login', ['isAdding' => false]);
+  }
+
+  /**
+   * ログイン中に別アカウントを追加するための画面を表示します。
+   */
+  public function showAddAccountForm()
+  {
+    $handle = Auth::user()?->blueskyAccount?->handle;
+
+    if (! $handle) {
+      return redirect('/');
+    }
+
+    if (AccountSession::isFull()) {
+      return redirect()->route('calendar.show', ['handle' => $handle])
+        ->with('error', '同時にログインできるアカウントは最大'.AccountSession::MAX_ACCOUNTS.'件です。不要なアカウントをログアウトしてから追加してください。');
+    }
+
+    return view('auth.login', ['isAdding' => true]);
   }
 
   /**
    * 新規登録画面を表示します。
+   *
+   * ログイン中の場合は、招待コードを持つ別アカウントの「追加登録」として表示します。
+   * 招待メールのリンク経由（有効な招待コード付き）の場合は、招待先のハンドル名を固定表示します。
    */
-  public function showRegisterForm()
+  public function showRegisterForm(Request $request)
   {
-    if (Auth::check()) {
-      $handle = Auth::user()->blueskyAccount->handle;
+    $currentHandle = Auth::user()?->blueskyAccount?->handle;
 
-      return redirect()->route('calendar.show', ['handle' => $handle]);
+    if ($currentHandle && AccountSession::isFull()) {
+      return redirect()->route('calendar.show', ['handle' => $currentHandle])
+        ->with('error', '同時にログインできるアカウントは最大'.AccountSession::MAX_ACCOUNTS.'件です。不要なアカウントをログアウトしてから追加してください。');
     }
 
-    return view('auth.register');
+    $invite = $this->resolveLockableInvite($request);
+
+    return view('auth.register', [
+      'isAdding' => $currentHandle !== null,
+      // 招待先のハンドル名（固定表示する場合のみ）
+      'lockedHandle' => $invite ? strtolower(ltrim($invite->handle, '@')) : null,
+      'lockedCode' => $invite?->code,
+      // did で本人照合できる招待なら、ハンドル名を変更した人のために固定を解除できるようにする
+      'canUnlockHandle' => (bool) $invite?->did,
+    ]);
+  }
+
+  /**
+   * 固定表示に使える招待コードを解決します。
+   *
+   * 使用済み・期限切れ・ハンドル名なしの招待コードは、固定表示せず自由入力のままにします
+   * （コードを知っているだけで申請済みのハンドル名が分かる範囲を、有効な招待に限定するためでもあります）。
+   */
+  private function resolveLockableInvite(Request $request): ?InviteCode
+  {
+    // 入力エラーで戻ってきた場合も固定表示を維持するため、フラッシュされた入力値も見る
+    $code = $request->old('invite_code') ?: $request->query('code');
+
+    if (! is_string($code) || trim($code) === '') {
+      return null;
+    }
+
+    $invite = InviteCode::where('code', strtoupper(trim($code)))->first();
+
+    if (! $invite || ! $invite->handle || $invite->isUsed() || $invite->isExpired()) {
+      return null;
+    }
+
+    return $invite;
   }
 
   /**
@@ -65,6 +122,15 @@ class AuthController extends Controller
     ], [
       'terms.accepted' => 'サービス利用への同意が必要です。',
     ]);
+
+    // ログイン中からの実行は、既存アカウントを保持したままの追加登録として扱う
+    $isAdding = Auth::check();
+
+    if ($isAdding && AccountSession::isFull()) {
+      return back()->withErrors([
+        'handle' => '同時にログインできるアカウントは最大'.AccountSession::MAX_ACCOUNTS.'件です。不要なアカウントをログアウトしてから追加してください。',
+      ])->withInput($request->only('handle', 'invite_code'));
+    }
 
     // 招待コードの検証
     $inviteCode = InviteCode::where('code', strtoupper(trim($request->invite_code)))->first();
@@ -92,7 +158,9 @@ class AuthController extends Controller
       // すでに登録済みのアカウントは新規登録不可
       if (BlueskyAccount::where('did', $did)->exists()) {
         return back()->withErrors([
-          'handle' => 'このBlueskyアカウントはすでに登録されています。ログインページからログインしてください。',
+          'handle' => $isAdding
+            ? 'このBlueskyアカウントはすでに登録済みです。招待コードは不要なので、「別のアカウントを追加」からログインして追加してください。'
+            : 'このBlueskyアカウントはすでに登録されています。ログインページからログインしてください。',
         ])->withInput($request->only('handle', 'invite_code'));
       }
 
@@ -152,10 +220,12 @@ class AuthController extends Controller
         return $user;
       });
 
-      Auth::login($user, true);
+      AccountSession::switchTo($user);
 
       return redirect()->route('calendar.show', ['handle' => $handle])
-        ->with('success', '登録が完了しました。ようこそ！');
+        ->with('success', $isAdding
+          ? '@'.$handle.' の登録が完了し、アカウントを追加しました。'
+          : '登録が完了しました。ようこそ！');
 
     } catch (Exception $e) {
       return back()->withErrors([
@@ -166,6 +236,9 @@ class AuthController extends Controller
 
   /**
    * Bluesky認証を用いたログイン処理を行います（既存ユーザー専用）。
+   *
+   * すでにログイン中の場合は「アカウントの追加」として扱い、
+   * 認証に成功したアカウントをアクティブに切り替えます。
    */
   public function login(Request $request)
   {
@@ -173,6 +246,15 @@ class AuthController extends Controller
       'handle' => 'required|string',
       'app_password' => 'required|string',
     ]);
+
+    // ログイン中からの実行は、既存アカウントを保持したままのアカウント追加として扱う
+    $isAdding = Auth::check();
+
+    if ($isAdding && AccountSession::isFull()) {
+      return back()->withErrors([
+        'handle' => '同時にログインできるアカウントは最大'.AccountSession::MAX_ACCOUNTS.'件です。不要なアカウントをログアウトしてから追加してください。',
+      ])->withInput($request->only('handle'));
+    }
 
     $throttleKey = 'login-attempt:'.$request->ip().'|'.strtolower($credentials['handle']);
 
@@ -225,19 +307,34 @@ class AuthController extends Controller
 
         $normalizedHandle = strtolower(ltrim(trim($handle), '@'));
 
-        // 招待済みのウェイトリストエントリー、またはこのハンドル宛ての有効な（未使用の）招待コードが存在するか確認
-        $hasActiveInvite = InviteCode::where('handle', $normalizedHandle)
-          ->whereNull('used_at')
+        // 不変のDIDで照合する。ハンドル名は変更・再利用されるため、did移行前のレコードに限ってハンドル名でフォールバックする
+        $matchesApplicant = function ($query) use ($did, $normalizedHandle) {
+          $query->where('did', $did)
+            ->orWhere(fn ($q) => $q->whereNull('did')->where('handle', $normalizedHandle));
+        };
+
+        // 招待済みのウェイトリストエントリー、またはこのアカウント宛ての有効な（未使用の）招待コードが存在するか確認
+        $hasActiveInvite = InviteCode::whereNull('used_at')
+          ->where($matchesApplicant)
           ->exists();
 
-        $isInvitedInWaitlist = WaitlistEntry::where('handle', $normalizedHandle)
-          ->where('status', 'invited')
+        $isInvitedInWaitlist = WaitlistEntry::where('status', 'invited')
+          ->where($matchesApplicant)
           ->exists();
 
         if ($hasActiveInvite || $isInvitedInWaitlist) {
           return redirect()->route('register')
-            ->with('info', '招待コードで新規登録してください。')
+            ->with('info', $isAdding
+              ? 'このアカウントには招待コードが発行されています。コードを入力して追加登録してください。'
+              : '招待コードで新規登録してください。')
             ->withInput(['handle' => $credentials['handle']]);
+        }
+
+        // アカウント追加時は、Bluesky認証に成功した=本人であるため、未登録であることをそのまま伝える
+        if ($isAdding) {
+          return back()->withErrors([
+            'handle' => '@'.$handle.' はまだ'.config('app.name', 'SkLoG').'に登録されていません。追加できるのは、参加申請 → 招待コードの受け取り → 登録 まで済んだアカウントだけです。',
+          ])->withInput($request->only('handle'));
         }
 
         // 申請中（pending）または未申請の場合は、ログイン画面に戻してエラーとする（申請済みであることを隠すため）
@@ -266,6 +363,7 @@ class AuthController extends Controller
             'profile' => $profile,
             'is_private' => $isPrivate,
             'throttle_key' => $throttleKey,
+            'is_adding' => $isAdding,
           ],
         ]);
 
@@ -291,10 +389,11 @@ class AuthController extends Controller
       // ログイン成功時に試行制限カウントをクリア
       RateLimiter::clear($throttleKey);
 
-      Auth::login($user, true);
+      $wasActive = Auth::id() === $user->id;
+      AccountSession::switchTo($user);
 
       return redirect()->route('calendar.show', ['handle' => $handle])
-        ->with('success', 'ログインしました。');
+        ->with('success', $isAdding && ! $wasActive ? '@'.$handle.' を追加してログインしました。' : 'ログインしました。');
 
     } catch (Exception $e) {
       // ログイン失敗時に制限カウントを増やす（有効期限60秒）
@@ -308,9 +407,26 @@ class AuthController extends Controller
 
   /**
    * ログアウト処理を行います。
+   *
+   * 他にログイン中のアカウントが残っている場合は、そのアカウントへ切り替えます。
+   * `all` パラメータが真のときは、セッション内のすべてのアカウントをログアウトします。
    */
   public function logout(Request $request)
   {
+    if (! $request->boolean('all')) {
+      $currentHandle = Auth::user()?->blueskyAccount?->handle;
+      $next = AccountSession::logoutCurrentAndSwitchNext();
+
+      if ($next) {
+        $nextHandle = $next->blueskyAccount->handle;
+
+        return redirect()->route('calendar.show', ['handle' => $nextHandle])
+          ->with('success', $currentHandle
+            ? '@'.$currentHandle.' からログアウトし、@'.$nextHandle.' に切り替えました。'
+            : '@'.$nextHandle.' に切り替えました。');
+      }
+    }
+
     // 管理者セッションを一時退避
     $adminAuth = $request->session()->get('admin_authenticated');
     $admin2fa = $request->session()->get('admin_2fa_verified');
@@ -329,6 +445,40 @@ class AuthController extends Controller
     }
 
     return redirect('/login')->with('success', 'ログアウトしました。');
+  }
+
+  /**
+   * このセッションでログイン済みの別アカウントへ切り替えます。
+   */
+  public function switchAccount(Request $request)
+  {
+    $request->validate([
+      'user_id' => 'required|string',
+    ]);
+
+    $userId = $request->input('user_id');
+
+    if ($userId === Auth::id()) {
+      return back();
+    }
+
+    // このセッションで実際にログインしたアカウントだけを切り替え先として許可する
+    if (! AccountSession::has($userId)) {
+      return back()->with('error', 'そのアカウントには切り替えられません。もう一度ログインしてください。');
+    }
+
+    $user = User::with('blueskyAccount')->find($userId);
+    if (! $user || ! $user->blueskyAccount) {
+      AccountSession::forget($userId);
+
+      return back()->with('error', 'アカウントが見つかりませんでした。もう一度ログインしてください。');
+    }
+
+    $handle = $user->blueskyAccount->handle;
+    AccountSession::switchTo($user);
+
+    return redirect()->route('calendar.show', ['handle' => $handle])
+      ->with('success', '@'.$handle.' に切り替えました。');
   }
 
   /**
@@ -363,13 +513,13 @@ class AuthController extends Controller
    */
   public function showConfirmHandleChange(Request $request)
   {
-    if (Auth::check()) {
-      return redirect()->route('calendar.show', ['handle' => Auth::user()->blueskyAccount->handle]);
-    }
-
     $pending = session('handle_change_pending');
+
+    // 別アカウントでログイン中でも、保留中の手続きがあれば確認画面を表示する
     if (! $pending) {
-      return redirect()->route('login');
+      return Auth::check()
+        ? redirect()->route('calendar.show', ['handle' => Auth::user()->blueskyAccount->handle])
+        : redirect()->route('login');
     }
 
     return view('auth.confirm_handle_change', [
@@ -398,12 +548,13 @@ class AuthController extends Controller
     if ($action === 'cancel') {
       session()->forget('handle_change_pending');
 
-      return redirect()->route('login')->with('info', 'ログインをキャンセルしました。');
+      return $this->redirectAfterHandleChangeExit('info', 'ログインをキャンセルしました。');
     }
 
     $user = User::find($pending['user_id']);
     if (! $user) {
       session()->forget('handle_change_pending');
+      AccountSession::forget($pending['user_id']);
 
       return redirect()->route('login')->withErrors(['handle' => 'ユーザーが見つかりません。']);
     }
@@ -414,8 +565,9 @@ class AuthController extends Controller
       });
 
       session()->forget('handle_change_pending');
+      AccountSession::forget($user->id);
 
-      return redirect()->route('login')->with('success', 'アカウントとすべてのカレンダーデータを完全に削除しました。');
+      return $this->redirectAfterHandleChangeExit('success', 'アカウントとすべてのカレンダーデータを完全に削除しました。');
     }
 
     if ($action === 'consent') {
@@ -442,12 +594,29 @@ class AuthController extends Controller
       RateLimiter::clear($throttleKey);
       session()->forget('handle_change_pending');
 
-      Auth::login($user, true);
+      AccountSession::switchTo($user);
 
       return redirect()->route('calendar.show', ['handle' => $newHandle])
-        ->with('success', 'ログインし、新しいハンドル名を引き継ぎました。');
+        ->with('success', ($pending['is_adding'] ?? false)
+          ? '@'.$newHandle.' を追加してログインし、新しいハンドル名を引き継ぎました。'
+          : 'ログインし、新しいハンドル名を引き継ぎました。');
     }
 
     return redirect()->route('login');
+  }
+
+  /**
+   * ハンドル名変更手続きを中断・完了したあとの遷移先を決めます。
+   * 他アカウントでログイン中ならそのカレンダーへ、そうでなければログイン画面へ戻します。
+   */
+  private function redirectAfterHandleChangeExit(string $key, string $message)
+  {
+    $handle = Auth::user()?->blueskyAccount?->handle;
+
+    if ($handle) {
+      return redirect()->route('calendar.show', ['handle' => $handle])->with($key, $message);
+    }
+
+    return redirect()->route('login')->with($key, $message);
   }
 }

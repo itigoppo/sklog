@@ -1,14 +1,20 @@
+@php
+  // ログイン中に別アカウントを追加するモードかどうか
+  $currentHandle = Auth::check() ? Auth::user()->blueskyAccount?->handle : null;
+  $isAdding = ($isAdding ?? false) && $currentHandle !== null;
+  $pageTitle = $isAdding ? 'アカウントを追加' : 'ログイン';
+@endphp
 <!DOCTYPE html>
 <html lang="ja" class="h-full bg-slate-950 text-slate-100">
 <head>
   <x-google-analytics />
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ログイン | {{ config('app.name', 'SkLoG') }}</title>
+  <title>{{ $pageTitle }} | {{ config('app.name', 'SkLoG') }}</title>
   <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
 
   <!-- OGP (Open Graph Protocol) -->
-  <meta property="og:title" content="ログイン | {{ config('app.name', 'SkLoG') }}">
+  <meta property="og:title" content="{{ $pageTitle }} | {{ config('app.name', 'SkLoG') }}">
   <meta property="og:description" content="Blueskyカレンダーアーカイブ「{{ config('app.name', 'SkLoG') }}」のログインページです。">
   <meta property="og:image" content="{{ url('logo.png') }}">
   <meta property="og:url" content="{{ url('/login') }}">
@@ -100,9 +106,34 @@
     <div class="glass-card rounded-2xl p-8 relative overflow-hidden">
       
       <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
-        <x-icon name="login" class="h-6 w-6 text-sky-400" stroke-width="2" />
-        Blueskyアカウントで接続
+        <x-icon name="{{ $isAdding ? 'user-plus' : 'login' }}" class="h-6 w-6 text-sky-400" stroke-width="2" />
+        {{ $isAdding ? 'Blueskyアカウントを追加' : 'Blueskyアカウントで接続' }}
       </h2>
+
+      <!-- アカウント追加モードの案内 -->
+      @if ($isAdding)
+        <div class="mb-6 space-y-3">
+          <div class="p-4 rounded-lg bg-sky-500/10 border border-sky-500/30 text-sky-300 text-xs leading-relaxed flex items-start gap-2">
+            <x-icon name="info" class="h-4 w-4 shrink-0 mt-0.5" stroke-width="2" />
+            <span>
+              現在 <span class="font-bold">{{ '@' . $currentHandle }}</span> でログイン中です。<br>
+              ログイン状態を保ったまま別のアカウントを追加し、いつでも切り替えられます（最大{{ \App\Support\AccountSession::MAX_ACCOUNTS }}件）。
+            </span>
+          </div>
+
+          <!-- 追加できるアカウントの条件 -->
+          <div class="p-4 rounded-lg bg-slate-900/60 border border-slate-800 text-xs leading-relaxed space-y-2.5">
+            <p class="font-bold text-slate-200 flex items-start gap-1.5">
+              <x-icon name="alert" class="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" stroke-width="2.5" />
+              <span>追加できるのは「登録済み」のアカウントだけです</span>
+            </p>
+            <p class="text-slate-400 leading-relaxed">
+              まだ登録していないアカウントは、先に <a href="{{ route('waitlist.show') }}" class="text-sky-400 hover:text-sky-300 hover:underline font-semibold cursor-pointer">参加申請</a> が必要です。
+              招待コードをお持ちの場合は <a href="{{ route('register') }}" class="text-sky-400 hover:text-sky-300 hover:underline font-semibold cursor-pointer">招待コードで登録</a> すると、そのままアカウントが追加されます。
+            </p>
+          </div>
+        </div>
+      @endif
 
       <!-- エラーメッセージ表示 -->
       @if ($errors->any())
@@ -174,7 +205,7 @@
         <!-- 送信ボタン -->
         <button type="submit" id="loginBtn"
                 class="w-full py-3.5 px-4 rounded-lg cursor-pointer bg-linear-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-semibold text-sm shadow-lg shadow-sky-950/50 hover:shadow-sky-500/10 focus:outline-none transition duration-300 transform active:scale-[0.98] flex items-center justify-center gap-2">
-          <span id="loginBtnText" class="flex items-center justify-center gap-2">連携してログインする ➔</span>
+          <span id="loginBtnText" class="flex items-center justify-center gap-2">{{ $isAdding ? 'このアカウントを追加する ➔' : '連携してログインする ➔' }}</span>
         </button>
 
       </form>
@@ -183,10 +214,17 @@
 
     <!-- 導線 -->
     <div class="text-center mt-6 space-y-3">
-      <a href="/join" class="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-sky-400 font-semibold transition duration-300 cursor-pointer">
-        <x-icon name="user-plus" class="h-3.5 w-3.5" stroke-width="2.5" />
-        アカウントをお持ちでない方（参加申請はこちら）
-      </a>
+      @if ($isAdding)
+        <a href="{{ route('calendar.show', ['handle' => $currentHandle]) }}" class="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-sky-400 font-semibold transition duration-300 cursor-pointer">
+          <x-icon name="arrow-left" class="h-3.5 w-3.5" stroke-width="2.5" />
+          追加せずに {{ '@' . $currentHandle }} のカレンダーへ戻る
+        </a>
+      @else
+        <a href="/join" class="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-sky-400 font-semibold transition duration-300 cursor-pointer">
+          <x-icon name="user-plus" class="h-3.5 w-3.5" stroke-width="2.5" />
+          アカウントをお持ちでない方（参加申請はこちら）
+        </a>
+      @endif
       <br>
       <div class="flex items-center justify-center gap-4 text-xs font-semibold select-none">
         <a href="{{ route('about') }}" class="text-slate-500 hover:text-sky-400 transition duration-300 cursor-pointer">

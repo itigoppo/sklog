@@ -11,13 +11,16 @@ use Illuminate\Support\Facades\Mail;
 
 class WaitlistController extends Controller
 {
+  /**
+   * 参加申請画面を表示します。
+   *
+   * ログイン中でも、別アカウントの参加申請ができるように表示します。
+   */
   public function show()
   {
-    if (Auth::check()) {
-      return redirect()->route('calendar.show', ['handle' => Auth::user()->blueskyAccount->handle]);
-    }
-
-    return view('waitlist.apply');
+    return view('waitlist.apply', [
+      'currentHandle' => Auth::user()?->blueskyAccount?->handle,
+    ]);
   }
 
   public function store(Request $request, BlueskyService $blueskyService)
@@ -30,16 +33,8 @@ class WaitlistController extends Controller
     $handle = strtolower(ltrim(trim($request->handle), '@'));
     $email = strtolower(trim($request->email));
 
-    // すでに申請済みのメールまたはハンドルの場合、エラーにせず静かに成功を返す（重複登録や二重の管理者通知を防ぐため）
-    $alreadyExists = WaitlistEntry::where('email', $email)
-      ->orWhere('handle', $handle)
-      ->exists();
-
-    if ($alreadyExists) {
-      return redirect()->route('waitlist.completed')->with('handle', $handle);
-    }
-
     // Blueskyアカウントの実在チェックおよびプロフィールの取得
+    // 申請の同一性は不変のDIDで判定するため、重複チェックの前にプロフィールを引く
     $profile = [];
     try {
       $profile = $blueskyService->getProfile($handle);
@@ -49,13 +44,31 @@ class WaitlistController extends Controller
       ])->withInput();
     }
 
-    $entry = WaitlistEntry::create([
-      'email' => $email,
+    $did = $profile['did'] ?? null;
+    $attributes = [
       'handle' => $handle,
-      'did' => $profile['did'] ?? null,
       'display_name' => $profile['displayName'] ?? null,
       'avatar_url' => $profile['avatar'] ?? null,
       'description' => $profile['description'] ?? null,
+    ];
+
+    // すでに申請済みのアカウントの場合、エラーにせず静かに成功を返す（重複登録や二重の管理者通知を防ぐため）
+    // ハンドル名はBluesky側で変更でき、手放したハンドルは別アカウントが再利用できるため、不変のDIDで照合する
+    $existing = $did ? WaitlistEntry::where('did', $did)->first() : null;
+
+    // did移行前のレコードは did を持たないため、その場合だけハンドル名でフォールバック照合する
+    $existing ??= WaitlistEntry::whereNull('did')->where('handle', $handle)->first();
+
+    if ($existing) {
+      // 申請後にハンドル名を変更していた場合に備えて表示情報を更新し、did移行前のレコードには did を補完する
+      $existing->update($attributes + ($existing->did ? [] : ['did' => $did]));
+
+      return redirect()->route('waitlist.completed')->with('handle', $handle);
+    }
+
+    $entry = WaitlistEntry::create($attributes + [
+      'email' => $email,
+      'did' => $did,
     ]);
 
     $adminEmail = config('services.admin.notification_email');

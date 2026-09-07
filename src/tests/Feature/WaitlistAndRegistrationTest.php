@@ -2,12 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Mail\WaitlistAppliedMail;
 use App\Models\InviteCode;
 use App\Models\User;
 use App\Models\WaitlistEntry;
 use App\Services\BlueskyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Mail;
 use Mockery;
 use Tests\TestCase;
 
@@ -115,36 +117,167 @@ class WaitlistAndRegistrationTest extends TestCase
     WaitlistEntry::create([
       'email' => 'existing@example.com',
       'handle' => 'existing.bsky.social',
+      'did' => 'did:plc:existing',
       'status' => 'pending',
     ]);
 
-    // APIモックは呼ばれないはず（重複時点で即時返却されるため）
-    $blueskyService = Mockery::mock(BlueskyService::class);
-    $blueskyService->shouldNotReceive('getProfile');
-    $this->app->instance(BlueskyService::class, $blueskyService);
+    $this->mockProfile('existing.bsky.social', 'did:plc:existing');
 
-    // 同じメールアドレスで再申請
-    $response1 = $this->post('/join', [
-      'email' => 'existing@example.com',
-      'handle' => 'other.bsky.social',
-    ]);
-
-    $response1->assertStatus(302);
-    $response1->assertRedirect('/join/completed');
-    $response1->assertSessionHas('handle', 'other.bsky.social');
-
-    // 同じハンドル名で再申請
-    $response2 = $this->post('/join', [
+    // 同じアカウントで再申請（メールアドレスが違っても静かに成功する）
+    $response = $this->post('/join', [
       'email' => 'new-email@example.com',
       'handle' => 'existing.bsky.social',
     ]);
 
-    $response2->assertStatus(302);
-    $response2->assertRedirect('/join/completed');
-    $response2->assertSessionHas('handle', 'existing.bsky.social');
+    $response->assertStatus(302);
+    $response->assertRedirect('/join/completed');
+    $response->assertSessionHas('handle', 'existing.bsky.social');
 
     // DBに余計な二重データが登録されていないことをアサート
     $this->assertEquals(1, WaitlistEntry::count());
+  }
+
+  /**
+   * 指定ハンドルのプロフィール取得をモックします。
+   */
+  private function mockProfile(string $handle, string $did): void
+  {
+    $blueskyService = Mockery::mock(BlueskyService::class);
+    $blueskyService->shouldReceive('getProfile')
+      ->once()
+      ->with($handle)
+      ->andReturn([
+        'did' => $did,
+        'handle' => $handle,
+        'displayName' => 'プロフィール名',
+      ]);
+    $this->app->instance(BlueskyService::class, $blueskyService);
+  }
+
+  /**
+   * 申請後にハンドル名を変更したアカウントが再申請した場合、DIDで同一と判定され、
+   * 二重登録されずに保持しているハンドル名が最新化されること。
+   */
+  public function test_waitlist_store_matches_by_did_when_handle_changed(): void
+  {
+    WaitlistEntry::create([
+      'email' => 'owner@example.com',
+      'handle' => 'old-handle.bsky.social',
+      'did' => 'did:plc:owner',
+      'status' => 'pending',
+    ]);
+
+    $this->mockProfile('new-handle.bsky.social', 'did:plc:owner');
+
+    $response = $this->post('/join', [
+      'email' => 'owner@example.com',
+      'handle' => 'new-handle.bsky.social',
+    ]);
+
+    $response->assertRedirect('/join/completed');
+    $this->assertEquals(1, WaitlistEntry::count());
+    $this->assertDatabaseHas('waitlist_entries', [
+      'did' => 'did:plc:owner',
+      'handle' => 'new-handle.bsky.social',
+    ]);
+  }
+
+  /**
+   * 手放されたハンドル名を別アカウントが再利用した場合、別の申請として受け付けられること。
+   */
+  public function test_waitlist_store_accepts_reused_handle_from_another_account(): void
+  {
+    // 元の持ち主。すでにハンドル名を変更済みで、申請レコードには旧ハンドルが残っている
+    WaitlistEntry::create([
+      'email' => 'first@example.com',
+      'handle' => 'shared.bsky.social',
+      'did' => 'did:plc:first',
+      'status' => 'invited',
+    ]);
+
+    // 同じハンドル名を取得した別アカウント
+    $this->mockProfile('shared.bsky.social', 'did:plc:second');
+
+    Mail::fake();
+    config(['services.admin.notification_email' => 'admin@example.com']);
+
+    $response = $this->post('/join', [
+      'email' => 'second@example.com',
+      'handle' => 'shared.bsky.social',
+    ]);
+
+    $response->assertRedirect('/join/completed');
+    $this->assertEquals(2, WaitlistEntry::count());
+    $this->assertDatabaseHas('waitlist_entries', [
+      'email' => 'second@example.com',
+      'handle' => 'shared.bsky.social',
+      'did' => 'did:plc:second',
+      'status' => 'pending',
+    ]);
+    Mail::assertSent(WaitlistAppliedMail::class);
+  }
+
+  /**
+   * did移行前の申請レコードは、ハンドル名で照合され did が補完されること。
+   */
+  public function test_waitlist_store_backfills_did_on_legacy_entry(): void
+  {
+    WaitlistEntry::create([
+      'email' => 'legacy@example.com',
+      'handle' => 'legacy.bsky.social',
+      'did' => null,
+      'status' => 'pending',
+    ]);
+
+    $this->mockProfile('legacy.bsky.social', 'did:plc:legacy');
+
+    $response = $this->post('/join', [
+      'email' => 'legacy@example.com',
+      'handle' => 'legacy.bsky.social',
+    ]);
+
+    $response->assertRedirect('/join/completed');
+    $this->assertEquals(1, WaitlistEntry::count());
+    $this->assertDatabaseHas('waitlist_entries', [
+      'handle' => 'legacy.bsky.social',
+      'did' => 'did:plc:legacy',
+    ]);
+  }
+
+  /**
+   * メールアドレスは招待コードの配送先でしかないため、同じアドレスで別のハンドルを申請できること。
+   */
+  public function test_waitlist_store_allows_same_email_for_another_handle(): void
+  {
+    WaitlistEntry::create([
+      'email' => 'owner@example.com',
+      'handle' => 'main.bsky.social',
+      'did' => 'did:plc:main',
+      'status' => 'pending',
+    ]);
+
+    $this->mockProfile('alt.bsky.social', 'did:plc:alt123');
+
+    Mail::fake();
+    config(['services.admin.notification_email' => 'admin@example.com']);
+
+    $response = $this->post('/join', [
+      'email' => 'owner@example.com',
+      'handle' => 'alt.bsky.social',
+    ]);
+
+    $response->assertStatus(302);
+    $response->assertRedirect('/join/completed');
+
+    // 申請が登録され、管理者にも通知が飛ぶこと
+    $this->assertDatabaseHas('waitlist_entries', [
+      'email' => 'owner@example.com',
+      'handle' => 'alt.bsky.social',
+      'did' => 'did:plc:alt123',
+      'status' => 'pending',
+    ]);
+    $this->assertEquals(2, WaitlistEntry::count());
+    Mail::assertSent(WaitlistAppliedMail::class);
   }
 
   /**

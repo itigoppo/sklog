@@ -1,14 +1,25 @@
+@php
+  // ログイン中に別アカウントを追加登録するモードかどうか
+  $currentHandle = Auth::check() ? Auth::user()->blueskyAccount?->handle : null;
+  $isAdding = ($isAdding ?? false) && $currentHandle !== null;
+  $pageTitle = $isAdding ? 'アカウントを追加登録' : '新規登録';
+
+  // 招待メールのリンク経由の場合、招待先のハンドル名と招待コードを固定表示する
+  $lockedHandle = $lockedHandle ?? null;
+  $lockedCode = $lockedCode ?? null;
+  $canUnlockHandle = ($canUnlockHandle ?? false) && $lockedHandle;
+@endphp
 <!DOCTYPE html>
 <html lang="ja" class="h-full bg-slate-950 text-slate-100">
 <head>
   <x-google-analytics />
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>新規登録 | {{ config('app.name', 'SkLoG') }}</title>
+  <title>{{ $pageTitle }} | {{ config('app.name', 'SkLoG') }}</title>
   <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
 
   <!-- OGP (Open Graph Protocol) -->
-  <meta property="og:title" content="新規登録 | {{ config('app.name', 'SkLoG') }}">
+  <meta property="og:title" content="{{ $pageTitle }} | {{ config('app.name', 'SkLoG') }}">
   <meta property="og:description" content="Blueskyカレンダーアーカイブ「{{ config('app.name', 'SkLoG') }}」のアカウント連携・新規登録ページです。">
   <meta property="og:image" content="{{ url('logo.png') }}">
   <meta property="og:url" content="{{ url('/register') }}">
@@ -79,8 +90,19 @@
 
       <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
         <x-icon name="key" class="h-6 w-6 text-sky-400" stroke-width="2" />
-        新規登録
+        {{ $pageTitle }}
       </h2>
+
+      <!-- アカウント追加モードの案内 -->
+      @if ($isAdding)
+        <div class="mb-6 p-4 rounded-lg bg-sky-500/10 border border-sky-500/30 text-sky-300 text-xs leading-relaxed flex items-start gap-2">
+          <x-icon name="info" class="h-4 w-4 shrink-0 mt-0.5" stroke-width="2" />
+          <span>
+            現在 <span class="font-bold">{{ '@' . $currentHandle }}</span> でログイン中です。<br>
+            招待コードで別のアカウントを登録すると、そのまま追加されて切り替えられるようになります。
+          </span>
+        </div>
+      @endif
 
       @if ($errors->any())
         <div class="mb-6 p-4 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs leading-relaxed">
@@ -130,14 +152,21 @@
 
         <!-- 招待コード -->
         <div>
-          <label for="invite_code" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+          <label for="invite_code" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
             招待コード
+            @if ($lockedCode)
+              <x-icon name="lock" class="h-3 w-3 text-slate-500" stroke-width="2.5" />
+            @endif
           </label>
           <input type="text" name="invite_code" id="invite_code"
-                 value="{{ old('invite_code', request('code')) }}"
+                 value="{{ old('invite_code', $lockedCode ?? request('code')) }}"
                  placeholder="XXXX-XXXX-XXXX"
-                 class="w-full px-4 py-3 rounded-lg bg-slate-900/60 border text-white placeholder-slate-500 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition duration-300 tracking-widest font-mono uppercase {{ $errors->has('invite_code') ? 'border-rose-500' : 'border-slate-700/60' }}"
+                 @if ($lockedCode) readonly @endif
+                 class="w-full px-4 py-3 rounded-lg border text-sm focus:outline-none transition duration-300 tracking-widest font-mono uppercase {{ $errors->has('invite_code') ? 'border-rose-500' : 'border-slate-700/60' }} {{ $lockedCode ? 'bg-slate-950/60 border-slate-800 text-slate-300 cursor-default select-all' : 'bg-slate-900/60 text-white placeholder-slate-500 focus:border-sky-500 focus:ring-1 focus:ring-sky-500' }}"
                  autocomplete="off">
+          @if ($lockedCode)
+            <p class="mt-1.5 text-[10px] text-slate-500">※ 招待メールのリンクから開いたため、招待コードを自動入力しました</p>
+          @endif
           @error('invite_code')
             <p class="mt-1 text-[10px] text-rose-400">{{ $message }}</p>
           @enderror
@@ -145,33 +174,58 @@
 
         <!-- ハンドル入力 -->
         <div>
-          <div class="flex justify-between items-center mb-2">
-            <label for="handleInput" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
-              Bluesky ハンドル名
-            </label>
-            <!-- ドメイン切り替えスイッチ -->
-            <div class="flex rounded-md bg-slate-950 p-0.5 border border-slate-800/80 text-[10px] font-bold select-none">
-              <button type="button" id="toggleSuffix" class="px-2 py-0.5 rounded bg-slate-800 text-white transition-all cursor-pointer focus:outline-none">
-                .bsky.social
-              </button>
-              <button type="button" id="toggleCustom" class="px-2 py-0.5 rounded text-slate-500 hover:text-slate-300 transition-all cursor-pointer focus:outline-none">
-                カスタムドメイン
-              </button>
+          <input type="hidden" name="handle" id="finalHandle" value="{{ old('handle', $lockedHandle) }}">
+
+          <!-- 招待先のハンドル名（固定表示） -->
+          @if ($lockedHandle)
+            <div id="lockedHandleBlock">
+              <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                Bluesky ハンドル名
+                <x-icon name="lock" class="h-3 w-3 text-slate-500" stroke-width="2.5" />
+              </label>
+              <div class="w-full px-4 py-3 rounded-lg bg-slate-950/60 border border-slate-800 flex items-center gap-2">
+                <span class="text-sm font-semibold text-white truncate">{{ '@' . $lockedHandle }}</span>
+                <span class="ml-auto shrink-0 text-[9px] font-extrabold tracking-widest text-sky-400 bg-sky-500/10 border border-sky-500/20 px-1.5 py-0.5 rounded uppercase leading-none select-none">招待済み</span>
+              </div>
+              <p class="mt-1.5 text-[10px] text-slate-500 leading-relaxed">
+                ※ この招待コードの発行先アカウントです。このアカウントのアプリパスワードで登録してください
+              </p>
+              @if ($canUnlockHandle)
+                <button type="button" id="unlockHandleBtn" class="mt-1.5 text-[10px] text-sky-400 hover:text-sky-300 hover:underline font-semibold cursor-pointer focus:outline-none">
+                  Blueskyでハンドル名を変更した方はこちら
+                </button>
+              @endif
             </div>
+          @endif
+
+          <div id="freeHandleBlock" @class(['hidden' => $lockedHandle])>
+            <div class="flex justify-between items-center mb-2">
+              <label for="handleInput" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                Bluesky ハンドル名
+              </label>
+              <!-- ドメイン切り替えスイッチ -->
+              <div class="flex rounded-md bg-slate-950 p-0.5 border border-slate-800/80 text-[10px] font-bold select-none">
+                <button type="button" id="toggleSuffix" class="px-2 py-0.5 rounded bg-slate-800 text-white transition-all cursor-pointer focus:outline-none">
+                  .bsky.social
+                </button>
+                <button type="button" id="toggleCustom" class="px-2 py-0.5 rounded text-slate-500 hover:text-slate-300 transition-all cursor-pointer focus:outline-none">
+                  カスタムドメイン
+                </button>
+              </div>
+            </div>
+            <div class="relative flex items-center">
+              <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 text-sm">@</span>
+              <input type="text" id="handleInput"
+                     placeholder="username"
+                     class="w-full pl-8 pr-28 py-3 rounded-lg bg-slate-900/60 border border-slate-700/60 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition duration-300">
+              <span id="bskySuffix" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 text-xs font-mono font-bold select-none pointer-events-none transition-all duration-200">
+                .bsky.social
+              </span>
+            </div>
+            <p class="mt-1.5 text-[10px] text-slate-500">
+              <span id="handleHint">※「.bsky.social」を除いたユーザー名だけを入力してください</span>
+            </p>
           </div>
-          <div class="relative flex items-center">
-            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 text-sm">@</span>
-            <input type="text" id="handleInput"
-                   placeholder="username"
-                   class="w-full pl-8 pr-28 py-3 rounded-lg bg-slate-900/60 border border-slate-700/60 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition duration-300">
-            <span id="bskySuffix" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 text-xs font-mono font-bold select-none pointer-events-none transition-all duration-200">
-              .bsky.social
-            </span>
-          </div>
-          <input type="hidden" name="handle" id="finalHandle" value="{{ old('handle') }}">
-          <p class="mt-1.5 text-[10px] text-slate-500">
-            <span id="handleHint">※「.bsky.social」を除いたユーザー名だけを入力してください</span>
-          </p>
         </div>
 
         <!-- アプリパスワード入力 -->
@@ -199,7 +253,7 @@
         <!-- 送信ボタン -->
         <button type="submit" id="registerBtn"
                 class="w-full py-3.5 px-4 rounded-lg cursor-pointer bg-linear-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-semibold text-sm shadow-lg shadow-sky-950/50 hover:shadow-sky-500/10 focus:outline-none transition duration-300 transform active:scale-[0.98] flex items-center justify-center gap-2">
-          <span id="registerBtnText" class="flex items-center justify-center gap-2">登録する ➔</span>
+          <span id="registerBtnText" class="flex items-center justify-center gap-2">{{ $isAdding ? '登録してアカウントを追加する ➔' : '登録する ➔' }}</span>
         </button>
 
       </form>
@@ -207,15 +261,27 @@
 
     <!-- ログインへの導線 -->
     <div class="text-center mt-6 space-y-3">
-      <a href="/login" class="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-sky-400 font-semibold transition duration-300 cursor-pointer">
-        <x-icon name="login" class="h-3.5 w-3.5" stroke-width="2.5" />
-        すでにアカウントをお持ちの方はこちら
-      </a>
-      <br>
-      <a href="/" class="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-sky-400 font-semibold transition duration-300 cursor-pointer">
-        <x-icon name="arrow-left" class="h-3.5 w-3.5" stroke-width="2.5" />
-        トップページへ戻る
-      </a>
+      @if ($isAdding)
+        <a href="{{ route('accounts.add') }}" class="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-sky-400 font-semibold transition duration-300 cursor-pointer">
+          <x-icon name="login" class="h-3.5 w-3.5" stroke-width="2.5" />
+          登録済みのアカウントを追加する場合はこちら
+        </a>
+        <br>
+        <a href="{{ route('calendar.show', ['handle' => $currentHandle]) }}" class="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-sky-400 font-semibold transition duration-300 cursor-pointer">
+          <x-icon name="arrow-left" class="h-3.5 w-3.5" stroke-width="2.5" />
+          追加せず {{ '@' . $currentHandle }} のカレンダーへ戻る
+        </a>
+      @else
+        <a href="/login" class="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-sky-400 font-semibold transition duration-300 cursor-pointer">
+          <x-icon name="login" class="h-3.5 w-3.5" stroke-width="2.5" />
+          すでにアカウントをお持ちの方はこちら
+        </a>
+        <br>
+        <a href="/" class="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-sky-400 font-semibold transition duration-300 cursor-pointer">
+          <x-icon name="arrow-left" class="h-3.5 w-3.5" stroke-width="2.5" />
+          トップページへ戻る
+        </a>
+      @endif
     </div>
 
     @include('layouts._footer')
@@ -295,6 +361,17 @@
         }
       } else {
         setMode('bsky');
+      }
+
+      // 固定表示されたハンドル名を、自由入力に切り替える（Bluesky側でハンドル名を変更した人向け）
+      const unlockBtn = document.getElementById('unlockHandleBtn');
+      if (unlockBtn) {
+        unlockBtn.addEventListener('click', () => {
+          document.getElementById('lockedHandleBlock').classList.add('hidden');
+          document.getElementById('freeHandleBlock').classList.remove('hidden');
+          handleInput.focus();
+          handleInput.select();
+        });
       }
     })();
 
