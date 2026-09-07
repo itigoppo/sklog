@@ -24,6 +24,19 @@ class Post extends Model
   use HasUuids, SoftDeletes;
 
   /**
+   * 画像が含まれる embed の型。raw_data の絞り込みに使います。
+   */
+  private const IMAGE_EMBED_TYPES = [
+    'app.bsky.embed.images',
+    'app.bsky.embed.gallery',
+  ];
+
+  /**
+   * ギャラリー形式（app.bsky.embed.gallery#view）の画像アイテムの型。
+   */
+  private const GALLERY_VIEW_IMAGE_TYPE = 'app.bsky.embed.gallery#viewImage';
+
+  /**
    * Get the user that owns the post.
    */
   public function user()
@@ -73,6 +86,73 @@ class Post extends Model
     }
 
     return null;
+  }
+
+  /**
+   * embed（view 形式）から添付画像を取り出し、Blade で扱いやすい形に正規化します。
+   *
+   * Bluesky には画像の embed が2種類あるため、どちらも同じキーで扱えるようにします。
+   * - app.bsky.embed.images#view: 従来の形式（4枚まで）。画像は images[]、サムネは thumb
+   * - app.bsky.embed.gallery#view: 新しい形式（10枚まで）。画像は items[]、サムネは thumbnail
+   *
+   * app.bsky.embed.recordWithMedia#view（メディア付き引用ポスト）の場合は media 側を見ます。
+   *
+   * @return array<int, array{thumb: ?string, fullsize: ?string, alt: string, aspectRatio: ?array}>
+   */
+  public static function extractImages(?array $embed): array
+  {
+    $type = $embed['$type'] ?? '';
+
+    // メディア付き引用ポストは media 側に画像が入っている
+    if (str_contains($type, 'app.bsky.embed.recordWithMedia')) {
+      $media = $embed['media'] ?? null;
+
+      return self::extractImages(is_array($media) ? $media : null);
+    }
+
+    if (str_contains($type, 'app.bsky.embed.images')) {
+      $images = array_filter($embed['images'] ?? [], 'is_array');
+
+      return array_values(array_map(
+        fn (array $image) => self::normalizeImage($image, 'thumb'),
+        $images
+      ));
+    }
+
+    if (str_contains($type, 'app.bsky.embed.gallery')) {
+      // items は union なので、将来 image 以外の要素が来ても拾わないようにする
+      $items = array_filter(
+        $embed['items'] ?? [],
+        fn ($item) => is_array($item)
+          && isset($item['thumbnail'])
+          && ($item['$type'] ?? self::GALLERY_VIEW_IMAGE_TYPE) === self::GALLERY_VIEW_IMAGE_TYPE
+      );
+
+      return array_values(array_map(
+        fn (array $item) => self::normalizeImage($item, 'thumbnail'),
+        $items
+      ));
+    }
+
+    return [];
+  }
+
+  /**
+   * 画像1枚分のデータを ['thumb', 'fullsize', 'alt', 'aspectRatio'] に揃えます。
+   *
+   * @param  string  $thumbKey  サムネイルURLが入っているキー名（形式によって異なる）
+   * @return array{thumb: ?string, fullsize: ?string, alt: string, aspectRatio: ?array}
+   */
+  private static function normalizeImage(array $image, string $thumbKey): array
+  {
+    $thumb = $image[$thumbKey] ?? null;
+
+    return [
+      'thumb' => $thumb,
+      'fullsize' => $image['fullsize'] ?? $thumb,
+      'alt' => $image['alt'] ?? '',
+      'aspectRatio' => $image['aspectRatio'] ?? null,
+    ];
   }
 
   /**
@@ -136,15 +216,7 @@ class Post extends Model
     $images = [];
     if (isset($record['embeds'])) {
       foreach ($record['embeds'] as $embedView) {
-        if (($embedView['$type'] ?? '') === 'app.bsky.embed.images#view' && isset($embedView['images'])) {
-          foreach ($embedView['images'] as $img) {
-            $images[] = [
-              'thumb' => $img['thumb'] ?? null,
-              'fullsize' => $img['fullsize'] ?? null,
-              'alt' => $img['alt'] ?? '',
-            ];
-          }
-        }
+        $images = array_merge($images, self::extractImages(is_array($embedView) ? $embedView : null));
       }
     }
 
@@ -512,7 +584,11 @@ class Post extends Model
    */
   public function scopeHasImages(Builder $query): Builder
   {
-    return $query->where('raw_data', 'like', '%app.bsky.embed.images%');
+    return $query->where(function (Builder $query) {
+      foreach (self::IMAGE_EMBED_TYPES as $type) {
+        $query->orWhere('raw_data', 'like', '%'.$type.'%');
+      }
+    });
   }
 
   /**

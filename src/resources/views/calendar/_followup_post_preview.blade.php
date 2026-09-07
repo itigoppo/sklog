@@ -8,9 +8,7 @@
   
   if ($targetPost) {
     $embed = $targetPost->raw_data['post']['embed'] ?? null;
-    if ($embed && str_contains($embed['$type'] ?? '', 'app.bsky.embed.images')) {
-      $images = $embed['images'] ?? [];
-    }
+    $images = \App\Models\Post::extractImages($embed);
 
     if ($embed && str_contains($embed['$type'] ?? '', 'app.bsky.embed.external')) {
       $external = $embed['external'] ?? null;

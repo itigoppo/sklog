@@ -347,28 +347,75 @@
         }
       });
 
+      // 指定枚数だけ画像を送る (端に来たら反対側へループする)
+      function goToImage(step) {
+        if (currentImages.length <= 1) return;
+        currentIndex = (currentIndex + step + currentImages.length) % currentImages.length;
+        updateCarousel();
+      }
+
+      // モーダルが表示中であるか
+      function isModalOpen() {
+        return !modal.classList.contains('opacity-0') && !modal.classList.contains('hidden');
+      }
+
+      // スワイプ判定用の状態
+      const SWIPE_THRESHOLD = 40;
+      let touchStartX = 0;
+      let touchStartY = 0;
+      let justSwiped = false;
+
       // 前へボタン
       prevBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        currentIndex = (currentIndex - 1 + currentImages.length) % currentImages.length;
-        updateCarousel();
+        goToImage(-1);
       });
 
       // 次へボタン
       nextBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        currentIndex = (currentIndex + 1) % currentImages.length;
-        updateCarousel();
+        goToImage(1);
       });
 
-      // 画像をクリックしても次の画像へ
+      // 画像をクリックしても次の画像へ (スワイプ直後のクリックは無視する)
       modalImg.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (currentImages.length > 1) {
-          currentIndex = (currentIndex + 1) % currentImages.length;
-          updateCarousel();
+        if (justSwiped) return;
+        goToImage(1);
+      });
+
+      // 矢印キーで画像を送る (Escでの閉じるは x-modal 側で対応済み)
+      window.addEventListener('keydown', (e) => {
+        if (!isModalOpen() || currentImages.length <= 1) return;
+
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          goToImage(-1);
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          goToImage(1);
         }
       });
+
+      // スワイプで画像を送る
+      modalImg.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].clientX;
+        touchStartY = e.changedTouches[0].clientY;
+      }, { passive: true });
+
+      modalImg.addEventListener('touchend', (e) => {
+        const diffX = e.changedTouches[0].clientX - touchStartX;
+        const diffY = e.changedTouches[0].clientY - touchStartY;
+
+        // 横移動が小さい場合や、縦方向のほうが大きい場合はスワイプとみなさない
+        if (Math.abs(diffX) < SWIPE_THRESHOLD || Math.abs(diffX) <= Math.abs(diffY)) return;
+
+        // スワイプ後に click が続けて発火するブラウザがあるため、少しの間だけ抑制する
+        justSwiped = true;
+        setTimeout(() => { justSwiped = false; }, 400);
+
+        goToImage(diffX < 0 ? 1 : -1);
+      }, { passive: true });
 
       // 閉じるボタンのイベント紐付け
       const modalClose = modal.querySelector('.modal-close-btn');

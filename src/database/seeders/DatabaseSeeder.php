@@ -436,6 +436,55 @@ class DatabaseSeeder extends Seeder
             'posted_at' => $now->copy()->subDays(1)->subHours(4),
         ]);
 
+        // 2-3. 画像を10枚添付した投稿 (新形式の app.bsky.embed.gallery / 1日前)
+        $galleryPhotoIds = [
+            'photo-1506744038136-46273834b3fb',
+            'photo-1470071459604-3b5ec3a7fe05',
+            'photo-1513104890138-7c749659a591',
+            'photo-1447752875215-b2761acb3c5d',
+            'photo-1618384887929-16ec33fab9ef',
+            'photo-1488590528505-98d2b5aba04b',
+            'photo-1441974231531-c6227db76b6e',
+            'photo-1501785888041-af3ef285b470',
+            'photo-1439066615861-d1af74d74000',
+            'photo-1475924156734-496f6cac6ec1',
+        ];
+        $galleryItems = [];
+        foreach ($galleryPhotoIds as $index => $photoId) {
+            $galleryItems[] = [
+                '$type' => 'app.bsky.embed.gallery#viewImage',
+                'thumbnail' => "https://images.unsplash.com/{$photoId}?auto=format&fit=crop&w=600&q=80",
+                'fullsize' => "https://images.unsplash.com/{$photoId}?auto=format&fit=crop&w=1200&q=80",
+                'alt' => '画像'.($index + 1).' of ギャラリー',
+                'aspectRatio' => ['width' => 2556, 'height' => 1179],
+            ];
+        }
+
+        Post::create([
+            'user_id' => $user->id,
+            'uri' => 'at://did:plc:testuser1234567890/app.bsky.feed.post/gallery_1',
+            'cid' => 'cidgallery1',
+            'text' => '画像10枚つけれるようになったと聞いて',
+            'raw_data' => [
+                'post' => [
+                    'uri' => 'at://did:plc:testuser1234567890/app.bsky.feed.post/gallery_1',
+                    'cid' => 'cidgallery1',
+                    'likeCount' => 30,
+                    'repostCount' => 5,
+                    'author' => $this->createAuthorField($bskyAccount, $testUserDisplayName),
+                    'record' => [
+                        'text' => '画像10枚つけれるようになったと聞いて',
+                        'createdAt' => $now->copy()->subDays(1)->subHours(3)->toIso8601String(),
+                    ],
+                    'embed' => [
+                        '$type' => 'app.bsky.embed.gallery#view',
+                        'items' => $galleryItems,
+                    ],
+                ],
+            ],
+            'posted_at' => $now->copy()->subDays(1)->subHours(3),
+        ]);
+
         // ==========================================
         // 3. 公開・非公開アカウントとの各種関係シード (1日前)
         // ==========================================
@@ -902,7 +951,7 @@ class DatabaseSeeder extends Seeder
             $embed = $quotedPost->raw_data['post']['embed'];
             $type = $embed['$type'] ?? '';
 
-            if ($type === 'app.bsky.embed.images#view') {
+            if (in_array($type, ['app.bsky.embed.images#view', 'app.bsky.embed.gallery#view'], true)) {
                 $recordData['record']['embeds'] = [
                     $embed,
                 ];

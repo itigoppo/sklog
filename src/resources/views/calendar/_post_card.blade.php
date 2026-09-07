@@ -76,10 +76,7 @@
 
   // リポスト本文等のパース処理 (非表示時には空にする)
   $embed = $post->raw_data['post']['embed'] ?? null;
-  $images = [];
-  if (!$shouldMaskRepost && $embed && str_contains($embed['$type'] ?? '', 'app.bsky.embed.images')) {
-    $images = $embed['images'] ?? [];
-  }
+  $images = $shouldMaskRepost ? [] : \App\Models\Post::extractImages($embed);
   $external = null;
   if (!$shouldMaskRepost && $embed && str_contains($embed['$type'] ?? '', 'app.bsky.embed.external')) {
     $external = $embed['external'] ?? null;

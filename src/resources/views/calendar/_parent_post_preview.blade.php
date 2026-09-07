@@ -4,10 +4,7 @@
       $parentEmbed = $post->raw_data['reply']['parent']['embed'] ?? null;
       
       // 添付画像の抽出
-      $parentImages = [];
-      if ($parentEmbed && str_contains($parentEmbed['$type'] ?? '', 'app.bsky.embed.images')) {
-        $parentImages = $parentEmbed['images'] ?? [];
-      }
+      $parentImages = \App\Models\Post::extractImages($parentEmbed);
 
       // 外部リンクの抽出
       $parentExternal = null;

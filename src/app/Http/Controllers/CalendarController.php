@@ -430,9 +430,7 @@ class CalendarController extends Controller
       }
 
       $embed = $post->raw_data['post']['embed'] ?? null;
-      if ($embed && str_contains($embed['$type'] ?? '', 'app.bsky.embed.images')) {
-        $monthlyImages[$m] = $embed['images'][0]['thumb'] ?? null;
-      }
+      $monthlyImages[$m] = Post::extractImages($embed)[0]['thumb'] ?? null;
     }
 
     $prevYear = $targetYear - 1;
@@ -599,15 +597,13 @@ class CalendarController extends Controller
 
       $imagePost = $user->posts()
         ->whereBetween('posted_at', [$startOfMonth, $endOfMonth])
-        ->where('raw_data', 'like', '%app.bsky.embed.images%')
+        ->hasImages()
         ->orderBy('posted_at', 'asc')
         ->first();
 
       if ($imagePost) {
         $embed = $imagePost->raw_data['post']['embed'] ?? null;
-        if ($embed && str_contains($embed['$type'] ?? '', 'app.bsky.embed.images')) {
-          $monthlyImages[$archive->month] = $embed['images'][0]['thumb'] ?? null;
-        }
+        $monthlyImages[$archive->month] = Post::extractImages($embed)[0]['thumb'] ?? null;
       } else {
         $monthlyImages[$archive->month] = null;
       }

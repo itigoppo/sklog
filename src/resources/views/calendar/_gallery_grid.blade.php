@@ -32,22 +32,14 @@
           $embed = $rawData['post']['embed'] ?? $rawData['embed'] ?? null;
       }
 
-      $images = [];
-      if ($embed && str_contains($embed['$type'] ?? '', 'app.bsky.embed.images')) {
-          $images = $embed['images'] ?? [];
-      } elseif ($embed && str_contains($embed['$type'] ?? '', 'app.bsky.embed.recordWithMedia')) {
-          $media = $embed['media'] ?? null;
-          if ($media && str_contains($media['$type'] ?? '', 'app.bsky.embed.images')) {
-              $images = $media['images'] ?? [];
-          }
-      }
+      $images = \App\Models\Post::extractImages($embed);
 
       foreach ($images as $index => $img) {
           $galleryItems[] = [
               'post_id' => $post->id,
               'thumb' => $img['thumb'],
-              'fullsize' => $img['fullsize'] ?? $img['thumb'],
-              'alt' => $img['alt'] ?? '',
+              'fullsize' => $img['fullsize'],
+              'alt' => $img['alt'],
               'text' => $post->text,
               'html_text' => $post->html_text,
               'posted_at' => $post->posted_at,

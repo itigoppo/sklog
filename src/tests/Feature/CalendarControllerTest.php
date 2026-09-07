@@ -2117,6 +2117,170 @@ class CalendarControllerTest extends TestCase
     $responseFiltered->assertSee('gallery-image-link');
   }
 
+  /**
+   * 新形式（app.bsky.embed.gallery）で5枚以上添付された画像が、すべて描画され絞り込みにも乗ることを確認。
+   */
+  public function test_gallery_embed_images_are_all_rendered(): void
+  {
+    $this->actingAs($this->user);
+
+    $items = [];
+    for ($i = 1; $i <= 10; $i++) {
+      $items[] = [
+        '$type' => 'app.bsky.embed.gallery#viewImage',
+        'thumbnail' => "https://example.com/gallery-thumb{$i}.jpg",
+        'fullsize' => "https://example.com/gallery-full{$i}.jpg",
+        'alt' => "ギャラリー画像{$i}",
+        'aspectRatio' => ['width' => 2556, 'height' => 1179],
+      ];
+    }
+
+    $post = Post::create([
+      'user_id' => $this->user->id,
+      'uri' => 'at://did:plc:test123456/app.bsky.feed.post/with_gallery',
+      'cid' => 'cidgallery1',
+      'text' => '画像10枚つけれるようになったと聞いて',
+      'raw_data' => [
+        'post' => [
+          'embed' => [
+            '$type' => 'app.bsky.embed.gallery#view',
+            'items' => $items,
+          ],
+        ],
+      ],
+      'posted_at' => Carbon::now(),
+    ]);
+
+    $response = $this->get('/profile/test.bsky.social');
+    $response->assertStatus(200);
+
+    // 10枚すべてのサムネイルと拡大画像URLが出力されていること
+    // (7枚目以降はカード上では隠すが、拡大モーダルで送れるようリンク自体は残す)
+    for ($i = 1; $i <= 10; $i++) {
+      $response->assertSee("https://example.com/gallery-thumb{$i}.jpg");
+      $response->assertSee("https://example.com/gallery-full{$i}.jpg");
+      $response->assertSee("ギャラリー画像{$i}");
+    }
+
+    // カード上は6枚だけ表示し、6枚目に残り枚数（+4）が重なること
+    $response->assertSee('+4');
+
+    preg_match_all(
+      '/<a[^>]*class="([^"]*)"[^>]*data-post-id="'.preg_quote($post->id, '/').'"[^>]*data-index="(\d+)"/',
+      $response->getContent(),
+      $matches,
+      PREG_SET_ORDER
+    );
+
+    $this->assertCount(10, $matches);
+    foreach ($matches as [, $class, $index]) {
+      // overflow-hidden などと区別するため、クラスはトークン単位で判定する
+      $classes = preg_split('/\s+/', trim($class));
+
+      if ((int) $index >= 6) {
+        $this->assertContains('hidden', $classes, "{$index}枚目は隠されているべき");
+      } else {
+        $this->assertNotContains('hidden', $classes, "{$index}枚目は表示されるべき");
+      }
+    }
+
+    // 画像付きポストのみの絞り込み（media=1）でも除外されないこと
+    $responseFiltered = $this->get('/profile/test.bsky.social?media=1');
+    $responseFiltered->assertStatus(200);
+    $responseFiltered->assertSee('画像10枚つけれるようになったと聞いて');
+    $responseFiltered->assertSee('https://example.com/gallery-thumb1.jpg');
+  }
+
+  /**
+   * 新形式（app.bsky.embed.gallery）の画像が、月別アーカイブの代表画像としても使われることを確認。
+   */
+  public function test_archives_page_uses_gallery_embed_as_monthly_thumbnail(): void
+  {
+    $this->actingAs($this->user);
+
+    Post::create([
+      'user_id' => $this->user->id,
+      'uri' => 'at://did:plc:test123456/app.bsky.feed.post/archive_gallery',
+      'cid' => 'cid_arch_gallery',
+      'text' => '2026年5月のギャラリー投稿',
+      'raw_data' => [
+        'post' => [
+          'embed' => [
+            '$type' => 'app.bsky.embed.gallery#view',
+            'items' => [
+              [
+                '$type' => 'app.bsky.embed.gallery#viewImage',
+                'thumbnail' => 'https://example.com/gallery-archive-thumb.jpg',
+                'fullsize' => 'https://example.com/gallery-archive-full.jpg',
+                'alt' => 'アーカイブ代表画像',
+              ],
+            ],
+          ],
+        ],
+      ],
+      'posted_at' => Carbon::create(2026, 5, 10, 12, 0, 0),
+    ]);
+
+    $response = $this->get('/profile/test.bsky.social/archives');
+
+    $response->assertStatus(200);
+    $response->assertSee('https://example.com/gallery-archive-thumb.jpg');
+  }
+
+  /**
+   * 引用ポスト側が新形式（app.bsky.embed.gallery）の画像を持つ場合も描画されることを確認。
+   */
+  public function test_quoted_post_with_gallery_embed_displays_images(): void
+  {
+    Post::create([
+      'user_id' => $this->user->id,
+      'uri' => 'at://did:plc:test123456/app.bsky.feed.post/quote_gallery',
+      'cid' => 'cid-quote-gallery',
+      'text' => 'ギャラリー付きの投稿を引用します！',
+      'raw_data' => [
+        'post' => [
+          'embed' => [
+            '$type' => 'app.bsky.embed.record#view',
+            'record' => [
+              '$type' => 'app.bsky.embed.record#viewRecord',
+              'uri' => 'at://did:plc:other98765/app.bsky.feed.post/quoted-gallery-rkey',
+              'author' => [
+                'did' => 'did:plc:other98765',
+                'handle' => 'quoted-author.bsky.social',
+                'displayName' => '引用された親切な人',
+              ],
+              'value' => [
+                'text' => '引用元のギャラリー投稿です。',
+                'createdAt' => '2026-05-26T06:00:00.000Z',
+              ],
+              'embeds' => [
+                [
+                  '$type' => 'app.bsky.embed.gallery#view',
+                  'items' => [
+                    [
+                      '$type' => 'app.bsky.embed.gallery#viewImage',
+                      'thumbnail' => 'https://example.com/quoted-gallery-thumb.jpg',
+                      'fullsize' => 'https://example.com/quoted-gallery-full.jpg',
+                      'alt' => '引用元のギャラリー画像',
+                    ],
+                  ],
+                ],
+              ],
+            ],
+          ],
+        ],
+      ],
+      'posted_at' => Carbon::now(),
+    ]);
+
+    $response = $this->get('/profile/test.bsky.social');
+
+    $response->assertStatus(200);
+    $response->assertSee('引用元のギャラリー投稿です。');
+    $response->assertSee('https://example.com/quoted-gallery-thumb.jpg');
+    $response->assertSee('https://example.com/quoted-gallery-full.jpg');
+  }
+
   public function test_owner_can_update_app_password_with_valid_credentials(): void
   {
     // 初期状態として、同期エラーを設定しておく
