@@ -398,11 +398,6 @@ class MultiAccountLoginTest extends TestCase
 
     $session = [AccountSession::SESSION_KEY => $users->pluck('id')->all()];
 
-    $this->actingAs($users->first())
-      ->withSession($session)
-      ->get('/accounts/add')
-      ->assertRedirect(route('calendar.show', ['handle' => 'user1.bsky.social']));
-
     $response = $this->actingAs($users->first())
       ->withSession($session)
       ->from('/accounts/add')
@@ -414,6 +409,99 @@ class MultiAccountLoginTest extends TestCase
     $response->assertSessionHasErrors('handle');
     $this->assertAuthenticatedAs($users->first());
     $this->assertFalse(AccountSession::has($extra->id));
+  }
+
+  /**
+   * 上限に達しているときの追加画面は、フォームの代わりに外すアカウントを選ばせること。
+   */
+  public function test_add_account_page_asks_which_account_to_log_out_when_full(): void
+  {
+    $users = collect(range(1, AccountSession::MAX_ACCOUNTS))
+      ->map(fn ($i) => $this->createAccount("user{$i}"));
+
+    $response = $this->actingAs($users->first())
+      ->withSession([AccountSession::SESSION_KEY => $users->pluck('id')->all()])
+      ->get('/accounts/add');
+
+    $response->assertOk();
+    $response->assertSee('続けるには、ログイン中のアカウントから1件ログアウトしてください。');
+    $response->assertDontSee('id="loginForm"', false);
+
+    // アクティブ以外のアカウントが、外す候補として並ぶこと
+    $response->assertSee('@user2.bsky.social');
+    $response->assertSee('value="'.$users->get(1)->id.'"', false);
+  }
+
+  /**
+   * 上限に達していても、招待コードでの登録画面は開けること（招待には期限があるため）。
+   */
+  public function test_register_page_is_reachable_when_full(): void
+  {
+    $users = collect(range(1, AccountSession::MAX_ACCOUNTS))
+      ->map(fn ($i) => $this->createAccount("user{$i}"));
+
+    $response = $this->actingAs($users->first())
+      ->withSession([AccountSession::SESSION_KEY => $users->pluck('id')->all()])
+      ->get('/register');
+
+    $response->assertOk();
+    $response->assertSee('続けるには、ログイン中のアカウントから1件ログアウトしてください。');
+    $response->assertDontSee('id="registerForm"', false);
+  }
+
+  /**
+   * user_id 付きのログアウトは、そのアカウントだけを外し、アクティブなアカウントを変えないこと。
+   */
+  public function test_logout_with_user_id_removes_only_that_account(): void
+  {
+    $userA = $this->createAccount('alpha');
+    $userB = $this->createAccount('bravo');
+    $userC = $this->createAccount('charlie');
+
+    $response = $this->actingAs($userA)
+      ->withSession([AccountSession::SESSION_KEY => [$userA->id, $userB->id, $userC->id]])
+      ->from('/accounts/add')
+      ->post('/logout', ['user_id' => $userB->id]);
+
+    $response->assertRedirect('/accounts/add');
+    $this->assertAuthenticatedAs($userA);
+    $this->assertSame([$userA->id, $userC->id], session(AccountSession::SESSION_KEY));
+  }
+
+  /**
+   * このセッションでログインしていないアカウントは、user_id 付きでも外せないこと。
+   */
+  public function test_logout_with_user_id_rejects_account_not_in_session(): void
+  {
+    $userA = $this->createAccount('alpha');
+    $stranger = $this->createAccount('stranger');
+
+    $response = $this->actingAs($userA)
+      ->withSession([AccountSession::SESSION_KEY => [$userA->id]])
+      ->from('/accounts/add')
+      ->post('/logout', ['user_id' => $stranger->id]);
+
+    $response->assertRedirect('/accounts/add');
+    $response->assertSessionHas('error');
+    $this->assertAuthenticatedAs($userA);
+    $this->assertSame([$userA->id], session(AccountSession::SESSION_KEY));
+  }
+
+  /**
+   * user_id にアクティブなアカウントを指定した場合は、通常のログアウト（残りへ切り替え）になること。
+   */
+  public function test_logout_with_active_user_id_falls_back_to_normal_logout(): void
+  {
+    $userA = $this->createAccount('alpha');
+    $userB = $this->createAccount('bravo');
+
+    $response = $this->actingAs($userB)
+      ->withSession([AccountSession::SESSION_KEY => [$userA->id, $userB->id]])
+      ->post('/logout', ['user_id' => $userB->id]);
+
+    $response->assertRedirect(route('calendar.show', ['handle' => 'alpha.bsky.social']));
+    $this->assertAuthenticatedAs($userA);
+    $this->assertSame([$userA->id], session(AccountSession::SESSION_KEY));
   }
 
   /**

@@ -3,6 +3,8 @@
   $currentHandle = Auth::check() ? Auth::user()->blueskyAccount?->handle : null;
   $isAdding = ($isAdding ?? false) && $currentHandle !== null;
   $pageTitle = $isAdding ? 'アカウントを追加登録' : '新規登録';
+  // 同時ログイン上限に達しているか（達しているときはフォームを出さない）
+  $isAccountLimitReached = $isAdding && \App\Support\AccountSession::isFull();
 
   // 招待メールのリンク経由の場合、招待先のハンドル名と招待コードを固定表示する
   $lockedHandle = $lockedHandle ?? null;
@@ -93,8 +95,8 @@
         {{ $pageTitle }}
       </h2>
 
-      <!-- アカウント追加モードの案内 -->
-      @if ($isAdding)
+      <!-- アカウント追加モードの案内（上限時は一覧側で説明するので出さない） -->
+      @if ($isAdding && ! $isAccountLimitReached)
         <div class="mb-6 p-4 rounded-lg bg-sky-500/10 border border-sky-500/30 text-sky-300 text-xs leading-relaxed flex items-start gap-2">
           <x-icon name="info" class="h-4 w-4 shrink-0 mt-0.5" stroke-width="2" />
           <span>
@@ -147,6 +149,10 @@
         </div>
       @endif
 
+      @if ($isAccountLimitReached)
+        {{-- 同時ログイン上限。フォームの代わりに、外すアカウントを選ばせる --}}
+        @include('auth._account_limit')
+      @else
       <form id="registerForm" action="{{ url('/register') }}" method="POST" class="space-y-5">
         @csrf
 
@@ -260,6 +266,7 @@
         </button>
 
       </form>
+      @endif
     </div>
 
     <!-- ログインへの導線 -->
@@ -290,6 +297,7 @@
     @include('layouts._footer')
   </div>
 
+  @if (! $isAccountLimitReached)
   <script>
     // ハンドル名入力のドメイン補完・切り替えロジック
     (function() {
@@ -395,5 +403,6 @@
       }
     });
   </script>
+  @endif
 </body>
 </html>

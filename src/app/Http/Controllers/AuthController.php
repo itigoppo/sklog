@@ -50,11 +50,8 @@ class AuthController extends Controller
       return redirect('/');
     }
 
-    if (AccountSession::isFull()) {
-      return redirect()->route('calendar.show', ['handle' => $handle])
-        ->with('error', '同時にログインできるアカウントは最大'.AccountSession::MAX_ACCOUNTS.'件です。不要なアカウントをログアウトしてから追加してください。');
-    }
-
+    // 上限に達している場合は、画面側がフォームの代わりに
+    // 「1件ログアウトしてください」の一覧を出す
     return view('auth.login', ['isAdding' => true]);
   }
 
@@ -68,11 +65,8 @@ class AuthController extends Controller
   {
     $currentHandle = Auth::user()?->blueskyAccount?->handle;
 
-    if ($currentHandle && AccountSession::isFull()) {
-      return redirect()->route('calendar.show', ['handle' => $currentHandle])
-        ->with('error', '同時にログインできるアカウントは最大'.AccountSession::MAX_ACCOUNTS.'件です。不要なアカウントをログアウトしてから追加してください。');
-    }
-
+    // 上限に達している場合も画面は出す。招待コードには期限があるので、同時ログインの
+    // 都合で登録の入口を閉じない（画面側がフォームの代わりに一覧を出す）
     $invite = $this->resolveLockableInvite($request);
 
     return view('auth.register', [
@@ -413,9 +407,27 @@ class AuthController extends Controller
    *
    * 他にログイン中のアカウントが残っている場合は、そのアカウントへ切り替えます。
    * `all` パラメータが真のときは、セッション内のすべてのアカウントをログアウトします。
+   * `user_id` パラメータのときは、そのアカウントだけを外します（同時ログイン上限に
+   * 達した状態でアカウントを追加するための導線から使います）。
    */
   public function logout(Request $request)
   {
+    $targetId = $request->input('user_id');
+
+    // アクティブなアカウントの指定は、下の通常のログアウト（残りへ切り替え）に任せる
+    if (! $request->boolean('all') && $targetId && $targetId !== Auth::id()) {
+      if (! AccountSession::has($targetId)) {
+        return back()->with('error', 'そのアカウントはログイン中ではありません。');
+      }
+
+      $targetHandle = User::with('blueskyAccount')->find($targetId)?->blueskyAccount?->handle;
+      AccountSession::forget($targetId);
+
+      return back()->with('success', $targetHandle
+        ? '@'.$targetHandle.' からログアウトしました。'
+        : 'アカウントからログアウトしました。');
+    }
+
     if (! $request->boolean('all')) {
       $currentHandle = Auth::user()?->blueskyAccount?->handle;
       $next = AccountSession::logoutCurrentAndSwitchNext();
