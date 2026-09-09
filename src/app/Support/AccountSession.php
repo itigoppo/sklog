@@ -5,12 +5,19 @@ namespace App\Support;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cookie;
 
 /**
  * 同一ブラウザセッションでログイン中のアカウント（マルチアカウント）を管理します。
  *
  * セッションに積むのは「このセッションで実際に認証に成功したユーザーID」だけです。
  * アクティブなアカウントは常に Auth::id() で、スタックはその切り替え候補になります。
+ *
+ * ログイン状態を保持する選択のときは、スタックを cookie にも書き出します。セッションは
+ * SESSION_LIFETIME で切れるため、これが無いと remember me で復帰した朝には切り替え候補が
+ * アクティブな1件に減ってしまいます。cookie にはユーザーIDと remember_token の組を入れて
+ * おき、復元時に token の一致を確かめます。これで Laravel の remember me と強度が揃い、
+ * 他端末でログアウトされたアカウント（token が振り直されたアカウント）は候補から落ちます。
  */
 class AccountSession
 {
@@ -19,6 +26,12 @@ class AccountSession
 
   /** このセッションがログイン状態を保持する（remember me）かを持つセッションキー */
   public const REMEMBER_KEY = 'multi_account.remember';
+
+  /** 切り替え候補をセッションより長く持たせる cookie の名前 */
+  public const COOKIE_NAME = 'multi_account';
+
+  /** 切り替え候補 cookie の寿命（分）。SessionGuard の remember me と同じ長さに揃える */
+  public const COOKIE_MINUTES = 576000;
 
   /** 1セッションで同時にログインできるアカウント数の上限 */
   public const MAX_ACCOUNTS = 5;
@@ -36,7 +49,15 @@ class AccountSession
     $ids = session(self::SESSION_KEY, []);
     $ids = is_array($ids) ? array_values(array_unique(array_filter($ids, 'is_string'))) : [];
 
-    // remember me によるセッション復帰などでスタックが空の場合に、現在のユーザーで補完する
+    // セッションが切れて remember me で復帰した場合に、切り替え候補を cookie から取り戻す
+    if ($ids === []) {
+      $ids = self::idsFromCookie();
+      if ($ids !== []) {
+        self::store($ids);
+      }
+    }
+
+    // それでもスタックが空の場合に、現在のユーザーで補完する
     $current = Auth::id();
     if ($current && ! in_array($current, $ids, true)) {
       $ids[] = $current;
@@ -84,16 +105,17 @@ class AccountSession
   }
 
   /**
-   * ログイン中アカウントとしてユーザーIDを追加します（重複時は何もしません）。
+   * ログイン中アカウントとしてユーザーIDを追加します（すでにある場合は並び順を変えません）。
+   *
+   * 重複時も保存し直すのは、remember me の選択や remember_token の変化を cookie へ反映するためです。
    */
   public static function add(string $userId): void
   {
     $ids = self::ids();
-    if (in_array($userId, $ids, true)) {
-      return;
+    if (! in_array($userId, $ids, true)) {
+      $ids[] = $userId;
     }
 
-    $ids[] = $userId;
     self::store(array_slice($ids, -self::MAX_ACCOUNTS));
   }
 
@@ -112,6 +134,7 @@ class AccountSession
   {
     self::flushCache();
     session()->forget([self::SESSION_KEY, self::REMEMBER_KEY]);
+    self::forgetCookie();
   }
 
   /**
@@ -204,6 +227,7 @@ class AccountSession
   private static function store(array $ids): void
   {
     self::flushCache();
+    self::writeCookie($ids);
 
     if ($ids === []) {
       session()->forget(self::SESSION_KEY);
@@ -212,6 +236,85 @@ class AccountSession
     }
 
     session([self::SESSION_KEY => array_values($ids)]);
+  }
+
+  /**
+   * 切り替え候補を cookie へ書き出します。ログイン状態を保持しない選択のときは消します。
+   *
+   * @param  array<int, string>  $ids
+   */
+  private static function writeCookie(array $ids): void
+  {
+    if ($ids === [] || ! self::isRemembering()) {
+      self::forgetCookie();
+
+      return;
+    }
+
+    $tokens = User::whereIn('id', $ids)->pluck('remember_token', 'id');
+
+    $entries = [];
+    foreach ($ids as $id) {
+      $token = $tokens->get($id);
+      // remember_token を持たないアカウントは、そもそもこの端末に記憶されていない
+      if (is_string($token) && $token !== '') {
+        $entries[] = ['id' => $id, 'token' => $token];
+      }
+    }
+
+    if ($entries === []) {
+      self::forgetCookie();
+
+      return;
+    }
+
+    Cookie::queue(self::COOKIE_NAME, json_encode($entries), self::COOKIE_MINUTES);
+  }
+
+  /**
+   * cookie に保存された切り替え候補のうち、いま復元してよいものを取り出します。
+   *
+   * @return array<int, string>
+   */
+  private static function idsFromCookie(): array
+  {
+    // cookie 単体では何も与えない。ログインが成立しているセッションでのみ候補を戻す
+    if (! Auth::check()) {
+      return [];
+    }
+
+    $entries = json_decode((string) request()->cookie(self::COOKIE_NAME), true);
+    if (! is_array($entries)) {
+      return [];
+    }
+
+    $tokens = [];
+    foreach ($entries as $entry) {
+      if (is_array($entry) && is_string($entry['id'] ?? null) && is_string($entry['token'] ?? null)) {
+        $tokens[$entry['id']] = $entry['token'];
+      }
+    }
+
+    if ($tokens === []) {
+      return [];
+    }
+
+    $stored = User::whereIn('id', array_keys($tokens))->pluck('remember_token', 'id');
+
+    // remember_token が一致するアカウントだけを戻す。他端末でログアウトされたものはここで落ちる
+    return array_values(array_filter(array_keys($tokens), function ($id) use ($tokens, $stored) {
+      $token = $stored->get($id);
+
+      return is_string($token) && $token !== '' && hash_equals($token, $tokens[$id]);
+    }));
+  }
+
+  /**
+   * 切り替え候補の cookie を削除します。
+   */
+  private static function forgetCookie(): void
+  {
+    Cookie::queue(Cookie::forget(self::COOKIE_NAME));
   }
 
   /**

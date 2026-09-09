@@ -8,7 +8,9 @@ use App\Models\User;
 use App\Models\WaitlistEntry;
 use App\Services\BlueskyService;
 use App\Support\AccountSession;
+use Illuminate\Auth\SessionGuard;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Mockery;
 use Tests\TestCase;
@@ -77,6 +79,61 @@ class MultiAccountLoginTest extends TestCase
   }
 
   /**
+   * レスポンスに積まれた切り替え候補 cookie を返します（消去指示なら null）。
+   */
+  private function stackCookie($response): ?string
+  {
+    foreach ($response->headers->getCookies() as $cookie) {
+      if ($cookie->getName() === AccountSession::COOKIE_NAME) {
+        // 消去指示（Cookie::forget）は暗号化後も値が空にならないので、期限で見分ける
+        return $cookie->getExpiresTime() > time() ? $cookie->getValue() : null;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * remember me の recaller cookie の平文を組み立てます（テストの withCookie は再暗号化するため）。
+   */
+  private function plainRecaller(User $user): string
+  {
+    $user->refresh();
+
+    return $user->id.'|'.$user->remember_token.'|'
+      .Auth::guard('web')->hashPasswordForCookie($user->getAuthPassword());
+  }
+
+  /**
+   * 切り替え候補 cookie の平文を組み立てます。
+   *
+   * @param  array<int, User>  $users
+   */
+  private function plainStackCookie(array $users): string
+  {
+    return json_encode(array_map(fn (User $user) => [
+      'id' => $user->id,
+      'token' => $user->refresh()->remember_token,
+    ], $users));
+  }
+
+  /**
+   * セッションが切れた状態から、remember me の cookie だけでアクセスします。
+   *
+   * Auth::logout() は remember_token を振り直してしまうので、ここでは呼びません。
+   */
+  private function getAfterSessionExpired(User $active, string $stackCookie, string $handle)
+  {
+    $this->flushSession();
+    $this->app['auth']->forgetGuards();
+
+    return $this
+      ->withCookie('remember_web_'.sha1(SessionGuard::class), $this->plainRecaller($active))
+      ->withCookie(AccountSession::COOKIE_NAME, $stackCookie)
+      ->get(route('calendar.show', ['handle' => $handle]));
+  }
+
+  /**
    * 「ログイン状態を保持する」を付けたログインは、remember me を有効にすること。
    */
   public function test_login_with_remember_keeps_login_beyond_the_session(): void
@@ -142,6 +199,88 @@ class MultiAccountLoginTest extends TestCase
 
     $this->assertAuthenticatedAs($userA);
     $this->assertTrue($this->hasRecallerCookie($response), '保持する選択なのに切り替えで recaller cookie が発行されない');
+  }
+
+  /**
+   * ログイン状態を保持する選択のときは、セッションが切れても切り替え候補が残ること。
+   */
+  public function test_switch_candidates_survive_session_expiry(): void
+  {
+    $userA = $this->createAccount('alpha');
+    $userB = $this->createAccount('bravo');
+
+    // A はログイン状態を保持する選択で先にログイン済みという想定
+    $userA->forceFill(['remember_token' => Str::random(60)])->save();
+
+    $this->mockBlueskySuccess('bravo');
+    $response = $this->actingAs($userA)
+      ->withSession([
+        AccountSession::SESSION_KEY => [$userA->id],
+        AccountSession::REMEMBER_KEY => true,
+      ])
+      ->post('/login', [
+        'handle' => 'bravo.bsky.social',
+        'app_password' => 'secret_app_pass',
+        'remember' => '1',
+      ]);
+
+    $this->assertNotNull($this->stackCookie($response), '切り替え候補の cookie が発行されていない');
+
+    $response = $this->getAfterSessionExpired(
+      $userB,
+      $this->plainStackCookie([$userA, $userB]),
+      'bravo.bsky.social'
+    );
+
+    $response->assertOk();
+    $this->assertAuthenticatedAs($userB);
+    $this->assertSame([$userA->id, $userB->id], session(AccountSession::SESSION_KEY));
+  }
+
+  /**
+   * 他端末でログアウトされたアカウント（remember_token が変わったアカウント）は復元されないこと。
+   */
+  public function test_account_logged_out_elsewhere_is_dropped_from_restored_stack(): void
+  {
+    $userA = $this->createAccount('alpha');
+    $userB = $this->createAccount('bravo');
+
+    // 両方ともこの端末でログイン状態を保持している想定
+    $userA->forceFill(['remember_token' => Str::random(60)])->save();
+    $userB->forceFill(['remember_token' => Str::random(60)])->save();
+    $stack = $this->plainStackCookie([$userA, $userB]);
+
+    // 他端末でのログアウトを模して、A の remember_token を振り直す
+    $userA->forceFill(['remember_token' => Str::random(60)])->save();
+
+    $response = $this->getAfterSessionExpired($userB, $stack, 'bravo.bsky.social');
+
+    $response->assertOk();
+    $this->assertAuthenticatedAs($userB);
+    $this->assertSame([$userB->id], session(AccountSession::SESSION_KEY));
+  }
+
+  /**
+   * ログイン状態を保持しない選択のときは、切り替え候補を cookie に残さないこと。
+   */
+  public function test_switch_candidates_are_not_stored_without_remember(): void
+  {
+    $userA = $this->createAccount('alpha');
+    $this->createAccount('bravo');
+
+    $this->mockBlueskySuccess('bravo');
+    $response = $this->actingAs($userA)
+      ->withSession([
+        AccountSession::SESSION_KEY => [$userA->id],
+        AccountSession::REMEMBER_KEY => false,
+      ])
+      ->post('/login', [
+        'handle' => 'bravo.bsky.social',
+        'app_password' => 'secret_app_pass',
+        'remember' => '0',
+      ]);
+
+    $this->assertNull($this->stackCookie($response), '保持しない選択なのに切り替え候補の cookie が発行された');
   }
 
   /**
