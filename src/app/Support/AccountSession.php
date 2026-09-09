@@ -13,6 +13,10 @@ use Illuminate\Support\Facades\Cookie;
  * セッションに積むのは「このセッションで実際に認証に成功したユーザーID」だけです。
  * アクティブなアカウントは常に Auth::id() で、スタックはその切り替え候補になります。
  *
+ * 並び順は「直近に使った順」で、先頭が最も直近です。切り替えパネルの表示順、上限時に外す
+ * 候補の並び、そしてアクティブなアカウントをログアウトしたときの遷移先が、すべてこの順に
+ * 従います（ログアウトすると、パネルの一番上のアカウントへ移ります）。
+ *
  * ログイン状態を保持する選択のときは、スタックを cookie にも書き出します。セッションは
  * SESSION_LIFETIME で切れるため、これが無いと remember me で復帰した朝には切り替え候補が
  * アクティブな1件に減ってしまいます。cookie にはユーザーIDと remember_token の組を入れて
@@ -40,7 +44,7 @@ class AccountSession
   private const CACHE_KEY = 'multi_account.resolved_accounts';
 
   /**
-   * ログイン中のユーザーID一覧を追加順で取得します。
+   * ログイン中のユーザーID一覧を、直近に使った順（先頭が最も直近）で取得します。
    *
    * @return array<int, string>
    */
@@ -60,7 +64,7 @@ class AccountSession
     // それでもスタックが空の場合に、現在のユーザーで補完する
     $current = Auth::id();
     if ($current && ! in_array($current, $ids, true)) {
-      $ids[] = $current;
+      array_unshift($ids, $current);
       self::store($ids);
     }
 
@@ -105,18 +109,18 @@ class AccountSession
   }
 
   /**
-   * ログイン中アカウントとしてユーザーIDを追加します（すでにある場合は並び順を変えません）。
+   * ログイン中アカウントとしてユーザーIDを先頭（最も直近に使った位置）へ置きます。
    *
-   * 重複時も保存し直すのは、remember me の選択や remember_token の変化を cookie へ反映するためです。
+   * すでにある場合も先頭へ繰り上げて保存し直します。並び順を「直近に使った順」に保つほか、
+   * remember me の選択や remember_token の変化を cookie へ反映する必要があるためです。
+   * 上限を超えた分は、最も長く使っていないアカウントから外れます。
    */
   public static function add(string $userId): void
   {
-    $ids = self::ids();
-    if (! in_array($userId, $ids, true)) {
-      $ids[] = $userId;
-    }
+    $ids = array_values(array_filter(self::ids(), fn ($id) => $id !== $userId));
+    array_unshift($ids, $userId);
 
-    self::store(array_slice($ids, -self::MAX_ACCOUNTS));
+    self::store(array_slice($ids, 0, self::MAX_ACCOUNTS));
   }
 
   /**
@@ -138,7 +142,7 @@ class AccountSession
   }
 
   /**
-   * ログイン中のアカウントを追加順の User コレクションで取得します。
+   * ログイン中のアカウントを、直近に使った順の User コレクションで取得します。
    * 退会などで存在しなくなったIDはスタックからも取り除かれます。
    *
    * @return Collection<int, User>
@@ -197,7 +201,8 @@ class AccountSession
   }
 
   /**
-   * アクティブなアカウントだけをログアウトし、残っていれば次のアカウントへ切り替えます。
+   * アクティブなアカウントだけをログアウトし、残っていれば直近に使っていたアカウントへ
+   * 切り替えます。
    * 切り替え先が無い場合は null を返します（呼び出し側でセッション破棄まで行ってください）。
    */
   public static function logoutCurrentAndSwitchNext(): ?User
@@ -209,6 +214,7 @@ class AccountSession
 
     Auth::logout();
 
+    // 先頭が最も直近に使ったアカウント
     $next = self::accounts()->first();
     if (! $next) {
       return null;

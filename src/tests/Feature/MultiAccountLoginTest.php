@@ -228,13 +228,13 @@ class MultiAccountLoginTest extends TestCase
 
     $response = $this->getAfterSessionExpired(
       $userB,
-      $this->plainStackCookie([$userA, $userB]),
+      $this->plainStackCookie([$userB, $userA]),
       'bravo.bsky.social'
     );
 
     $response->assertOk();
     $this->assertAuthenticatedAs($userB);
-    $this->assertSame([$userA->id, $userB->id], session(AccountSession::SESSION_KEY));
+    $this->assertSame([$userB->id, $userA->id], session(AccountSession::SESSION_KEY));
   }
 
   /**
@@ -248,7 +248,7 @@ class MultiAccountLoginTest extends TestCase
     // 両方ともこの端末でログイン状態を保持している想定
     $userA->forceFill(['remember_token' => Str::random(60)])->save();
     $userB->forceFill(['remember_token' => Str::random(60)])->save();
-    $stack = $this->plainStackCookie([$userA, $userB]);
+    $stack = $this->plainStackCookie([$userB, $userA]);
 
     // 他端末でのログアウトを模して、A の remember_token を振り直す
     $userA->forceFill(['remember_token' => Str::random(60)])->save();
@@ -301,7 +301,7 @@ class MultiAccountLoginTest extends TestCase
 
     $response->assertRedirect(route('calendar.show', ['handle' => 'bravo.bsky.social']));
     $this->assertAuthenticatedAs($userB);
-    $this->assertSame([$userA->id, $userB->id], session(AccountSession::SESSION_KEY));
+    $this->assertSame([$userB->id, $userA->id], session(AccountSession::SESSION_KEY));
   }
 
   /**
@@ -353,6 +353,36 @@ class MultiAccountLoginTest extends TestCase
     $response->assertRedirect(route('calendar.show', ['handle' => 'alpha.bsky.social']));
     $this->assertAuthenticatedAs($userA);
     $this->assertSame([$userA->id], session(AccountSession::SESSION_KEY));
+  }
+
+  /**
+   * ログアウト後の遷移先は、最初に追加したアカウントではなく直近に使っていたアカウントであること。
+   */
+  public function test_logout_returns_to_the_most_recently_used_account(): void
+  {
+    $userA = $this->createAccount('alpha');
+    $userB = $this->createAccount('bravo');
+    $userC = $this->createAccount('charlie');
+
+    // A → B → C の順に使う（追加順のままなら、C のログアウトで A に飛んでしまう）
+    $this->actingAs($userA)->withSession([AccountSession::SESSION_KEY => [$userA->id]])
+      ->post('/accounts/switch', ['user_id' => $userA->id]);
+
+    $session = [AccountSession::SESSION_KEY => [$userA->id, $userB->id, $userC->id]];
+    $this->actingAs($userA)->withSession($session)
+      ->post('/accounts/switch', ['user_id' => $userB->id])
+      ->assertRedirect(route('calendar.show', ['handle' => 'bravo.bsky.social']));
+    $this->assertSame([$userB->id, $userA->id, $userC->id], session(AccountSession::SESSION_KEY));
+
+    $this->post('/accounts/switch', ['user_id' => $userC->id])
+      ->assertRedirect(route('calendar.show', ['handle' => 'charlie.bsky.social']));
+    $this->assertSame([$userC->id, $userB->id, $userA->id], session(AccountSession::SESSION_KEY));
+
+    // C からログアウトすると、直近に使っていた B に戻る
+    $this->post('/logout')
+      ->assertRedirect(route('calendar.show', ['handle' => 'bravo.bsky.social']));
+    $this->assertAuthenticatedAs($userB);
+    $this->assertSame([$userB->id, $userA->id], session(AccountSession::SESSION_KEY));
   }
 
   /**
@@ -623,7 +653,7 @@ class MultiAccountLoginTest extends TestCase
 
     $added = BlueskyAccount::where('did', 'did:plc:second')->firstOrFail();
     $this->assertAuthenticatedAs(User::find($added->user_id));
-    $this->assertSame([$userA->id, $added->user_id], session(AccountSession::SESSION_KEY));
+    $this->assertSame([$added->user_id, $userA->id], session(AccountSession::SESSION_KEY));
   }
 
   /**
