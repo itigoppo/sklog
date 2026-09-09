@@ -17,6 +17,9 @@ class AccountSession
   /** ログイン中ユーザーIDを保持するセッションキー */
   public const SESSION_KEY = 'multi_account.user_ids';
 
+  /** このセッションがログイン状態を保持する（remember me）かを持つセッションキー */
+  public const REMEMBER_KEY = 'multi_account.remember';
+
   /** 1セッションで同時にログインできるアカウント数の上限 */
   public const MAX_ACCOUNTS = 5;
 
@@ -41,6 +44,27 @@ class AccountSession
     }
 
     return $ids;
+  }
+
+  /**
+   * このセッションが remember me でログイン状態を保持するかを判定します。
+   *
+   * ログイン時のチェックボックスで決まり、切り替えやログアウト後の引き継ぎはこの判断を踏襲します。
+   */
+  public static function isRemembering(): bool
+  {
+    if (session()->has(self::REMEMBER_KEY)) {
+      return (bool) session(self::REMEMBER_KEY);
+    }
+
+    // remember me で復帰したセッションでは、セッション側のフラグも復元する
+    if (Auth::viaRemember()) {
+      session([self::REMEMBER_KEY => true]);
+
+      return true;
+    }
+
+    return false;
   }
 
   /**
@@ -87,7 +111,7 @@ class AccountSession
   public static function clear(): void
   {
     self::flushCache();
-    session()->forget(self::SESSION_KEY);
+    session()->forget([self::SESSION_KEY, self::REMEMBER_KEY]);
   }
 
   /**
@@ -137,10 +161,15 @@ class AccountSession
 
   /**
    * 指定ユーザーへ切り替えます（アクティブなアカウントを差し替えます）。
+   *
+   * @param  bool|null  $remember  ログイン状態を保持するか。null ならこのセッションの直近の選択を踏襲する
    */
-  public static function switchTo(User $user): void
+  public static function switchTo(User $user, ?bool $remember = null): void
   {
-    Auth::login($user, true);
+    $remember ??= self::isRemembering();
+
+    session([self::REMEMBER_KEY => $remember]);
+    Auth::login($user, $remember);
     self::add($user->id);
   }
 

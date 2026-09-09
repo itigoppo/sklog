@@ -125,6 +125,7 @@ class AuthController extends Controller
 
     // ログイン中からの実行は、既存アカウントを保持したままの追加登録として扱う
     $isAdding = Auth::check();
+    $remember = $request->boolean('remember');
 
     if ($isAdding && AccountSession::isFull()) {
       return back()->withErrors([
@@ -220,7 +221,7 @@ class AuthController extends Controller
         return $user;
       });
 
-      AccountSession::switchTo($user);
+      AccountSession::switchTo($user, $remember);
 
       return redirect()->route('calendar.show', ['handle' => $handle])
         ->with('success', $isAdding
@@ -249,6 +250,7 @@ class AuthController extends Controller
 
     // ログイン中からの実行は、既存アカウントを保持したままのアカウント追加として扱う
     $isAdding = Auth::check();
+    $remember = $request->boolean('remember');
 
     if ($isAdding && AccountSession::isFull()) {
       return back()->withErrors([
@@ -364,6 +366,7 @@ class AuthController extends Controller
             'is_private' => $isPrivate,
             'throttle_key' => $throttleKey,
             'is_adding' => $isAdding,
+            'remember' => $remember,
           ],
         ]);
 
@@ -390,7 +393,7 @@ class AuthController extends Controller
       RateLimiter::clear($throttleKey);
 
       $wasActive = Auth::id() === $user->id;
-      AccountSession::switchTo($user);
+      AccountSession::switchTo($user, $remember);
 
       return redirect()->route('calendar.show', ['handle' => $handle])
         ->with('success', $isAdding && ! $wasActive ? '@'.$handle.' を追加してログインしました。' : 'ログインしました。');
@@ -594,7 +597,8 @@ class AuthController extends Controller
       RateLimiter::clear($throttleKey);
       session()->forget('handle_change_pending');
 
-      AccountSession::switchTo($user);
+      // ログイン画面で選ばれた「ログイン状態を保持する」をそのまま引き継ぐ
+      AccountSession::switchTo($user, $pending['remember'] ?? null);
 
       return redirect()->route('calendar.show', ['handle' => $newHandle])
         ->with('success', ($pending['is_adding'] ?? false)

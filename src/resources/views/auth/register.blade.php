@@ -241,6 +241,9 @@
         <!-- アプリパスワードの作り方トグル -->
         <x-app-password-guide />
 
+        <!-- ログイン状態を保持する -->
+        <x-remember-me />
+
         <!-- 利用規約・プライバシーに関する同意 -->
         <div class="flex items-start gap-2.5 pt-2">
           <input type="checkbox" name="terms" id="terms"

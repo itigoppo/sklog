@@ -202,6 +202,9 @@
         <!-- アプリパスワードの作り方トグル -->
         <x-app-password-guide />
 
+        <!-- ログイン状態を保持する -->
+        <x-remember-me />
+
         <!-- 送信ボタン -->
         <button type="submit" id="loginBtn"
                 class="w-full py-3.5 px-4 rounded-lg cursor-pointer bg-linear-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-semibold text-sm shadow-lg shadow-sky-950/50 hover:shadow-sky-500/10 focus:outline-none transition duration-300 transform active:scale-[0.98] flex items-center justify-center gap-2">

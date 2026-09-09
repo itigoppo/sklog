@@ -63,6 +63,88 @@ class MultiAccountLoginTest extends TestCase
   }
 
   /**
+   * レスポンスに remember me の recaller cookie が積まれているかを返します。
+   */
+  private function hasRecallerCookie($response): bool
+  {
+    foreach ($response->headers->getCookies() as $cookie) {
+      if (str_starts_with($cookie->getName(), 'remember_web_')) {
+        return $cookie->getValue() !== '';
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * 「ログイン状態を保持する」を付けたログインは、remember me を有効にすること。
+   */
+  public function test_login_with_remember_keeps_login_beyond_the_session(): void
+  {
+    $user = $this->createAccount('alpha');
+    $this->mockBlueskySuccess('alpha');
+
+    $response = $this->post('/login', [
+      'handle' => 'alpha.bsky.social',
+      'app_password' => 'secret_app_pass',
+      'remember' => '1',
+    ]);
+
+    $this->assertAuthenticatedAs($user);
+    $this->assertTrue($this->hasRecallerCookie($response), 'recaller cookie が発行されていない');
+    $this->assertTrue(session(AccountSession::REMEMBER_KEY));
+    $this->assertNotEmpty($user->refresh()->remember_token);
+  }
+
+  /**
+   * 「ログイン状態を保持する」を外したログインは、セッション限りにすること。
+   */
+  public function test_login_without_remember_stays_session_only(): void
+  {
+    $user = $this->createAccount('alpha');
+    $this->mockBlueskySuccess('alpha');
+
+    $response = $this->post('/login', [
+      'handle' => 'alpha.bsky.social',
+      'app_password' => 'secret_app_pass',
+      'remember' => '0',
+    ]);
+
+    $this->assertAuthenticatedAs($user);
+    $this->assertFalse($this->hasRecallerCookie($response), 'remember me を外したのに recaller cookie が発行された');
+    $this->assertFalse(session(AccountSession::REMEMBER_KEY));
+  }
+
+  /**
+   * アカウントの切り替えは、そのセッションでの remember me の選択を踏襲すること。
+   */
+  public function test_switching_account_follows_the_session_remember_choice(): void
+  {
+    $userA = $this->createAccount('alpha');
+    $userB = $this->createAccount('bravo');
+
+    $response = $this->actingAs($userB)
+      ->withSession([
+        AccountSession::SESSION_KEY => [$userA->id, $userB->id],
+        AccountSession::REMEMBER_KEY => false,
+      ])
+      ->post('/accounts/switch', ['user_id' => $userA->id]);
+
+    $this->assertAuthenticatedAs($userA);
+    $this->assertFalse($this->hasRecallerCookie($response), '保持しない選択なのに切り替えで recaller cookie が発行された');
+
+    $response = $this->actingAs($userB)
+      ->withSession([
+        AccountSession::SESSION_KEY => [$userA->id, $userB->id],
+        AccountSession::REMEMBER_KEY => true,
+      ])
+      ->post('/accounts/switch', ['user_id' => $userA->id]);
+
+    $this->assertAuthenticatedAs($userA);
+    $this->assertTrue($this->hasRecallerCookie($response), '保持する選択なのに切り替えで recaller cookie が発行されない');
+  }
+
+  /**
    * ログイン中に別アカウントでログインすると、既存のログインを保ったまま追加され、
    * アクティブなアカウントが新しい方に切り替わること。
    */
