@@ -24,6 +24,12 @@ WT_MAIL := sklog_wt_$(WT_NAME)_mail
 WT_PORT_OFFSET := $(shell printf '%s' "$(WT_NAME)" | cksum | cut -d' ' -f1 | awk '{print $$1 % 19}')
 APP_PORT ?= $(shell expr 18081 + $(WT_PORT_OFFSET))
 MAIL_PORT ?= $(shell expr 18026 + $(WT_PORT_OFFSET))
+# cookie はポートを区別しないので、ホスト名でワークツリーと main を分ける。
+# localhost:18080 と localhost:180xx のままだとセッションと remember me の cookie を
+# 食い合い、片方を開くともう片方がログアウトする。*.localhost は 127.0.0.1 に解決される。
+# 解決できない環境では APP_HOST=localhost で上書きする
+WT_HOST := $(shell printf '%s' "$(WT_NAME)" | tr 'A-Z' 'a-z' | tr '_.' '--')
+APP_HOST ?= $(WT_HOST).localhost
 
 WT_RUN = docker run --rm -v "$(CURDIR)":/home/itigoppo/git/sklog -w /home/itigoppo/git/sklog/src
 ifeq ($(WEB_CONTAINER),)
@@ -45,7 +51,7 @@ endif
 	lint format \
 	require-web require-php require-db \
 	db-up db-down db-prune \
-	app-up app-down app-info dev
+	app-up app-down app-info app-url dev
 
 # Set up the local development environment
 setup:
@@ -162,8 +168,12 @@ app-up: require-php require-db
 
 # Show this worktree's app URLs
 app-info:
-	@echo "  アプリ    : http://localhost:$(APP_PORT)"
+	@echo "  アプリ    : http://$(APP_HOST):$(APP_PORT)"
 	@echo "  Mailpit   : http://localhost:$(MAIL_PORT)"
+
+# Print this worktree's app URL (used by .orca/setup.sh)
+app-url:
+	@echo "http://$(APP_HOST):$(APP_PORT)"
 
 # Start the app and the Vite dev server together (Vite runs in the foreground)
 dev: app-up

@@ -32,7 +32,7 @@ bash .orca/setup.sh
 
 Orca の repo 設定 → Setup script に `bash .orca/setup.sh` が登録済みで、ワークツリー作成時に自動実行されます（動作確認済み）。
 
-- `src/.env` は main チェックアウトからコピーします
+- `src/.env` は main チェックアウトからコピーし、`APP_URL` と `SESSION_COOKIE` をワークツリー用に書き換えます（後述の cookie 分離のため）
 - `src/node_modules` はホストの `pnpm install` で作ります
 - `src/vendor` は使い捨ての `composer:2` コンテナで作ります（ホストに PHP 不要）
 - **compose のスタックは起動しません。** `docker-compose.yml` は `container_name` とポートが固定なので、main チェックアウトの環境と衝突します。ワークツリーのアプリをブラウザで見たいときは後述の `make app-up` を使います
@@ -78,6 +78,10 @@ make dev        # アプリ + Vite をまとめて起動（Vite はフォアグ�
 アプリが不要なワークツリーは `bash .orca/setup.sh --no-app`（DB も要らなければ `--no-db`）で立てずに済ませられます。
 
 `php artisan serve` をワークツリー専用ネットワークで動かすので、DB も Mailpit もそのワークツリーのものを使います。ポートはワークツリー名から決まります（アプリ 18081〜18099、Mailpit 18026〜18044）。衝突したら `make APP_PORT=18090 app-up` のように上書きしてください。
+
+**アプリの URL は `http://<ワークツリー名>.localhost:<ポート>` です。** cookie はポートを区別しないので、`localhost:18089` で開くと main（`localhost:18080`）とセッションや remember me の cookie を食い合い、片方を開くともう片方がログアウトします。DB は別物なので復元もできません。ホスト名を分けることで cookie を分離しています（`*.localhost` は 127.0.0.1 に解決されます）。`.orca/setup.sh` がワークツリーの `src/.env` の `APP_URL` と `SESSION_COOKIE` をこれに合わせて書き換えます。
+
+`*.localhost` が解決できない環境では `make APP_HOST=localhost app-info` のように上書きできます（その場合は main と cookie を食い合います）。
 
 アセットを編集しながら確認するときは、別ターミナルで `make run`（Vite）も起動します。ワークツリーの `public/hot` をそのワークツリーの Laravel が読むので、HMR がそのまま効きます。
 

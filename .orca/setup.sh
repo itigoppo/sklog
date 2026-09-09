@@ -69,6 +69,57 @@ if [ ! -f src/.env ]; then
   warn "  cp src/.env.example src/.env してから設定してください。"
 fi
 
+# ---------- ワークツリー用に .env を調整する ----------
+# cookie はポートを区別しない。main (localhost:18080) とワークツリー (localhost:180xx) を
+# 同じホスト名で開くと、セッションと remember me の cookie を共有してしまい、片方を
+# 開いたらもう片方がログアウトする。DB は別物なので、復元もできない。
+# ホスト名を分けて cookie を分離し、セッション cookie の名前もワークツリー名にする。
+env_set() { # key value -> 変更したら 0
+  key="$1"
+  value="$2"
+  file="src/.env"
+
+  if grep -qE "^${key}=" "$file"; then
+    [ "$(grep -E "^${key}=" "$file" | head -1 | cut -d= -f2-)" = "$value" ] && return 1
+    awk -v k="$key" -v v="$value" '
+      BEGIN { FS = "=" }
+      $1 == k { print k "=" v; next }
+      { print }
+    ' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+  else
+    # 末尾に改行が無いと次の行とくっつく
+    [ -n "$(tail -c1 "$file")" ] && printf '\n' >> "$file"
+    printf '%s=%s\n' "$key" "$value" >> "$file"
+  fi
+
+  return 0
+}
+
+step "ワークツリー用に src/.env を調整します"
+if [ "$MAIN" = "$ROOT" ]; then
+  info "ここは main チェックアウトなので調整は不要です。"
+elif [ ! -f src/.env ]; then
+  warn "src/.env が無いのでスキップします。"
+else
+  APP_URL_VALUE="$(make -s app-url 2>/dev/null)"
+  # printf で改行を落とさないと、tr -c が改行も '-' に変換してしまう
+  SESSION_COOKIE_VALUE="$(printf '%s' "$(basename "$ROOT")" | tr 'A-Z' 'a-z' | tr -c 'a-z0-9-' '-')-session"
+
+  if [ -z "$APP_URL_VALUE" ]; then
+    warn "make app-url が取れなかったのでスキップします。"
+  else
+    changed=0
+    env_set APP_URL "$APP_URL_VALUE" && changed=1
+    env_set SESSION_COOKIE "$SESSION_COOKIE_VALUE" && changed=1
+    if [ "$changed" -eq 1 ]; then
+      info "APP_URL=$APP_URL_VALUE"
+      info "SESSION_COOKIE=$SESSION_COOKIE_VALUE"
+    else
+      info "すでに調整済みです。"
+    fi
+  fi
+fi
+
 # ---------- フロントエンド (ホスト側) ----------
 step "フロントエンドの依存関係をインストールします (pnpm install)"
 if command -v pnpm >/dev/null 2>&1; then
@@ -183,6 +234,10 @@ if [ "$WITH_APP" -eq 1 ] && docker ps --format '{{.Names}}' | grep -q "^sklog_wt
 
 main の compose スタック (http://localhost:18080) は main のディレクトリを
 見ているので、ワークツリーの変更はそちらには出ません。
+
+アプリの URL が localhost ではなく <ワークツリー名>.localhost なのは、cookie が
+ポートを区別しないためです。localhost:<ポート> で開くと main とセッションや
+remember me の cookie を食い合い、片方を開くともう片方がログアウトします。
 MSG
 else
   cat <<'MSG'
