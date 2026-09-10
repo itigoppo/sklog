@@ -17,7 +17,8 @@ use Illuminate\Support\Facades\Cookie;
  * 候補の並び、そしてアクティブなアカウントをログアウトしたときの遷移先が、すべてこの順に
  * 従います（ログアウトすると、パネルの一番上のアカウントへ移ります）。
  *
- * ログイン状態を保持する選択のときは、スタックを cookie にも書き出します。セッションは
+ * ログイン状態を保持する選択はアカウントごとに持ちます。保持を選んだアカウントは、スタックを
+ * cookie にも書き出します。セッションは
  * SESSION_LIFETIME で切れるため、これが無いと remember me で復帰した朝には切り替え候補が
  * アクティブな1件に減ってしまいます。cookie にはユーザーIDと remember_token の組を入れて
  * おき、復元時に token の一致を確かめます。これで Laravel の remember me と強度が揃い、
@@ -28,8 +29,8 @@ class AccountSession
   /** ログイン中ユーザーIDを保持するセッションキー */
   public const SESSION_KEY = 'multi_account.user_ids';
 
-  /** このセッションがログイン状態を保持する（remember me）かを持つセッションキー */
-  public const REMEMBER_KEY = 'multi_account.remember';
+  /** このセッションでログイン状態の保持（remember me）を選んだユーザーIDを持つセッションキー */
+  public const REMEMBERED_KEY = 'multi_account.remembered_ids';
 
   /** 切り替え候補をセッションより長く持たせる cookie の名前 */
   public const COOKIE_NAME = 'multi_account';
@@ -72,24 +73,57 @@ class AccountSession
   }
 
   /**
-   * このセッションが remember me でログイン状態を保持するかを判定します。
+   * 指定アカウントが、このセッションでログイン状態を保持する選択をしているかを判定します。
    *
-   * ログイン時のチェックボックスで決まり、切り替えやログアウト後の引き継ぎはこの判断を踏襲します。
+   * ログイン時のチェックボックスで決まり、切り替えやログアウト後の引き継ぎは
+   * そのアカウント自身の選択を踏襲します。
    */
-  public static function isRemembering(): bool
+  public static function isRemembered(string $userId): bool
   {
-    if (session()->has(self::REMEMBER_KEY)) {
-      return (bool) session(self::REMEMBER_KEY);
+    return in_array($userId, self::rememberedIds(), true);
+  }
+
+  /**
+   * ログイン状態の保持を選んだユーザーID一覧を返します。
+   *
+   * @return array<int, string>
+   */
+  private static function rememberedIds(): array
+  {
+    $ids = session(self::REMEMBERED_KEY, []);
+    $ids = is_array($ids) ? array_values(array_unique(array_filter($ids, 'is_string'))) : [];
+
+    // recaller cookie だけでセッションが復帰した場合に、そのアカウントの選択を取り戻す
+    $current = Auth::id();
+    if ($current && Auth::viaRemember() && ! in_array($current, $ids, true)) {
+      $ids[] = $current;
+      session([self::REMEMBERED_KEY => $ids]);
     }
 
-    // remember me で復帰したセッションでは、セッション側のフラグも復元する
-    if (Auth::viaRemember()) {
-      session([self::REMEMBER_KEY => true]);
+    return $ids;
+  }
 
-      return true;
+  /**
+   * 指定アカウントの「ログイン状態を保持する」選択を記録します。
+   */
+  private static function setRemembered(string $userId, bool $remember): void
+  {
+    $ids = array_values(array_filter(self::rememberedIds(), fn ($id) => $id !== $userId));
+    if ($remember) {
+      $ids[] = $userId;
     }
 
-    return false;
+    session([self::REMEMBERED_KEY => $ids]);
+  }
+
+  /**
+   * 指定したユーザーIDを、保持を選んだアカウントとして記録します（cookie からの復元用）。
+   *
+   * @param  array<int, string>  $userIds
+   */
+  private static function rememberIds(array $userIds): void
+  {
+    session([self::REMEMBERED_KEY => array_values(array_unique(array_merge(self::rememberedIds(), $userIds)))]);
   }
 
   /**
@@ -128,6 +162,7 @@ class AccountSession
    */
   public static function forget(string $userId): void
   {
+    self::setRemembered($userId, false);
     self::store(array_values(array_filter(self::ids(), fn ($id) => $id !== $userId)));
   }
 
@@ -137,7 +172,7 @@ class AccountSession
   public static function clear(): void
   {
     self::flushCache();
-    session()->forget([self::SESSION_KEY, self::REMEMBER_KEY]);
+    session()->forget([self::SESSION_KEY, self::REMEMBERED_KEY]);
     self::forgetCookie();
   }
 
@@ -189,13 +224,13 @@ class AccountSession
   /**
    * 指定ユーザーへ切り替えます（アクティブなアカウントを差し替えます）。
    *
-   * @param  bool|null  $remember  ログイン状態を保持するか。null ならこのセッションの直近の選択を踏襲する
+   * @param  bool|null  $remember  ログイン状態を保持するか。null ならそのアカウント自身の直近の選択を踏襲する
    */
   public static function switchTo(User $user, ?bool $remember = null): void
   {
-    $remember ??= self::isRemembering();
+    $remember ??= self::isRemembered($user->id);
 
-    session([self::REMEMBER_KEY => $remember]);
+    self::setRemembered($user->id, $remember);
     Auth::login($user, $remember);
     self::add($user->id);
   }
@@ -251,7 +286,11 @@ class AccountSession
    */
   private static function writeCookie(array $ids): void
   {
-    if ($ids === [] || ! self::isRemembering()) {
+    // 保持を選んだアカウントだけを書き出す。remember_token の有無で判断すると、
+    // 過去に別の端末で保持ONにしたことがあるだけのアカウントまで残ってしまう
+    $ids = array_values(array_filter($ids, fn ($id) => self::isRemembered($id)));
+
+    if ($ids === []) {
       self::forgetCookie();
 
       return;
@@ -308,11 +347,16 @@ class AccountSession
     $stored = User::whereIn('id', array_keys($tokens))->pluck('remember_token', 'id');
 
     // remember_token が一致するアカウントだけを戻す。他端末でログアウトされたものはここで落ちる
-    return array_values(array_filter(array_keys($tokens), function ($id) use ($tokens, $stored) {
+    $restored = array_values(array_filter(array_keys($tokens), function ($id) use ($tokens, $stored) {
       $token = $stored->get($id);
 
       return is_string($token) && $token !== '' && hash_equals($token, $tokens[$id]);
     }));
+
+    // cookie に載っていたのは保持を選んだアカウントなので、その選択も復元する
+    self::rememberIds($restored);
+
+    return $restored;
   }
 
   /**

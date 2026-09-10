@@ -9,8 +9,10 @@ use App\Models\WaitlistEntry;
 use App\Services\BlueskyService;
 use App\Support\AccountSession;
 use Illuminate\Auth\SessionGuard;
+use Illuminate\Cookie\CookieValuePrefix;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Str;
 use Mockery;
 use Tests\TestCase;
@@ -94,6 +96,21 @@ class MultiAccountLoginTest extends TestCase
   }
 
   /**
+   * 切り替え候補 cookie を復号して、載っているユーザーIDを取り出します。
+   *
+   * @return array<int, string>
+   */
+  private function stackCookieIds(?string $value): array
+  {
+    $this->assertNotNull($value, '切り替え候補の cookie が発行されていない');
+
+    // Laravel は暗号化前に "ハッシュ|" を付けるので、それを外してから読む
+    $entries = json_decode(CookieValuePrefix::remove(Crypt::decryptString($value)), true);
+
+    return array_column(is_array($entries) ? $entries : [], 'id');
+  }
+
+  /**
    * remember me の recaller cookie の平文を組み立てます（テストの withCookie は再暗号化するため）。
    */
   private function plainRecaller(User $user): string
@@ -149,7 +166,7 @@ class MultiAccountLoginTest extends TestCase
 
     $this->assertAuthenticatedAs($user);
     $this->assertTrue($this->hasRecallerCookie($response), 'recaller cookie が発行されていない');
-    $this->assertTrue(session(AccountSession::REMEMBER_KEY));
+    $this->assertTrue(AccountSession::isRemembered($user->id));
     $this->assertNotEmpty($user->refresh()->remember_token);
   }
 
@@ -169,36 +186,97 @@ class MultiAccountLoginTest extends TestCase
 
     $this->assertAuthenticatedAs($user);
     $this->assertFalse($this->hasRecallerCookie($response), 'remember me を外したのに recaller cookie が発行された');
-    $this->assertFalse(session(AccountSession::REMEMBER_KEY));
+    $this->assertFalse(AccountSession::isRemembered($user->id));
   }
 
   /**
-   * アカウントの切り替えは、そのセッションでの remember me の選択を踏襲すること。
+   * アカウントの切り替えは、そのアカウント自身の remember me の選択を踏襲すること。
    */
-  public function test_switching_account_follows_the_session_remember_choice(): void
+  public function test_switching_account_follows_that_accounts_remember_choice(): void
   {
     $userA = $this->createAccount('alpha');
     $userB = $this->createAccount('bravo');
 
+    // A は保持しない選択で入っている
     $response = $this->actingAs($userB)
       ->withSession([
         AccountSession::SESSION_KEY => [$userA->id, $userB->id],
-        AccountSession::REMEMBER_KEY => false,
+        AccountSession::REMEMBERED_KEY => [$userB->id],
       ])
       ->post('/accounts/switch', ['user_id' => $userA->id]);
 
     $this->assertAuthenticatedAs($userA);
     $this->assertFalse($this->hasRecallerCookie($response), '保持しない選択なのに切り替えで recaller cookie が発行された');
 
+    // A が保持する選択で入っている
     $response = $this->actingAs($userB)
       ->withSession([
         AccountSession::SESSION_KEY => [$userA->id, $userB->id],
-        AccountSession::REMEMBER_KEY => true,
+        AccountSession::REMEMBERED_KEY => [$userA->id],
       ])
       ->post('/accounts/switch', ['user_id' => $userA->id]);
 
     $this->assertAuthenticatedAs($userA);
     $this->assertTrue($this->hasRecallerCookie($response), '保持する選択なのに切り替えで recaller cookie が発行されない');
+  }
+
+  /**
+   * 保持しないアカウントを足しても、保持を選んだアカウントの分は cookie に残ること。
+   */
+  public function test_adding_a_non_remembered_account_keeps_the_others_persisted(): void
+  {
+    $userA = $this->createAccount('alpha');
+    $userB = $this->createAccount('bravo');
+    $userA->forceFill(['remember_token' => Str::random(60)])->save();
+
+    $this->mockBlueskySuccess('bravo');
+    $response = $this->actingAs($userA)
+      ->withSession([
+        AccountSession::SESSION_KEY => [$userA->id],
+        AccountSession::REMEMBERED_KEY => [$userA->id],
+      ])
+      ->post('/login', [
+        'handle' => 'bravo.bsky.social',
+        'app_password' => 'secret_app_pass',
+        'remember' => '0',
+      ]);
+
+    $this->assertSame(
+      [$userA->id],
+      $this->stackCookieIds($this->stackCookie($response)),
+      '保持しないアカウントを足したら、保持を選んでいた A まで cookie から消えた'
+    );
+  }
+
+  /**
+   * 他の端末で保持した履歴があるアカウントでも、保持しない選択なら cookie に残さないこと。
+   */
+  public function test_remember_choice_is_per_account_not_per_user_record(): void
+  {
+    $userA = $this->createAccount('alpha');
+    $userB = $this->createAccount('bravo');
+
+    // A は別の端末で保持ONにしたことがあり、remember_token を持っている
+    $userA->forceFill(['remember_token' => Str::random(60)])->save();
+
+    $this->mockBlueskySuccess('bravo');
+    $response = $this->actingAs($userA)
+      ->withSession([
+        // この端末では A は保持しない選択
+        AccountSession::SESSION_KEY => [$userA->id],
+        AccountSession::REMEMBERED_KEY => [],
+      ])
+      ->post('/login', [
+        'handle' => 'bravo.bsky.social',
+        'app_password' => 'secret_app_pass',
+        'remember' => '1',
+      ]);
+
+    $this->assertSame(
+      [$userB->id],
+      $this->stackCookieIds($this->stackCookie($response)),
+      '保持しない選択の A が cookie に残っている'
+    );
   }
 
   /**
@@ -216,7 +294,7 @@ class MultiAccountLoginTest extends TestCase
     $response = $this->actingAs($userA)
       ->withSession([
         AccountSession::SESSION_KEY => [$userA->id],
-        AccountSession::REMEMBER_KEY => true,
+        AccountSession::REMEMBERED_KEY => [$userA->id],
       ])
       ->post('/login', [
         'handle' => 'bravo.bsky.social',
@@ -272,7 +350,7 @@ class MultiAccountLoginTest extends TestCase
     $response = $this->actingAs($userA)
       ->withSession([
         AccountSession::SESSION_KEY => [$userA->id],
-        AccountSession::REMEMBER_KEY => false,
+        AccountSession::REMEMBERED_KEY => [],
       ])
       ->post('/login', [
         'handle' => 'bravo.bsky.social',
