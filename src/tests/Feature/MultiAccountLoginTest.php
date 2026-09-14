@@ -96,6 +96,25 @@ class MultiAccountLoginTest extends TestCase
   }
 
   /**
+   * 切り替え候補 cookie を復号して、[ユーザーID => 自動ログイン用の token を持つか] を返します。
+   *
+   * @return array<string, bool>
+   */
+  private function stackCookieEntries(?string $value): array
+  {
+    $this->assertNotNull($value, '切り替え候補の cookie が発行されていない');
+
+    $entries = json_decode(CookieValuePrefix::remove(Crypt::decryptString($value)), true);
+
+    $out = [];
+    foreach (is_array($entries) ? $entries : [] as $entry) {
+      $out[$entry['id']] = isset($entry['token']);
+    }
+
+    return $out;
+  }
+
+  /**
    * 切り替え候補 cookie を復号して、載っているユーザーIDを取り出します。
    *
    * @return array<int, string>
@@ -221,9 +240,9 @@ class MultiAccountLoginTest extends TestCase
   }
 
   /**
-   * 保持しないアカウントを足しても、保持を選んだアカウントの分は cookie に残ること。
+   * リストは全アカウントを保持し、自動ログイン用の token は保持を選んだものだけに付くこと。
    */
-  public function test_adding_a_non_remembered_account_keeps_the_others_persisted(): void
+  public function test_list_keeps_every_account_but_only_remembered_ones_get_a_key(): void
   {
     $userA = $this->createAccount('alpha');
     $userB = $this->createAccount('bravo');
@@ -242,9 +261,9 @@ class MultiAccountLoginTest extends TestCase
       ]);
 
     $this->assertSame(
-      [$userA->id],
-      $this->stackCookieIds($this->stackCookie($response)),
-      '保持しないアカウントを足したら、保持を選んでいた A まで cookie から消えた'
+      [$userB->id => false, $userA->id => true],
+      $this->stackCookieEntries($this->stackCookie($response)),
+      'リストは両方残り、token は保持ONの A にだけ付くはず'
     );
   }
 
@@ -273,9 +292,9 @@ class MultiAccountLoginTest extends TestCase
       ]);
 
     $this->assertSame(
-      [$userB->id],
-      $this->stackCookieIds($this->stackCookie($response)),
-      '保持しない選択の A が cookie に残っている'
+      [$userB->id => true, $userA->id => false],
+      $this->stackCookieEntries($this->stackCookie($response)),
+      '保持しない選択の A に、過去の remember_token が鍵として付いている'
     );
   }
 
@@ -316,9 +335,9 @@ class MultiAccountLoginTest extends TestCase
   }
 
   /**
-   * 他端末でログアウトされたアカウント（remember_token が変わったアカウント）は復元されないこと。
+   * 他端末でログアウトされたアカウントは、リストに残したまま再ログインを求めること。
    */
-  public function test_account_logged_out_elsewhere_is_dropped_from_restored_stack(): void
+  public function test_account_logged_out_elsewhere_stays_in_the_list_and_needs_reauth(): void
   {
     $userA = $this->createAccount('alpha');
     $userB = $this->createAccount('bravo');
@@ -335,16 +354,20 @@ class MultiAccountLoginTest extends TestCase
 
     $response->assertOk();
     $this->assertAuthenticatedAs($userB);
-    $this->assertSame([$userB->id], session(AccountSession::SESSION_KEY));
+
+    // リストからは消さず、切り替えようとした時点で気づけるようにする
+    $this->assertSame([$userB->id, $userA->id], session(AccountSession::SESSION_KEY));
+    $this->assertTrue(AccountSession::needsReauth($userA->id));
+    $this->assertFalse(AccountSession::needsReauth($userB->id));
   }
 
   /**
-   * ログイン状態を保持しない選択のときは、切り替え候補を cookie に残さないこと。
+   * 保持しない選択でも、リストそのものは cookie に残ること。
    */
-  public function test_switch_candidates_are_not_stored_without_remember(): void
+  public function test_the_list_is_stored_even_without_remember(): void
   {
     $userA = $this->createAccount('alpha');
-    $this->createAccount('bravo');
+    $userB = $this->createAccount('bravo');
 
     $this->mockBlueskySuccess('bravo');
     $response = $this->actingAs($userA)
@@ -358,7 +381,32 @@ class MultiAccountLoginTest extends TestCase
         'remember' => '0',
       ]);
 
-    $this->assertNull($this->stackCookie($response), '保持しない選択なのに切り替え候補の cookie が発行された');
+    $this->assertSame(
+      [$userB->id => false, $userA->id => false],
+      $this->stackCookieEntries($this->stackCookie($response)),
+      'リストは残し、どちらにも自動ログイン用の token は付けないはず'
+    );
+  }
+
+  /**
+   * ログアウト後の遷移先には、再ログインが必要なアカウントを選ばないこと。
+   */
+  public function test_logout_skips_accounts_that_need_reauth(): void
+  {
+    $userA = $this->createAccount('alpha');
+    $userB = $this->createAccount('bravo');
+    $userC = $this->createAccount('charlie');
+
+    $response = $this->actingAs($userC)
+      ->withSession([
+        AccountSession::SESSION_KEY => [$userC->id, $userB->id, $userA->id],
+        AccountSession::NEEDS_REAUTH_KEY => [$userB->id],
+      ])
+      ->post('/logout');
+
+    // 直近は B だが要再ログインなので、その次の A へ移る
+    $response->assertRedirect(route('calendar.show', ['handle' => 'alpha.bsky.social']));
+    $this->assertAuthenticatedAs($userA);
   }
 
   /**
@@ -397,6 +445,50 @@ class MultiAccountLoginTest extends TestCase
     $response->assertRedirect(route('calendar.show', ['handle' => 'alpha.bsky.social']));
     $this->assertAuthenticatedAs($userA);
     $this->assertSame([$userA->id, $userB->id], session(AccountSession::SESSION_KEY));
+  }
+
+  /**
+   * 再ログインが必要なアカウントへの切り替えは、ハンドル名を埋めた追加画面へ送ること。
+   */
+  public function test_switching_to_an_account_that_needs_reauth_asks_for_the_password(): void
+  {
+    $userA = $this->createAccount('alpha');
+    $userB = $this->createAccount('bravo');
+
+    $response = $this->actingAs($userA)
+      ->withSession([
+        AccountSession::SESSION_KEY => [$userA->id, $userB->id],
+        AccountSession::NEEDS_REAUTH_KEY => [$userB->id],
+      ])
+      ->post('/accounts/switch', ['user_id' => $userB->id]);
+
+    $response->assertRedirect(route('accounts.add', ['handle' => 'bravo.bsky.social']));
+    $response->assertSessionHas('error');
+
+    // 切り替わっていないこと
+    $this->assertAuthenticatedAs($userA);
+  }
+
+  /**
+   * 切り替えパネルは、再ログインが必要なアカウントをその導線として見せること。
+   */
+  public function test_switcher_shows_a_reauth_link_for_expired_accounts(): void
+  {
+    $userA = $this->createAccount('alpha');
+    $userB = $this->createAccount('bravo');
+
+    $response = $this->actingAs($userA)
+      ->withSession([
+        AccountSession::SESSION_KEY => [$userA->id, $userB->id],
+        AccountSession::NEEDS_REAUTH_KEY => [$userB->id],
+      ])
+      ->get(route('calendar.show', ['handle' => 'alpha.bsky.social']));
+
+    $response->assertOk();
+    // リストからは消えず、再ログインの導線になっている
+    $response->assertSee('@bravo.bsky.social');
+    $response->assertSee('再ログイン');
+    $response->assertSee(route('accounts.add', ['handle' => 'bravo.bsky.social']), false);
   }
 
   /**

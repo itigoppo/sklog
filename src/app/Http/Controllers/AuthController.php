@@ -36,13 +36,13 @@ class AuthController extends Controller
       return redirect()->route('calendar.show', ['handle' => $handle]);
     }
 
-    return view('auth.login', ['isAdding' => false]);
+    return view('auth.login', ['isAdding' => false, 'prefillHandle' => null]);
   }
 
   /**
    * ログイン中に別アカウントを追加するための画面を表示します。
    */
-  public function showAddAccountForm()
+  public function showAddAccountForm(Request $request)
   {
     $handle = Auth::user()?->blueskyAccount?->handle;
 
@@ -52,7 +52,11 @@ class AuthController extends Controller
 
     // 上限に達している場合は、画面側がフォームの代わりに
     // 「1件ログアウトしてください」の一覧を出す
-    return view('auth.login', ['isAdding' => true]);
+    return view('auth.login', [
+      'isAdding' => true,
+      // 再ログインの導線から来た場合に、ハンドル名を埋めておく
+      'prefillHandle' => $request->query('handle'),
+    ]);
   }
 
   /**
@@ -490,6 +494,13 @@ class AuthController extends Controller
     }
 
     $handle = $user->blueskyAccount->handle;
+
+    // 保持しない選択だった、または他の端末でログアウトされたアカウント
+    if (AccountSession::needsReauth($userId)) {
+      return redirect()->route('accounts.add', ['handle' => $handle])
+        ->with('error', '@'.$handle.' はログアウトされています。アプリパスワードを入力して再ログインしてください。');
+    }
+
     AccountSession::switchTo($user);
 
     return redirect()->route('calendar.show', ['handle' => $handle])

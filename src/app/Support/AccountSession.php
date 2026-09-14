@@ -32,6 +32,9 @@ class AccountSession
   /** このセッションでログイン状態の保持（remember me）を選んだユーザーIDを持つセッションキー */
   public const REMEMBERED_KEY = 'multi_account.remembered_ids';
 
+  /** 再ログインが必要なユーザーIDを持つセッションキー */
+  public const NEEDS_REAUTH_KEY = 'multi_account.needs_reauth';
+
   /** 切り替え候補をセッションより長く持たせる cookie の名前 */
   public const COOKIE_NAME = 'multi_account';
 
@@ -127,6 +130,44 @@ class AccountSession
   }
 
   /**
+   * 指定アカウントが、切り替えるのに再ログインを必要とするかを判定します。
+   *
+   * ログイン状態を保持しない選択だったアカウントと、他の端末でログアウトされて
+   * remember_token が振り直されたアカウントが該当します。リストには残したまま、
+   * 切り替えようとした時点で再ログインを求めます。
+   */
+  public static function needsReauth(string $userId): bool
+  {
+    $ids = session(self::NEEDS_REAUTH_KEY, []);
+
+    return is_array($ids) && in_array($userId, $ids, true);
+  }
+
+  /**
+   * 再ログインが必要なアカウントを記録します。
+   *
+   * @param  array<int, string>  $userIds
+   */
+  private static function markNeedsReauth(array $userIds): void
+  {
+    $ids = session(self::NEEDS_REAUTH_KEY, []);
+    $ids = is_array($ids) ? $ids : [];
+
+    session([self::NEEDS_REAUTH_KEY => array_values(array_unique(array_merge($ids, $userIds)))]);
+  }
+
+  /**
+   * 再ログインが必要なアカウントの記録を外します（ログインし直したとき）。
+   */
+  private static function clearNeedsReauth(string $userId): void
+  {
+    $ids = session(self::NEEDS_REAUTH_KEY, []);
+    $ids = is_array($ids) ? $ids : [];
+
+    session([self::NEEDS_REAUTH_KEY => array_values(array_filter($ids, fn ($id) => $id !== $userId))]);
+  }
+
+  /**
    * 指定ユーザーがこのセッションでログイン済みかを判定します。
    */
   public static function has(string $userId): bool
@@ -163,6 +204,7 @@ class AccountSession
   public static function forget(string $userId): void
   {
     self::setRemembered($userId, false);
+    self::clearNeedsReauth($userId);
     self::store(array_values(array_filter(self::ids(), fn ($id) => $id !== $userId)));
   }
 
@@ -172,7 +214,7 @@ class AccountSession
   public static function clear(): void
   {
     self::flushCache();
-    session()->forget([self::SESSION_KEY, self::REMEMBERED_KEY]);
+    session()->forget([self::SESSION_KEY, self::REMEMBERED_KEY, self::NEEDS_REAUTH_KEY]);
     self::forgetCookie();
   }
 
@@ -231,6 +273,7 @@ class AccountSession
     $remember ??= self::isRemembered($user->id);
 
     self::setRemembered($user->id, $remember);
+    self::clearNeedsReauth($user->id);
     Auth::login($user, $remember);
     self::add($user->id);
   }
@@ -249,8 +292,8 @@ class AccountSession
 
     Auth::logout();
 
-    // 先頭が最も直近に使ったアカウント
-    $next = self::accounts()->first();
+    // 先頭が最も直近に使ったアカウント。再ログインが必要なものへは自動で移らない
+    $next = self::accounts()->first(fn (User $user) => ! self::needsReauth($user->id));
     if (! $next) {
       return null;
     }
@@ -280,16 +323,16 @@ class AccountSession
   }
 
   /**
-   * 切り替え候補を cookie へ書き出します。ログイン状態を保持しない選択のときは消します。
+   * 切り替え候補を cookie へ書き出します。
+   *
+   * リストそのものは選択に関わらず常に保持します。ログイン状態を保持する選択をした
+   * アカウントにだけ token を添え、それが復帰時の自動ログインの鍵になります。token を
+   * 持たないエントリは名前が並ぶだけで、切り替えるには再ログインが必要です。
    *
    * @param  array<int, string>  $ids
    */
   private static function writeCookie(array $ids): void
   {
-    // 保持を選んだアカウントだけを書き出す。remember_token の有無で判断すると、
-    // 過去に別の端末で保持ONにしたことがあるだけのアカウントまで残ってしまう
-    $ids = array_values(array_filter($ids, fn ($id) => self::isRemembered($id)));
-
     if ($ids === []) {
       self::forgetCookie();
 
@@ -300,30 +343,33 @@ class AccountSession
 
     $entries = [];
     foreach ($ids as $id) {
+      $entry = ['id' => $id];
+
       $token = $tokens->get($id);
-      // remember_token を持たないアカウントは、そもそもこの端末に記憶されていない
-      if (is_string($token) && $token !== '') {
-        $entries[] = ['id' => $id, 'token' => $token];
+      // 保持を選んだアカウントにだけ token を持たせる。remember_token の有無だけで
+      // 判断すると、過去に別の端末で保持ONにしたことがあるアカウントまで自動ログインしてしまう
+      if (self::isRemembered($id) && is_string($token) && $token !== '') {
+        $entry['token'] = $token;
       }
-    }
 
-    if ($entries === []) {
-      self::forgetCookie();
-
-      return;
+      $entries[] = $entry;
     }
 
     Cookie::queue(self::COOKIE_NAME, json_encode($entries), self::COOKIE_MINUTES);
   }
 
   /**
-   * cookie に保存された切り替え候補のうち、いま復元してよいものを取り出します。
+   * cookie に保存された切り替え候補を復元します。
+   *
+   * リストは全件戻します。token が一致したアカウントだけをログイン済みとして扱い、
+   * 残りは「要再ログイン」として印を付けます（保持しない選択だったもの、他の端末で
+   * ログアウトされて token が振り直されたもの）。
    *
    * @return array<int, string>
    */
   private static function idsFromCookie(): array
   {
-    // cookie 単体では何も与えない。ログインが成立しているセッションでのみ候補を戻す
+    // cookie 単体では何も与えない。ログインが成立しているセッションでのみリストを戻す
     if (! Auth::check()) {
       return [];
     }
@@ -335,8 +381,8 @@ class AccountSession
 
     $tokens = [];
     foreach ($entries as $entry) {
-      if (is_array($entry) && is_string($entry['id'] ?? null) && is_string($entry['token'] ?? null)) {
-        $tokens[$entry['id']] = $entry['token'];
+      if (is_array($entry) && is_string($entry['id'] ?? null)) {
+        $tokens[$entry['id']] = is_string($entry['token'] ?? null) ? $entry['token'] : null;
       }
     }
 
@@ -346,15 +392,22 @@ class AccountSession
 
     $stored = User::whereIn('id', array_keys($tokens))->pluck('remember_token', 'id');
 
-    // remember_token が一致するアカウントだけを戻す。他端末でログアウトされたものはここで落ちる
-    $restored = array_values(array_filter(array_keys($tokens), function ($id) use ($tokens, $stored) {
-      $token = $stored->get($id);
+    $restored = [];
+    $remembered = [];
+    $reauth = [];
+    foreach ($tokens as $id => $token) {
+      $current = $stored->get($id);
+      if ($token !== null && is_string($current) && $current !== '' && hash_equals($current, $token)) {
+        $remembered[] = $id;
+      } else {
+        $reauth[] = $id;
+      }
+      $restored[] = $id;
+    }
 
-      return is_string($token) && $token !== '' && hash_equals($token, $tokens[$id]);
-    }));
-
-    // cookie に載っていたのは保持を選んだアカウントなので、その選択も復元する
-    self::rememberIds($restored);
+    // token 付きで載っていたのは保持を選んだアカウントなので、その選択も復元する
+    self::rememberIds($remembered);
+    self::markNeedsReauth($reauth);
 
     return $restored;
   }
