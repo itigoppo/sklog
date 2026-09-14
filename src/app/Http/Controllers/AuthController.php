@@ -36,7 +36,7 @@ class AuthController extends Controller
       return redirect()->route('calendar.show', ['handle' => $handle]);
     }
 
-    return view('auth.login', ['isAdding' => false, 'prefillHandle' => null]);
+    return view('auth.login', ['isAdding' => false, 'formAction' => url('/login'), 'prefillHandle' => null]);
   }
 
   /**
@@ -50,10 +50,24 @@ class AuthController extends Controller
       return redirect('/');
     }
 
+    // 招待コードで未登録のアカウントを追加するモード
+    if ($request->query('mode') === 'register') {
+      $invite = $this->resolveLockableInvite($request);
+
+      return view('auth.register', [
+        'isAdding' => true,
+        'formAction' => route('accounts.add.register'),
+        'lockedHandle' => $invite ? strtolower(ltrim($invite->handle, '@')) : null,
+        'lockedCode' => $invite?->code,
+        'canUnlockHandle' => (bool) $invite?->did,
+      ]);
+    }
+
     // 上限に達している場合は、画面側がフォームの代わりに
     // 「1件ログアウトしてください」の一覧を出す
     return view('auth.login', [
       'isAdding' => true,
+      'formAction' => route('accounts.add.post'),
       // 再ログインの導線から来た場合に、ハンドル名を埋めておく
       'prefillHandle' => $request->query('handle'),
     ]);
@@ -67,14 +81,17 @@ class AuthController extends Controller
    */
   public function showRegisterForm(Request $request)
   {
-    $currentHandle = Auth::user()?->blueskyAccount?->handle;
+    // 招待リンクから来た人がログイン中の人とは限らないので、ログイン中なら確認を挟む。
+    // マルチアカウントへ追加したい場合は、追加画面の登録モードから入ってもらう
+    if (Auth::check()) {
+      return $this->showLogoutToContinue('register', $request->query('code'));
+    }
 
-    // 上限に達している場合も画面は出す。招待コードには期限があるので、同時ログインの
-    // 都合で登録の入口を閉じない（画面側がフォームの代わりに一覧を出す）
     $invite = $this->resolveLockableInvite($request);
 
     return view('auth.register', [
-      'isAdding' => $currentHandle !== null,
+      'isAdding' => false,
+      'formAction' => url('/register'),
       // 招待先のハンドル名（固定表示する場合のみ）
       'lockedHandle' => $invite ? strtolower(ltrim($invite->handle, '@')) : null,
       'lockedCode' => $invite?->code,
@@ -112,6 +129,30 @@ class AuthController extends Controller
    */
   public function register(Request $request)
   {
+    // 招待リンクはメールから開かれるので、開いた人とログイン中の人が同じとは限らない。
+    // 外から来た経路は常に新規として扱い、続けるなら先に全アカウントをログアウトさせる
+    if (Auth::check()) {
+      return $this->showLogoutToContinue('register', $request->input('invite_code'));
+    }
+
+    return $this->createAccount($request, isAdding: false);
+  }
+
+  /**
+   * ログイン中に、招待コードで別のアカウントを登録してマルチアカウントへ追加します。
+   */
+  public function addAccountRegister(Request $request)
+  {
+    return $this->createAccount($request, isAdding: true);
+  }
+
+  /**
+   * 招待コードを検証し、アカウントを作成してアクティブにします。
+   *
+   * @param  bool  $isAdding  ログイン中のアカウントを保ったままの追加かどうか
+   */
+  private function createAccount(Request $request, bool $isAdding)
+  {
     $request->validate([
       'invite_code' => 'required|string',
       'handle' => 'required|string',
@@ -121,8 +162,6 @@ class AuthController extends Controller
       'terms.accepted' => 'サービス利用への同意が必要です。',
     ]);
 
-    // ログイン中からの実行は、既存アカウントを保持したままの追加登録として扱う
-    $isAdding = Auth::check();
     $remember = $request->boolean('remember');
 
     if ($isAdding && AccountSession::isFull()) {
@@ -430,6 +469,43 @@ class AuthController extends Controller
   }
 
   /**
+   * ログイン中に、外から来た登録・申請の経路へ入ろうとしたときの確認画面を出します。
+   *
+   * 招待リンクはメールから開かれるので、開いた人がログイン中の人とは限りません。
+   * ログイン中のハンドル名は伏せたまま、全ログアウトして続けるかどうかだけを尋ねます。
+   */
+  private function showLogoutToContinue(string $to, mixed $inviteCode)
+  {
+    return view('auth.logout_to_continue', [
+      'to' => $to,
+      'inviteCode' => is_string($inviteCode) && trim($inviteCode) !== '' ? trim($inviteCode) : null,
+    ]);
+  }
+
+  /**
+   * 確認画面からの送信を受けて、全アカウントをログアウトしてから元の経路へ戻します。
+   *
+   * 遷移先は登録と参加申請に限定しています（任意のURLへ飛ばさないため）。
+   */
+  public function logoutAndContinue(Request $request)
+  {
+    $data = $request->validate([
+      'to' => 'required|string|in:register,join',
+      'invite_code' => 'nullable|string',
+    ]);
+
+    $this->flushAllAccounts($request);
+
+    if ($data['to'] === 'join') {
+      return redirect()->route('waitlist.show');
+    }
+
+    $code = trim((string) ($data['invite_code'] ?? ''));
+
+    return redirect()->route('register', $code !== '' ? ['code' => $code] : []);
+  }
+
+  /**
    * ログアウト処理を行います。
    *
    * 他にログイン中のアカウントが残っている場合は、そのアカウントへ切り替えます。
@@ -469,24 +545,33 @@ class AuthController extends Controller
       }
     }
 
-    // 管理者セッションを一時退避
+    $this->flushAllAccounts($request);
+
+    return redirect('/login')->with('success', 'ログアウトしました。');
+  }
+
+  /**
+   * すべてのアカウントをログアウトし、セッションを破棄します。
+   *
+   * 管理者セッションは利用者のログアウトとは独立しているので、退避して復元します。
+   */
+  private function flushAllAccounts(Request $request): void
+  {
     $adminAuth = $request->session()->get('admin_authenticated');
     $admin2fa = $request->session()->get('admin_2fa_verified');
 
+    AccountSession::clear();
     Auth::logout();
 
     $request->session()->invalidate();
     $request->session()->regenerateToken();
 
-    // 管理者セッションを復元
     if ($adminAuth) {
       $request->session()->put('admin_authenticated', $adminAuth);
     }
     if ($admin2fa) {
       $request->session()->put('admin_2fa_verified', $admin2fa);
     }
-
-    return redirect('/login')->with('success', 'ログアウトしました。');
   }
 
   /**

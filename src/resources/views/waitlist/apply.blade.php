@@ -51,17 +51,6 @@
       </h2>
       <p class="text-slate-400 text-xs mb-6 leading-relaxed">メールアドレスとBlueskyハンドル名を登録してください。承認後、招待コードをメールでお送りします。</p>
 
-      <!-- ログイン中に別アカウントを申請する場合の案内 -->
-      @if ($currentHandle ?? null)
-        <div class="mb-6 p-4 rounded-lg bg-sky-500/10 border border-sky-500/30 text-sky-300 text-xs leading-relaxed flex items-start gap-2">
-          <x-icon name="info" class="h-4 w-4 shrink-0 mt-0.5" stroke-width="2" />
-          <span>
-            現在 <span class="font-bold">{{ '@' . $currentHandle }}</span> でログイン中です。<br>
-            ここで申請できるのは<span class="font-bold">別のアカウント</span>です。承認後に届く招待コードで登録すると、ログイン中のアカウントに追加されます。
-          </span>
-        </div>
-      @endif
-
       @if (session('success'))
         <div class="mb-6 p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-start gap-2">
           <x-icon name="success" class="h-4 w-4 shrink-0 mt-0.5" stroke-width="2" />

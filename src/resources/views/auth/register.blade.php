@@ -153,7 +153,7 @@
         {{-- 同時ログイン上限。フォームの代わりに、外すアカウントを選ばせる --}}
         @include('auth._account_limit')
       @else
-      <form id="registerForm" action="{{ url('/register') }}" method="POST" class="space-y-5">
+      <form id="registerForm" action="{{ $formAction }}" method="POST" class="space-y-5">
         @csrf
 
         <!-- 招待コード -->

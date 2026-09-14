@@ -141,9 +141,9 @@ class RegisterHandleLockTest extends TestCase
   }
 
   /**
-   * ログイン中でも参加申請画面が開けること（別アカウントの申請導線）。
+   * ログイン中に参加申請画面を開いたら、全ログアウトの確認を出すこと。
    */
-  public function test_waitlist_page_is_available_while_authenticated(): void
+  public function test_waitlist_page_asks_to_log_out_while_authenticated(): void
   {
     $user = User::create(['name' => 'ログイン中ユーザー']);
     BlueskyAccount::create([
@@ -157,8 +157,8 @@ class RegisterHandleLockTest extends TestCase
     $response = $this->actingAs($user)->get('/join');
 
     $response->assertOk();
-    $response->assertSee('参加申請');
-    $response->assertSee('@current.bsky.social');
-    $response->assertSee('別のアカウント');
+    // 申請は外から来る経路なので、ログイン中なら全ログアウトの確認を出す
+    $response->assertSee('ログイン中のアカウントはすべてログアウトされます。');
+    $response->assertDontSee('current.bsky.social');
   }
 }

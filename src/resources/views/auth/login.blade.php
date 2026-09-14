@@ -131,7 +131,7 @@
             </p>
             <p class="text-slate-400 leading-relaxed">
               まだ登録していないアカウントは、先に <a href="{{ route('waitlist.show') }}" class="text-sky-400 hover:text-sky-300 hover:underline font-semibold cursor-pointer">参加申請</a> が必要です。
-              招待コードをお持ちの場合は <a href="{{ route('register') }}" class="text-sky-400 hover:text-sky-300 hover:underline font-semibold cursor-pointer">招待コードで登録</a> すると、そのままアカウントが追加されます。
+              招待コードをお持ちの場合は <a href="{{ route('accounts.add', ['mode' => 'register']) }}" class="text-sky-400 hover:text-sky-300 hover:underline font-semibold cursor-pointer">招待コードで登録</a> すると、そのままアカウントが追加されます。
             </p>
           </div>
         </div>
@@ -161,7 +161,7 @@
         {{-- 同時ログイン上限。フォームの代わりに、外すアカウントを選ばせる --}}
         @include('auth._account_limit')
       @else
-      <form id="loginForm" action="{{ $isAdding ? route('accounts.add.post') : url('/login') }}" method="POST" class="space-y-5">
+      <form id="loginForm" action="{{ $formAction }}" method="POST" class="space-y-5">
         @csrf
 
         <!-- ハンドル入力 -->

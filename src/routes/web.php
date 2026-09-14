@@ -36,6 +36,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::middleware('auth')->group(function () {
   Route::get('/accounts/add', [AuthController::class, 'showAddAccountForm'])->name('accounts.add');
   Route::post('/accounts/add', [AuthController::class, 'addAccount'])->name('accounts.add.post');
+  Route::post('/accounts/add/register', [AuthController::class, 'addAccountRegister'])->name('accounts.add.register');
   Route::post('/accounts/switch', [AuthController::class, 'switchAccount'])->name('accounts.switch');
 });
 
@@ -44,6 +45,8 @@ Route::get('/join', [WaitlistController::class, 'show'])->name('waitlist.show');
 Route::post('/join', [WaitlistController::class, 'store'])->name('waitlist.store');
 Route::get('/join/completed', [WaitlistController::class, 'completed'])->name('waitlist.completed');
 Route::post('/register/resend', [AuthController::class, 'requestResend'])->name('register.resend');
+// ログイン中に外から来た登録・申請の経路へ入るとき、全ログアウトしてから続ける
+Route::post('/logout-and-continue', [AuthController::class, 'logoutAndContinue'])->name('logout_and_continue');
 
 // 5. 手動同期トリガー（固定 - ログイン中の本人限定。コントローラー内で認可チェック）
 Route::post('/sync', [CalendarController::class, 'sync'])

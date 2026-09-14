@@ -37,6 +37,12 @@
         登録ページへ進む ➔
       </a>
 
+      <p style="font-size: 12px; color: #64748b; line-height: 1.7;">
+        すでに別のアカウントで SkLoG をご利用中の方は、このボタンではなく、ログイン後の
+        <strong>アカウント追加画面</strong>から上の招待コードを入力してください。
+        このボタンから進むと、ログイン中のアカウントはすべてログアウトされます。
+      </p>
+
       <div class="note">
         <p style="margin:0">・このコードは1回のみ使用可能です。<br>
         @if ($inviteCode->expires_at)

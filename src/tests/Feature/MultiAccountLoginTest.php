@@ -657,16 +657,16 @@ class MultiAccountLoginTest extends TestCase
   }
 
   /**
-   * 上限に達していても、招待コードでの登録画面は開けること（招待には期限があるため）。
+   * 上限に達していても、招待コードでの追加登録画面は開けること（招待には期限があるため）。
    */
-  public function test_register_page_is_reachable_when_full(): void
+  public function test_add_register_page_is_reachable_when_full(): void
   {
     $users = collect(range(1, AccountSession::MAX_ACCOUNTS))
       ->map(fn ($i) => $this->createAccount("user{$i}"));
 
     $response = $this->actingAs($users->first())
       ->withSession([AccountSession::SESSION_KEY => $users->pluck('id')->all()])
-      ->get('/register');
+      ->get(route('accounts.add', ['mode' => 'register']));
 
     $response->assertOk();
     $response->assertSee('続けるには、ログイン中のアカウントから1件ログアウトしてください。');
@@ -805,11 +805,64 @@ class MultiAccountLoginTest extends TestCase
 
     $response = $this->actingAs($userA)
       ->withSession([AccountSession::SESSION_KEY => [$userA->id]])
-      ->get('/register');
+      ->get(route('accounts.add', ['mode' => 'register']));
 
     $response->assertOk();
     $response->assertSee('アカウントを追加登録');
     $response->assertSee('@alpha.bsky.social');
+  }
+
+  /**
+   * 招待リンクをログイン中に開いたら、ハンドル名を出さずに全ログアウトの確認を出すこと。
+   */
+  public function test_invite_link_while_authenticated_asks_to_log_out_first(): void
+  {
+    $userA = $this->createAccount('alpha');
+
+    $response = $this->actingAs($userA)
+      ->withSession([AccountSession::SESSION_KEY => [$userA->id]])
+      ->get('/register?code=SOME-CODE');
+
+    $response->assertOk();
+    $response->assertSee('ログイン中のアカウントはすべてログアウトされます。');
+    $response->assertSee('アカウント追加画面');
+    $response->assertDontSee('id="registerForm"', false);
+
+    // 開いた人がログイン中の人とは限らないので、ハンドル名は伏せる
+    $response->assertDontSee('alpha.bsky.social');
+  }
+
+  /**
+   * 参加申請もログイン中なら同じ確認を出すこと。
+   */
+  public function test_join_page_while_authenticated_asks_to_log_out_first(): void
+  {
+    $userA = $this->createAccount('alpha');
+
+    $response = $this->actingAs($userA)
+      ->withSession([AccountSession::SESSION_KEY => [$userA->id]])
+      ->get('/join');
+
+    $response->assertOk();
+    $response->assertSee('ログイン中のアカウントはすべてログアウトされます。');
+    $response->assertDontSee('alpha.bsky.social');
+  }
+
+  /**
+   * 確認を通すと全アカウントがログアウトされ、招待コードを保ったまま登録画面へ進むこと。
+   */
+  public function test_logout_and_continue_clears_every_account(): void
+  {
+    $userA = $this->createAccount('alpha');
+    $userB = $this->createAccount('bravo');
+
+    $response = $this->actingAs($userA)
+      ->withSession([AccountSession::SESSION_KEY => [$userA->id, $userB->id]])
+      ->post('/logout-and-continue', ['to' => 'register', 'invite_code' => 'SOME-CODE']);
+
+    $response->assertRedirect(route('register', ['code' => 'SOME-CODE']));
+    $this->assertGuest();
+    $this->assertNull(session(AccountSession::SESSION_KEY));
   }
 
   /**
@@ -836,7 +889,7 @@ class MultiAccountLoginTest extends TestCase
 
     $response = $this->actingAs($userA)
       ->withSession([AccountSession::SESSION_KEY => [$userA->id]])
-      ->post('/register', [
+      ->post(route('accounts.add.register'), [
         'invite_code' => 'ADD-CODE-001',
         'handle' => 'second.bsky.social',
         'app_password' => 'secret_app_pass',
@@ -864,7 +917,8 @@ class MultiAccountLoginTest extends TestCase
     $response->assertOk();
     $response->assertSee('追加できるのは「登録済み」のアカウントだけです');
     $response->assertSee(route('waitlist.show'));
-    $response->assertSee(route('register'));
+    // 招待コードでの登録も、素の /register ではなく追加画面の登録モードへ案内する
+    $response->assertSee(route('accounts.add', ['mode' => 'register']), false);
   }
 
   /**

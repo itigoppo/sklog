@@ -18,9 +18,13 @@ class WaitlistController extends Controller
    */
   public function show()
   {
-    return view('waitlist.apply', [
-      'currentHandle' => Auth::user()?->blueskyAccount?->handle,
-    ]);
+    // 申請は外から来る経路なので、ログイン中なら全ログアウトの確認を挟む。
+    // マルチアカウントへの追加は、本人が追加画面から明示的に行う
+    if (Auth::check()) {
+      return view('auth.logout_to_continue', ['to' => 'join', 'inviteCode' => null]);
+    }
+
+    return view('waitlist.apply');
   }
 
   public function store(Request $request, BlueskyService $blueskyService)
