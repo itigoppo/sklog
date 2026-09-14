@@ -254,7 +254,7 @@ class MultiAccountLoginTest extends TestCase
         AccountSession::SESSION_KEY => [$userA->id],
         AccountSession::REMEMBERED_KEY => [$userA->id],
       ])
-      ->post('/login', [
+      ->post('/accounts/add', [
         'handle' => 'bravo.bsky.social',
         'app_password' => 'secret_app_pass',
         'remember' => '0',
@@ -285,7 +285,7 @@ class MultiAccountLoginTest extends TestCase
         AccountSession::SESSION_KEY => [$userA->id],
         AccountSession::REMEMBERED_KEY => [],
       ])
-      ->post('/login', [
+      ->post('/accounts/add', [
         'handle' => 'bravo.bsky.social',
         'app_password' => 'secret_app_pass',
         'remember' => '1',
@@ -315,7 +315,7 @@ class MultiAccountLoginTest extends TestCase
         AccountSession::SESSION_KEY => [$userA->id],
         AccountSession::REMEMBERED_KEY => [$userA->id],
       ])
-      ->post('/login', [
+      ->post('/accounts/add', [
         'handle' => 'bravo.bsky.social',
         'app_password' => 'secret_app_pass',
         'remember' => '1',
@@ -375,7 +375,7 @@ class MultiAccountLoginTest extends TestCase
         AccountSession::SESSION_KEY => [$userA->id],
         AccountSession::REMEMBERED_KEY => [],
       ])
-      ->post('/login', [
+      ->post('/accounts/add', [
         'handle' => 'bravo.bsky.social',
         'app_password' => 'secret_app_pass',
         'remember' => '0',
@@ -420,7 +420,7 @@ class MultiAccountLoginTest extends TestCase
 
     $this->mockBlueskySuccess('bravo');
 
-    $response = $this->actingAs($userA)->post('/login', [
+    $response = $this->actingAs($userA)->post('/accounts/add', [
       'handle' => 'bravo.bsky.social',
       'app_password' => 'secret_app_pass',
     ]);
@@ -428,6 +428,30 @@ class MultiAccountLoginTest extends TestCase
     $response->assertRedirect(route('calendar.show', ['handle' => 'bravo.bsky.social']));
     $this->assertAuthenticatedAs($userB);
     $this->assertSame([$userB->id, $userA->id], session(AccountSession::SESSION_KEY));
+  }
+
+  /**
+   * ログイン中に素の POST /login を叩いても、勝手にマルチアカウントへ紐付けないこと。
+   */
+  public function test_plain_login_does_not_silently_link_another_account(): void
+  {
+    $userA = $this->createAccount('alpha');
+    $userB = $this->createAccount('bravo');
+
+    $response = $this->actingAs($userA)
+      ->withSession([AccountSession::SESSION_KEY => [$userA->id]])
+      ->post('/login', [
+        'handle' => 'bravo.bsky.social',
+        'app_password' => 'secret_app_pass',
+        'remember' => '1',
+      ]);
+
+    // 追加の入口へ案内するだけで、認証もリストへの追加も起きない
+    $response->assertRedirect(route('accounts.add'));
+    $response->assertSessionHas('error');
+    $this->assertAuthenticatedAs($userA);
+    $this->assertSame([$userA->id], session(AccountSession::SESSION_KEY));
+    $this->assertFalse(AccountSession::has($userB->id));
   }
 
   /**
@@ -601,7 +625,7 @@ class MultiAccountLoginTest extends TestCase
     $response = $this->actingAs($users->first())
       ->withSession($session)
       ->from('/accounts/add')
-      ->post('/login', [
+      ->post('/accounts/add', [
         'handle' => 'extra.bsky.social',
         'app_password' => 'secret_app_pass',
       ]);
@@ -734,7 +758,7 @@ class MultiAccountLoginTest extends TestCase
     $response = $this->actingAs($userA)
       ->withSession([AccountSession::SESSION_KEY => [$userA->id]])
       ->from(route('accounts.add'))
-      ->post('/login', [
+      ->post('/accounts/add', [
         'handle' => 'newbie.bsky.social',
         'app_password' => 'secret_app_pass',
       ]);
@@ -762,7 +786,7 @@ class MultiAccountLoginTest extends TestCase
 
     $response = $this->actingAs($userA)
       ->withSession([AccountSession::SESSION_KEY => [$userA->id]])
-      ->post('/login', [
+      ->post('/accounts/add', [
         'handle' => 'invited.bsky.social',
         'app_password' => 'secret_app_pass',
       ]);

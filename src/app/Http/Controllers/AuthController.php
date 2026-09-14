@@ -241,13 +241,36 @@ class AuthController extends Controller
    */
   public function login(Request $request)
   {
+    // ログイン中というだけで勝手にマルチアカウントへ紐付けない。
+    // リストに載せるのは、本人が明示的に追加しに来た /accounts/add からだけにする
+    if (Auth::check()) {
+      return redirect()->route('accounts.add')
+        ->with('error', 'すでにログイン中です。別のアカウントを使うには、この画面から追加してください。');
+    }
+
+    return $this->authenticate($request, isAdding: false);
+  }
+
+  /**
+   * ログイン中に、別のアカウントをマルチアカウントとして追加します。
+   */
+  public function addAccount(Request $request)
+  {
+    return $this->authenticate($request, isAdding: true);
+  }
+
+  /**
+   * Bluesky 認証を行い、成功したアカウントをアクティブにします。
+   *
+   * @param  bool  $isAdding  ログイン中のアカウントを保ったままの追加かどうか
+   */
+  private function authenticate(Request $request, bool $isAdding)
+  {
     $credentials = $request->validate([
       'handle' => 'required|string',
       'app_password' => 'required|string',
     ]);
 
-    // ログイン中からの実行は、既存アカウントを保持したままのアカウント追加として扱う
-    $isAdding = Auth::check();
     $remember = $request->boolean('remember');
 
     if ($isAdding && AccountSession::isFull()) {

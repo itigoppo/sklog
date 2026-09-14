@@ -161,7 +161,7 @@
         {{-- 同時ログイン上限。フォームの代わりに、外すアカウントを選ばせる --}}
         @include('auth._account_limit')
       @else
-      <form id="loginForm" action="{{ url('/login') }}" method="POST" class="space-y-5">
+      <form id="loginForm" action="{{ $isAdding ? route('accounts.add.post') : url('/login') }}" method="POST" class="space-y-5">
         @csrf
 
         <!-- ハンドル入力 -->

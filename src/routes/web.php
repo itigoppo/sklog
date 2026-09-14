@@ -35,6 +35,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 // 3-2. マルチアカウント（同一セッションでの追加ログイン・切り替え）
 Route::middleware('auth')->group(function () {
   Route::get('/accounts/add', [AuthController::class, 'showAddAccountForm'])->name('accounts.add');
+  Route::post('/accounts/add', [AuthController::class, 'addAccount'])->name('accounts.add.post');
   Route::post('/accounts/switch', [AuthController::class, 'switchAccount'])->name('accounts.switch');
 });
 
