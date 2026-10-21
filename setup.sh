@@ -44,6 +44,14 @@ info() { printf '    %s\n' "$1"; }
 warn() { printf '\033[1;33m[warn] %s\033[0m\n' "$1" >&2; }
 fail() { printf '\033[1;31m[error] %s\033[0m\n' "$1" >&2; exit 1; }
 
+# ---------- ワークツリーでは実行しない ----------
+# docker-compose.yml は container_name とポートが固定で、カレントディレクトリをマウントするので、
+# ワークツリーで compose のスタックを立てると main とぶつかる
+MAIN="$(cd "$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)/.." 2>/dev/null && pwd || true)"
+if [ -n "$MAIN" ] && [ "$MAIN" != "$PWD" ]; then
+  fail "ここはワークツリーです。setup.sh は main チェックアウト ($MAIN) で実行してください。ワークツリーでは bash .orca/setup.sh を使います。"
+fi
+
 # ---------- .env のキーを書き換える ----------
 # 既存行（コメントアウトされている行も含む）があれば置換、なければ追記する
 set_env() {

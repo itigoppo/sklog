@@ -57,21 +57,30 @@ endif
 	migrate migrate-fresh migrate-fresh-seed seed cache-clear \
 	test test-coverage \
 	lint format \
-	require-web require-php require-db \
+	require-main require-web require-php require-db \
 	db-up db-down db-prune \
 	app-up app-down app-info app-url dev
 
 # Set up the local development environment
-setup:
+setup: require-main
 	./setup.sh
 
 # Set up the local development environment from scratch (recreate DB)
-setup-fresh:
+setup-fresh: require-main
 	./setup.sh --fresh
 
 # Set up a git worktree (copy .env from main, install deps; no Docker)
 setup-worktree:
 	bash .orca/setup.sh
+
+# Fail early when a target is only for the main checkout
+# docker-compose.yml は container_name とポートが固定で、カレントディレクトリをマウントするので、
+# ワークツリーで compose のスタックを立てると main とぶつかる
+require-main:
+	@if [ "$(CURDIR)" = "$(MAIN_CHECKOUT)" ]; then exit 0; fi; \
+	echo "ここはワークツリーです。この操作は main チェックアウト ($(MAIN_CHECKOUT)) で実行してください。"; \
+	echo "  ワークツリーでは make setup-worktree / make db-up / make app-up を使います。"; \
+	exit 1
 
 # Fail early when a target needs the running stack (DB, long-running processes)
 require-web:
@@ -230,11 +239,11 @@ db-down: app-down
 	@docker network rm $(WT_NET) >/dev/null 2>&1 || true
 
 # Start Docker containers
-docker-up:
+docker-up: require-main
 	docker compose up -d
 
 # Stop Docker containers
-docker-down:
+docker-down: require-main
 	docker compose down
 
 # Build Docker containers
@@ -242,7 +251,7 @@ docker-build:
 	docker compose build
 
 # Rebuild Docker containers
-docker-rebuild:
+docker-rebuild: require-main
 	docker compose up --build -d
 
 # Get into the web container
