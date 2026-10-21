@@ -137,6 +137,7 @@ db-up: require-php
 
 # Serve this worktree's app (main checkout keeps using docker compose)
 # 「既に起動している」はコンテナが指定のポートで公開されているかまで見る。ポートの応答だけだと別のアプリを拾う
+# ポートの確認は docker rm -f より前に行う。後だと別のアプリのポートで止まったときに自分のアプリまで消える
 app-up: require-php require-db
 	@if [ "$(CURDIR)" = "$(MAIN_CHECKOUT)" ]; then \
 		echo "main チェックアウトでは make docker-up を使ってください。"; \
@@ -149,18 +150,20 @@ app-up: require-php require-db
 		$(MAKE) -s app-info; \
 		exit 0; \
 	fi; \
-	docker rm -f $(WT_APP) $(WT_MAIL) >/dev/null 2>&1 || true; \
-	if [ -f src/public/hot ] && ! curl -s -o /dev/null --max-time 2 "$$(cat src/public/hot)/@vite/client"; then \
-		rm -f src/public/hot; \
-		echo "死んでいる public/hot を削除しました（Vite が強制終了された跡）。"; \
-	fi; \
+	own=$$( { docker port $(WT_APP) 8000; docker port $(WT_MAIL) 8025; } 2>/dev/null); \
 	for p in $(APP_PORT) $(MAIL_PORT); do \
+		printf '%s\n' "$$own" | grep -q ":$$p$$" && continue; \
 		if curl -s -o /dev/null --max-time 2 http://localhost:$$p/ 2>/dev/null; then \
 			echo "ポート $$p は別のアプリが使っています（他のワークツリーと重なった可能性があります）。"; \
 			echo "  空いているポートを指定してください: make app-up APP_PORT=<ポート> MAIL_PORT=<ポート>"; \
 			exit 1; \
 		fi; \
 	done; \
+	docker rm -f $(WT_APP) $(WT_MAIL) >/dev/null 2>&1 || true; \
+	if [ -f src/public/hot ] && ! curl -s -o /dev/null --max-time 2 "$$(cat src/public/hot)/@vite/client"; then \
+		rm -f src/public/hot; \
+		echo "死んでいる public/hot を削除しました（Vite が強制終了された跡）。"; \
+	fi; \
 	docker run -d --rm --name $(WT_MAIL) $(call WT_LABEL,mail) --network $(WT_NET) --network-alias mail \
 		-p $(MAIL_PORT):8025 $(MAIL_IMAGE) >/dev/null \
 		|| { echo "Mailpit のコンテナを起動できませんでした。"; exit 1; }; \
