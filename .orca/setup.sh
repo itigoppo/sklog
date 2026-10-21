@@ -70,7 +70,7 @@ if [ ! -f src/.env ]; then
 fi
 
 # ---------- ワークツリー用に .env を調整する ----------
-# cookie はポートを区別しない。main (localhost:18080) とワークツリー (localhost:180xx) を
+# cookie はポートを区別しない。main (localhost:18080) とワークツリー (localhost:19xxx) を
 # 同じホスト名で開くと、セッションと remember me の cookie を共有してしまい、片方を
 # 開いたらもう片方がログアウトする。DB は別物なので、復元もできない。
 # ホスト名を分けて cookie を分離し、セッション cookie の名前もワークツリー名にする。
@@ -162,13 +162,13 @@ fi
 
 # ---------- web イメージの確認 ----------
 # make test / lint はこのイメージから使い捨てコンテナを起動する。
-# イメージは main チェックアウトの compose が作るので、一度も起動していないと存在しない。
+# イメージは compose が作る（名前は docker-compose.yml の image: で固定）ので、一度もビルドしていないと存在しない。
 step "web イメージを確認します"
 if docker image inspect sklog-web >/dev/null 2>&1; then
   info "sklog-web: OK"
 else
   warn "sklog-web イメージがありません。make test / make lint はこのままでは動きません。"
-  warn "  main チェックアウトで一度ビルドしてください: cd ~/git/sklog && make docker-build"
+  warn "  一度ビルドしてください: make docker-build"
 fi
 
 # ---------- ワークツリー専用 DB ----------
@@ -181,7 +181,7 @@ elif [ "$MAIN" = "$ROOT" ]; then
   info "ここは main チェックアウトなのでスキップします。"
 elif ! docker image inspect sklog-mysql >/dev/null 2>&1; then
   warn "sklog-mysql イメージがないためスキップします。"
-  warn "  main チェックアウトで一度ビルドしてください: cd ~/git/sklog && make docker-build"
+  warn "  一度ビルドしてください: make docker-build"
 elif make db-up && make migrate && make seed; then
   info "マイグレーションとシードまで完了しました。"
 else

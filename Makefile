@@ -3,11 +3,11 @@
 #   起動していない (ワークツリー、または main で未起動): web イメージから使い捨てコンテナを起動する
 #     テストは sqlite :memory: を使うので DB が無くても動く
 #
-# 使い捨てコンテナが使うイメージは main チェックアウトの compose が作ったもの
-# (プロジェクト名 sklog → sklog-web)。ワークツリーで compose build しても
-# 別名 (<ディレクトリ名>-web) になるため、一度は main で make docker-build が要る。
+# 使い捨てコンテナが使うイメージは docker-compose.yml の image: で名前を固定しているので、
+# main でもワークツリーでも make docker-build すれば sklog-web ができる。
 WEB_IMAGE ?= sklog-web
 DB_IMAGE ?= sklog-mysql
+MAIL_IMAGE ?= sklog-mail
 WEB_CONTAINER := $(shell docker compose ps -q web 2>/dev/null)
 MAIN_CHECKOUT := $(shell cd "$$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)/.." 2>/dev/null && pwd)
 
@@ -20,18 +20,26 @@ WT_DB_RUNNING := $(shell docker ps -q -f name=^$(WT_DB)$$ 2>/dev/null)
 
 WT_APP := sklog_wt_$(WT_NAME)_app
 WT_MAIL := sklog_wt_$(WT_NAME)_mail
-# ワークツリー名からポートを決める (18081-18099 / 18025 系)。衝突したら APP_PORT= で上書きする
-WT_PORT_OFFSET := $(shell printf '%s' "$(WT_NAME)" | cksum | cut -d' ' -f1 | awk '{print $$1 % 19}')
-APP_PORT ?= $(shell expr 18081 + $(WT_PORT_OFFSET))
-MAIL_PORT ?= $(shell expr 18026 + $(WT_PORT_OFFSET))
+# ワークツリー名からポートを決める (アプリ 19100-19999 / Mailpit 20100-20999)。
+# 衝突したら APP_PORT= / MAIL_PORT= で上書きする
+# (19 通りだとワークツリー同士で重なりやすかったので広げている。18xxx は main の 18443 と、
+#  17xxx は Dropbox などと重なるので避けている)
+WT_PORT_OFFSET := $(shell printf '%s' "$(WT_NAME)" | cksum | cut -d' ' -f1 | awk '{print $$1 % 900}')
+APP_PORT ?= $(shell expr 19100 + $(WT_PORT_OFFSET))
+MAIL_PORT ?= $(shell expr 20100 + $(WT_PORT_OFFSET))
 # cookie はポートを区別しないので、ホスト名でワークツリーと main を分ける。
-# localhost:18080 と localhost:180xx のままだとセッションと remember me の cookie を
+# localhost:18080 と localhost:19xxx のままだとセッションと remember me の cookie を
 # 食い合い、片方を開くともう片方がログアウトする。*.localhost は 127.0.0.1 に解決される。
 # 解決できない環境では APP_HOST=localhost で上書きする
 WT_HOST := $(shell printf '%s' "$(WT_NAME)" | tr 'A-Z' 'a-z' | tr '_.' '--')
 APP_HOST ?= $(WT_HOST).localhost
 
-WT_RUN = docker run --rm -v "$(CURDIR)":/home/itigoppo/git/sklog -w /home/itigoppo/git/sklog/src
+# compose でビルドしたイメージにはプロジェクト名のラベルが付いていて、docker run したコンテナはそれを引き継ぐ。
+# そのままだと Docker Desktop でビルドした側（main など）のまとまりに混ざるので、ワークツリーごとのラベルで上書きする
+WT_PROJECT := sklog-wt-$(WT_HOST)
+WT_LABEL = --label com.docker.compose.project=$(WT_PROJECT) --label com.docker.compose.service=$(1)
+
+WT_RUN = docker run --rm $(call WT_LABEL,php) -v "$(CURDIR)":/home/itigoppo/git/sklog -w /home/itigoppo/git/sklog/src
 ifeq ($(WEB_CONTAINER),)
 ifeq ($(WT_DB_RUNNING),)
 PHP = $(WT_RUN) $(WEB_IMAGE)
@@ -83,7 +91,7 @@ require-php:
 		exit 1; \
 	fi; \
 	if ! docker image inspect $(WEB_IMAGE) >/dev/null 2>&1; then \
-		echo "$(WEB_IMAGE) イメージがありません。main チェックアウト ($(MAIN_CHECKOUT)) で make docker-build してください。"; \
+		echo "$(WEB_IMAGE) イメージがありません。make docker-build してください。"; \
 		echo "別名のイメージを使う場合: make WEB_IMAGE=<image> <target>"; \
 		exit 1; \
 	fi
@@ -105,12 +113,12 @@ db-up: require-php
 		exit 1; \
 	fi
 	@docker image inspect $(DB_IMAGE) >/dev/null 2>&1 || { \
-		echo "$(DB_IMAGE) イメージがありません。main チェックアウト ($(MAIN_CHECKOUT)) で make docker-build してください。"; \
+		echo "$(DB_IMAGE) イメージがありません。make docker-build してください。"; \
 		exit 1; \
 	}
 	@if [ -n "$(WT_DB_RUNNING)" ]; then echo "$(WT_DB) は既に起動しています。"; exit 0; fi; \
 	docker network inspect $(WT_NET) >/dev/null 2>&1 || docker network create $(WT_NET) >/dev/null; \
-	docker run -d --rm --name $(WT_DB) --network $(WT_NET) --network-alias mysql \
+	docker run -d --rm --name $(WT_DB) $(call WT_LABEL,mysql) --network $(WT_NET) --network-alias mysql \
 		-v "$(CURDIR)/docker/db/worktree.cnf":/etc/mysql/conf.d/worktree.cnf:ro \
 		-e TZ=Asia/Tokyo -e MYSQL_DATABASE=sklog -e MYSQL_ROOT_PASSWORD=root \
 		-e MYSQL_USER=user -e MYSQL_PASSWORD=password $(DB_IMAGE) >/dev/null; \
@@ -128,12 +136,14 @@ db-up: require-php
 	exit 1
 
 # Serve this worktree's app (main checkout keeps using docker compose)
+# 「既に起動している」はコンテナが指定のポートで公開されているかまで見る。ポートの応答だけだと別のアプリを拾う
 app-up: require-php require-db
 	@if [ "$(CURDIR)" = "$(MAIN_CHECKOUT)" ]; then \
 		echo "main チェックアウトでは make docker-up を使ってください。"; \
 		exit 1; \
 	fi; \
-	if [ -n "$$(docker ps -q -f name=^$(WT_APP)$$)" ] \
+	if docker port $(WT_APP) 8000 2>/dev/null | grep -q ":$(APP_PORT)$$" \
+		&& docker port $(WT_MAIL) 8025 2>/dev/null | grep -q ":$(MAIL_PORT)$$" \
 		&& curl -s -o /dev/null --max-time 2 http://localhost:$(APP_PORT)/ 2>/dev/null; then \
 		echo "アプリは既に起動しています。"; \
 		$(MAKE) -s app-info; \
@@ -144,12 +154,21 @@ app-up: require-php require-db
 		rm -f src/public/hot; \
 		echo "死んでいる public/hot を削除しました（Vite が強制終了された跡）。"; \
 	fi; \
-	docker run -d --rm --name $(WT_MAIL) --network $(WT_NET) --network-alias mail \
-		-p $(MAIL_PORT):8025 sklog-mail >/dev/null; \
-	docker run -d --rm --name $(WT_APP) --network $(WT_NET) \
+	for p in $(APP_PORT) $(MAIL_PORT); do \
+		if curl -s -o /dev/null --max-time 2 http://localhost:$$p/ 2>/dev/null; then \
+			echo "ポート $$p は別のアプリが使っています（他のワークツリーと重なった可能性があります）。"; \
+			echo "  空いているポートを指定してください: make app-up APP_PORT=<ポート> MAIL_PORT=<ポート>"; \
+			exit 1; \
+		fi; \
+	done; \
+	docker run -d --rm --name $(WT_MAIL) $(call WT_LABEL,mail) --network $(WT_NET) --network-alias mail \
+		-p $(MAIL_PORT):8025 $(MAIL_IMAGE) >/dev/null \
+		|| { echo "Mailpit のコンテナを起動できませんでした。"; exit 1; }; \
+	docker run -d --rm --name $(WT_APP) $(call WT_LABEL,web) --network $(WT_NET) \
 		-v "$(CURDIR)":/home/itigoppo/git/sklog -w /home/itigoppo/git/sklog/src \
 		-p $(APP_PORT):8000 $(WEB_IMAGE) \
-		php artisan serve --host=0.0.0.0 --port=8000 >/dev/null; \
+		php artisan serve --host=0.0.0.0 --port=8000 >/dev/null \
+		|| { echo "アプリのコンテナを起動できませんでした。"; docker rm -f $(WT_MAIL) >/dev/null 2>&1; exit 1; }; \
 	printf "起動を待っています"; \
 	for i in $$(seq 1 30); do \
 		if curl -s -o /dev/null http://localhost:$(APP_PORT)/ 2>/dev/null; then \

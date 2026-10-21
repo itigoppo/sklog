@@ -41,7 +41,7 @@ Orca の repo 設定 → Setup script に `bash .orca/setup.sh` が登録済み�
 
 ワークツリーでも `make test` / `make lint` / `make format` / `make build` は動きます。web コンテナが起動していない場所では、Makefile が `sklog-web` イメージから使い捨てコンテナを起動して実行するためです（テストは sqlite `:memory:` なので DB 不要）。
 
-ただしその `sklog-web` イメージは **main チェックアウトの compose が作るもの**です（ワークツリーで `compose build` しても `<ディレクトリ名>-web` という別名になります）。したがって **一度は main 側で `make docker-build`（または `./setup.sh`）を通しておく必要があります**。無い場合は Makefile がその旨を出して止まります。別名のイメージを使いたいときは `make WEB_IMAGE=<image> test` で上書きできます。
+ただしその `sklog-web` イメージは compose が作るものなので、**一度は `make docker-build`（または main で `./setup.sh`）を通しておく必要があります**。イメージ名は `docker-compose.yml` の `image:` で固定しているので、main とワークツリーのどちらでビルドしても同じ名前になります。無い場合は Makefile がその旨を出して止まります。別名のイメージを使いたいときは `make WEB_IMAGE=<image> test` で上書きできます。
 
 DB はセットアップスクリプトが用意します。ワークツリー専用の MySQL を起動し、マイグレーションとシードまで済ませるので、作成直後から `make migrate` などが使えます。main の DB とは完全に別物なので、何をしても main 側には影響しません。
 
@@ -77,9 +77,9 @@ make dev        # アプリ + Vite をまとめて起動（Vite はフォアグ�
 
 アプリが不要なワークツリーは `bash .orca/setup.sh --no-app`（DB も要らなければ `--no-db`）で立てずに済ませられます。
 
-`php artisan serve` をワークツリー専用ネットワークで動かすので、DB も Mailpit もそのワークツリーのものを使います。ポートはワークツリー名から決まります（アプリ 18081〜18099、Mailpit 18026〜18044）。衝突したら `make APP_PORT=18090 app-up` のように上書きしてください。
+`php artisan serve` をワークツリー専用ネットワークで動かすので、DB も Mailpit もそのワークツリーのものを使います。ポートはワークツリー名から決まります（アプリ 19100〜19999、Mailpit 20100〜20999）。ポートがすでに使われていると `make app-up` は止まるので、`make APP_PORT=19500 MAIL_PORT=20500 app-up` のように上書きしてください。
 
-**アプリの URL は `http://<ワークツリー名>.localhost:<ポート>` です。** cookie はポートを区別しないので、`localhost:18089` で開くと main（`localhost:18080`）とセッションや remember me の cookie を食い合い、片方を開くともう片方がログアウトします。DB は別物なので復元もできません。ホスト名を分けることで cookie を分離しています（`*.localhost` は 127.0.0.1 に解決されます）。`.orca/setup.sh` がワークツリーの `src/.env` の `APP_URL` と `SESSION_COOKIE` をこれに合わせて書き換えます。
+**アプリの URL は `http://<ワークツリー名>.localhost:<ポート>` です。** cookie はポートを区別しないので、`localhost:19xxx` で開くと main（`localhost:18080`）とセッションや remember me の cookie を食い合い、片方を開くともう片方がログアウトします。DB は別物なので復元もできません。ホスト名を分けることで cookie を分離しています（`*.localhost` は 127.0.0.1 に解決されます）。`.orca/setup.sh` がワークツリーの `src/.env` の `APP_URL` と `SESSION_COOKIE` をこれに合わせて書き換えます。
 
 `*.localhost` が解決できない環境では `make APP_HOST=localhost app-info` のように上書きできます（その場合は main と cookie を食い合います）。
 
