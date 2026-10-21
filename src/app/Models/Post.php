@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 
@@ -598,42 +599,10 @@ class Post extends Model
   public static function threadNumbers(iterable $posts): array
   {
     $posts = collect($posts);
+    $byUri = self::ownThreadPostsByUri($posts);
 
-    // 番号の対象になるスレッド (root uri) を集める。リポストは対象外
-    $rootUris = [];
-    $userIds = [];
-    foreach ($posts as $post) {
-      if ($post->is_repost) {
-        continue;
-      }
-      if ($rootUri = self::threadRootUri($post)) {
-        $rootUris[$rootUri] = true;
-        $userIds[$post->user_id] = true;
-      }
-    }
-
-    if (empty($rootUris)) {
+    if (empty($byUri)) {
       return [];
-    }
-
-    $rootUris = array_keys($rootUris);
-
-    // スレッドに属する自分の投稿を一括取得する（ルート自身は uri 側で一致する）
-    $threadPosts = self::query()
-      ->whereIn('user_id', array_keys($userIds))
-      ->where(function (Builder $query) use ($rootUris) {
-        $query->whereIn('raw_data->reply->root->uri', $rootUris)
-          ->orWhereIn('uri', $rootUris);
-      })
-      ->orderBy('posted_at')
-      ->get(['id', 'uri', 'user_id', 'raw_data', 'posted_at']);
-
-    $byUri = [];
-    foreach ($threadPosts as $threadPost) {
-      if ($threadPost->is_repost || ! $threadPost->uri) {
-        continue;
-      }
-      $byUri[$threadPost->uri] = $threadPost;
     }
 
     // 親リンクを上へ辿り、連投の起点と起点からの位置を求める
@@ -678,6 +647,139 @@ class Post extends Model
   }
 
   /**
+   * 渡した投稿が属するスレッドの、自分の投稿をすべて uri をキーにして返します。
+   *
+   * 投稿日やページをまたいだ連投も拾えるよう、スレッド全体を root uri から引き直します。
+   * リポストは対象外です。
+   *
+   * @param  Collection<int, self>  $posts
+   * @return array<string, self> 投稿日の古い順
+   */
+  private static function ownThreadPostsByUri(Collection $posts): array
+  {
+    // 対象になるスレッド (root uri) を集める。リポストは対象外
+    $rootUris = [];
+    $userIds = [];
+    foreach ($posts as $post) {
+      if ($post->is_repost) {
+        continue;
+      }
+      if ($rootUri = self::threadRootUri($post)) {
+        $rootUris[$rootUri] = true;
+        $userIds[$post->user_id] = true;
+      }
+    }
+
+    if (empty($rootUris)) {
+      return [];
+    }
+
+    $rootUris = array_keys($rootUris);
+
+    // スレッドに属する自分の投稿を一括取得する（ルート自身は uri 側で一致する）
+    $threadPosts = self::query()
+      ->whereIn('user_id', array_keys($userIds))
+      ->where(function (Builder $query) use ($rootUris) {
+        $query->whereIn('raw_data->reply->root->uri', $rootUris)
+          ->orWhereIn('uri', $rootUris);
+      })
+      ->orderBy('posted_at')
+      ->get(['id', 'uri', 'user_id', 'text', 'raw_data', 'posted_at']);
+
+    $byUri = [];
+    foreach ($threadPosts as $threadPost) {
+      if ($threadPost->is_repost || ! $threadPost->uri) {
+        continue;
+      }
+      $byUri[$threadPost->uri] = $threadPost;
+    }
+
+    return $byUri;
+  }
+
+  /**
+   * 投稿を、自分の連投（スレッド）ごとのかたまりにまとめます。削除モードの一覧用です。
+   *
+   * かたまりにはスレッドに属する自分の投稿をすべて含めます。日付やページをまたいでいて
+   * 渡した投稿に含まれていないものも入るため、画面に見えていない続きを取りこぼしません。
+   * かたまりは起点の投稿日の新しい順、かたまりの中は親から子へ辿った順に並べます。
+   *
+   * @param  iterable<self>  $posts
+   * @return array<int, array{start: self, rows: array<int, array{post: self, parent_uri: ?string, depth: int}>}>
+   */
+  public static function threadGroups(iterable $posts): array
+  {
+    $posts = collect($posts)->reject(fn (self $post) => $post->is_repost)->values();
+    $byUri = self::ownThreadPostsByUri($posts);
+
+    // スレッドに属さない投稿（単発・reply を持たないもの）も1件のかたまりとして扱う
+    foreach ($posts as $post) {
+      if ($post->uri && ! isset($byUri[$post->uri])) {
+        $byUri[$post->uri] = $post;
+      }
+    }
+
+    // 親リンクを上へ辿って起点を求め、子の一覧を作る
+    $startOf = [];
+    $childrenOf = [];
+    foreach ($byUri as $uri => $threadPost) {
+      $parentUri = $threadPost->raw_data['reply']['parent']['uri'] ?? null;
+      if ($parentUri && isset($byUri[$parentUri])) {
+        $childrenOf[$parentUri][] = $uri;
+      }
+
+      $chain = [];
+      $current = $threadPost;
+      $startUri = $uri;
+      while ($current && ! isset($chain[$current->uri])) {
+        $chain[$current->uri] = true;
+        $startUri = $current->uri;
+        $currentParentUri = $current->raw_data['reply']['parent']['uri'] ?? null;
+        $current = $currentParentUri ? ($byUri[$currentParentUri] ?? null) : null;
+      }
+      $startOf[$uri] = $startUri;
+    }
+
+    // 渡した投稿を含むかたまりだけを残す
+    $startUris = [];
+    foreach ($posts as $post) {
+      if ($post->uri) {
+        $startUris[$startOf[$post->uri]] = true;
+      }
+    }
+
+    $groups = [];
+    foreach (array_keys($startUris) as $startUri) {
+      $rows = [];
+      $visited = [];
+      $walk = function (string $uri, int $depth) use (&$walk, &$rows, &$visited, $byUri, $childrenOf) {
+        if (isset($visited[$uri])) {
+          return;
+        }
+        $visited[$uri] = true;
+
+        $rows[] = [
+          'post' => $byUri[$uri],
+          'parent_uri' => $depth === 0 ? null : ($byUri[$uri]->raw_data['reply']['parent']['uri'] ?? null),
+          'depth' => $depth,
+        ];
+
+        // byUri は投稿日の古い順なので、子もその順に並ぶ
+        foreach ($childrenOf[$uri] ?? [] as $childUri) {
+          $walk($childUri, 1);
+        }
+      };
+      $walk($startUri, 0);
+
+      $groups[] = ['start' => $byUri[$startUri], 'rows' => $rows];
+    }
+
+    usort($groups, fn (array $a, array $b) => $b['start']->posted_at <=> $a['start']->posted_at);
+
+    return $groups;
+  }
+
+  /**
    * その投稿が属するスレッドの起点 (root) の uri を返します。
    */
   private static function threadRootUri(self $post): ?string
@@ -697,6 +799,40 @@ class Post extends Model
     return $query->where(function (Builder $query) {
       foreach (self::IMAGE_EMBED_TYPES as $type) {
         $query->orWhere('raw_data', 'like', '%'.$type.'%');
+      }
+    });
+  }
+
+  /**
+   * 検索キーワードで絞り込むローカルスコープ。
+   *
+   * 空白区切りの各キーワードを AND / OR でつなぎます。
+   * ハッシュタグ形式 (例: "#SkLog") のキーワードはタグで厳密に、それ以外は本文の部分一致で探します。
+   */
+  public function scopeSearchKeywords(Builder $query, string $q, string $searchMode = 'and'): Builder
+  {
+    $keywords = collect(explode(' ', str_replace('　', ' ', trim($q))))
+      ->filter(fn ($value) => $value !== '')
+      ->values();
+
+    if ($keywords->isEmpty()) {
+      return $query;
+    }
+
+    return $query->where(function (Builder $query) use ($keywords, $searchMode) {
+      foreach ($keywords as $index => $keyword) {
+        $tagName = Tag::parseHashtag($keyword);
+        $boolean = ($index > 0 && $searchMode === 'or') ? 'or' : 'and';
+
+        if ($tagName) {
+          // ハッシュタグの場合は、tags リレーションで厳密に絞り込む
+          $query->has('tags', '>=', 1, $boolean, function (Builder $q) use ($tagName) {
+            $q->whereRaw('lower(name) = ?', [strtolower($tagName)]);
+          });
+        } else {
+          // 通常の単語の場合は、LIKE で部分一致検索
+          $query->where('text', 'like', '%'.$keyword.'%', $boolean);
+        }
       }
     });
   }

@@ -195,9 +195,12 @@
           <x-icon name="success" class="h-4 w-4 text-emerald-400" />
           <span>{{ session('success') }}</span>
         </div>
-        @if (session('deleted_post_id'))
-          <form action="{{ route('calendar.post.restore', ['handle' => $bskyAccount->handle, 'post_id' => session('deleted_post_id')]) }}" method="POST" class="m-0 shrink-0 select-none">
+        @if (session('deleted_post_ids'))
+          <form action="{{ route('calendar.post.restore', ['handle' => $bskyAccount->handle]) }}" method="POST" class="m-0 shrink-0 select-none">
             @csrf
+            @foreach (session('deleted_post_ids') as $deletedPostId)
+              <input type="hidden" name="post_ids[]" value="{{ $deletedPostId }}">
+            @endforeach
             <button type="submit" class="px-2 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-500/30 text-emerald-300 hover:text-white text-[10px] font-extrabold tracking-wider transition duration-200 cursor-pointer active:scale-95 flex items-center gap-1">
               <x-icon name="sync" class="h-3 w-3" />
               元に戻す (Undo)

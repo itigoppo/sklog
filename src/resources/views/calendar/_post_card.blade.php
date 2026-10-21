@@ -418,25 +418,6 @@
         <x-icon name="clock" class="h-3.5 w-3.5 text-slate-500 shrink-0" stroke-width="2" />
         <span>{{ $post->posted_at->format('Y年m月d日 H:i:s') }}</span>
       </span>
-
-      @if ($isOwner)
-        <span class="text-slate-800 font-bold hidden sm:inline">•</span>
-        <form action="{{ route('calendar.post.destroy', ['handle' => $user->blueskyAccount->handle, 'post' => $post->id]) }}" 
-              method="POST" 
-              class="inline js-confirm-form">
-          @csrf
-          @method('DELETE')
-          <button type="submit" 
-                  data-confirm-title="投稿の削除"
-                  data-confirm-message="この投稿をカレンダーから削除しますか？<br><span class='text-[10px] text-slate-500 font-bold'>※Bluesky側の投稿は削除されません。</span>"
-                  data-confirm-action="削除する"
-                  data-confirm-btn-color="bg-rose-600 hover:bg-rose-500"
-                  class="flex items-center gap-1 text-[10px] font-bold text-slate-500 hover:text-rose-400 cursor-pointer transition duration-300 bg-transparent border-0 p-0">
-            <x-icon name="trash" class="h-3 w-3 shrink-0 text-slate-500" />
-            <span>削除</span>
-          </button>
-        </form>
-      @endif
     </div>
 
     <div class="flex items-center gap-3">

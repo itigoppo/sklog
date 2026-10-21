@@ -11,6 +11,16 @@ class BlueskyService
   protected const BSKY_API_HOST = 'https://bsky.social/xrpc/';
 
   /**
+   * getPosts に一度に渡せる URI の上限。
+   */
+  public const MAX_GET_POSTS = 25;
+
+  /**
+   * applyWrites で一度に送れる書き込みの上限。
+   */
+  public const MAX_WRITES = 200;
+
+  /**
    * Blueskyアカウントの認証を行い、セッション情報を返却します。
    *
    * @throws Exception
@@ -132,5 +142,41 @@ class BlueskyService
     }
 
     return $response->json();
+  }
+
+  /**
+   * 自分のリポジトリにある複数のレコードを、applyWrites でまとめて削除します。
+   *
+   * 1件でも存在しないレコードが含まれていると全体が失敗するため、
+   * 呼び出し側で存在を確かめたものだけを渡してください。
+   *
+   * @param  string  $repo  (自分の did)
+   * @param  array<int, array{collection: string, rkey: string}>  $records  (MAX_WRITES 件まで)
+   *
+   * @throws Exception
+   */
+  public function deleteRecords(string $repo, array $records, string $token): void
+  {
+    if (empty($records)) {
+      return;
+    }
+
+    $writes = array_map(fn (array $record) => [
+      '$type' => 'com.atproto.repo.applyWrites#delete',
+      'collection' => $record['collection'],
+      'rkey' => $record['rkey'],
+    ], array_values($records));
+
+    $response = Http::asJson()
+      ->withToken($token)
+      ->post(self::BSKY_API_HOST.'com.atproto.repo.applyWrites', [
+        'repo' => $repo,
+        'writes' => $writes,
+      ]);
+
+    if ($response->failed()) {
+      Log::error('Bluesky API Error (applyWrites): '.$response->body());
+      throw new Exception('Blueskyでの削除に失敗しました。');
+    }
   }
 }

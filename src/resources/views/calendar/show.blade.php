@@ -139,7 +139,7 @@
           </nav>
         @endif
 
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
           <!-- 「画像のみ」トグルボタン -->
           @php
             $isMediaFiltered = request('media') === '1';
@@ -152,6 +152,20 @@
             <x-icon name="image" class="h-3.5 w-3.5" />
             <span>画像のみ</span>
           </a>
+
+          @if ($isOwner)
+            <!-- 削除モード（今の絞り込み条件を引き継ぐ） -->
+            <a href="{{ route('calendar.manage', array_filter([
+                'handle' => $bskyAccount->handle,
+                'period' => $isMainPage ? null : $currentMonth->format('Y-m'),
+                'q' => request('q'),
+                'mode' => request('q') && request('mode') === 'or' ? 'or' : null,
+                'media' => request('media') === '1' ? '1' : null,
+            ])) }}" class="px-3 py-1.5 rounded-lg bg-slate-900/40 border border-slate-800 hover:border-rose-500/30 hover:bg-rose-500/10 text-slate-400 hover:text-rose-400 text-xs font-bold transition duration-300 flex items-center gap-1.5 cursor-pointer active:scale-95" title="複数の投稿を選んでまとめて削除">
+              <x-icon name="trash" class="h-3.5 w-3.5" />
+              <span>削除モード</span>
+            </a>
+          @endif
 
           @if(request('q'))
             <!-- 検索解除ボタン -->

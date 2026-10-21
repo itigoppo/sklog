@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CalendarController;
+use App\Http\Controllers\PostManageController;
 use App\Http\Controllers\WaitlistController;
 use App\Http\Middleware\AdminAuth;
 use App\Models\BlueskyAccount;
@@ -134,13 +135,17 @@ Route::prefix('/profile/{handle}')->where(['handle' => $handlePattern])->group(f
     ->middleware('auth')
     ->name('calendar.settings.delete_account');
 
-  // ポストのローカル削除（ログイン中の本人限定）
-  Route::delete('/posts/{post}/delete', [CalendarController::class, 'destroy'])
+  // 削除モード：投稿の一括削除・リポストの一括取り消し（ログイン中の本人限定）
+  Route::get('/manage', [PostManageController::class, 'index'])
     ->middleware('auth')
-    ->name('calendar.post.destroy');
+    ->name('calendar.manage');
 
-  // ポストの復元（ログイン中の本人限定）
-  Route::post('/posts/{post_id}/restore', [CalendarController::class, 'restore'])
+  Route::delete('/manage', [PostManageController::class, 'destroy'])
+    ->middleware('auth')
+    ->name('calendar.manage.destroy');
+
+  // カレンダーから非表示にしたポストの一括復元（ログイン中の本人限定）
+  Route::post('/posts/restore', [PostManageController::class, 'restore'])
     ->middleware('auth')
     ->name('calendar.post.restore');
 });
