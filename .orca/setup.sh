@@ -162,13 +162,13 @@ fi
 
 # ---------- web イメージの確認 ----------
 # make test / lint はこのイメージから使い捨てコンテナを起動する。
-# イメージは compose が作る（名前は docker-compose.yml の image: で固定）ので、一度もビルドしていないと存在しない。
+# イメージは main チェックアウトの compose が作る（名前は docker-compose.yml の image: で固定）ので、一度もビルドしていないと存在しない。
 step "web イメージを確認します"
 if docker image inspect sklog-web >/dev/null 2>&1; then
   info "sklog-web: OK"
 else
   warn "sklog-web イメージがありません。make test / make lint はこのままでは動きません。"
-  warn "  一度ビルドしてください: make docker-build"
+  warn "  main チェックアウトで一度ビルドしてください: cd $MAIN && make docker-build"
 fi
 
 # ---------- ワークツリー専用 DB ----------
@@ -181,7 +181,7 @@ elif [ "$MAIN" = "$ROOT" ]; then
   info "ここは main チェックアウトなのでスキップします。"
 elif ! docker image inspect sklog-mysql >/dev/null 2>&1; then
   warn "sklog-mysql イメージがないためスキップします。"
-  warn "  一度ビルドしてください: make docker-build"
+  warn "  main チェックアウトで一度ビルドしてください: cd $MAIN && make docker-build"
 elif make db-up && make migrate && make seed; then
   info "マイグレーションとシードまで完了しました。"
 else

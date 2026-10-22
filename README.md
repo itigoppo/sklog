@@ -41,7 +41,7 @@ Orca の repo 設定 → Setup script に `bash .orca/setup.sh` が登録済み�
 
 ワークツリーでも `make test` / `make lint` / `make format` / `make build` は動きます。web コンテナが起動していない場所では、Makefile が `sklog-web` イメージから使い捨てコンテナを起動して実行するためです（テストは sqlite `:memory:` なので DB 不要）。
 
-ただしその `sklog-web` イメージは compose が作るものなので、**一度は `make docker-build`（または main で `./setup.sh`）を通しておく必要があります**。イメージ名は `docker-compose.yml` の `image:` で固定しているので、main とワークツリーのどちらでビルドしても同じ名前になります。無い場合は Makefile がその旨を出して止まります。別名のイメージを使いたいときは `make WEB_IMAGE=<image> test` で上書きできます。
+ただしその `sklog-web` イメージは **main チェックアウトの compose が作るもの**です。したがって **一度は main 側で `make docker-build`（または `./setup.sh`）を通しておく必要があります**。イメージは main とワークツリーで共有するので、ワークツリーでは `make docker-build` は止まります。Dockerfile を試すときは `docker build -t sklog-web-<名前> -f docker/web/Dockerfile .` のように別名でビルドし、`make WEB_IMAGE=sklog-web-<名前> test` で指定してください。無い場合は Makefile がその旨を出して止まります。別名のイメージを使いたいときは `make WEB_IMAGE=<image> test` で上書きできます。
 
 DB はセットアップスクリプトが用意します。ワークツリー専用の MySQL を起動し、マイグレーションとシードまで済ませるので、作成直後から `make migrate` などが使えます。main の DB とは完全に別物なので、何をしても main 側には影響しません。
 

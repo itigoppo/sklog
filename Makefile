@@ -3,8 +3,9 @@
 #   起動していない (ワークツリー、または main で未起動): web イメージから使い捨てコンテナを起動する
 #     テストは sqlite :memory: を使うので DB が無くても動く
 #
-# 使い捨てコンテナが使うイメージは docker-compose.yml の image: で名前を固定しているので、
-# main でもワークツリーでも make docker-build すれば sklog-web ができる。
+# 使い捨てコンテナが使うイメージは main チェックアウトの make docker-build が作る sklog-web など
+# (名前は docker-compose.yml の image: で固定)。main とワークツリーで共有するので、
+# ワークツリーでは docker-build を止めている。Dockerfile を試すときは別名でビルドして WEB_IMAGE= で指定する
 WEB_IMAGE ?= sklog-web
 DB_IMAGE ?= sklog-mysql
 MAIL_IMAGE ?= sklog-mail
@@ -75,11 +76,17 @@ setup-worktree:
 
 # Fail early when a target is only for the main checkout
 # docker-compose.yml は container_name とポートが固定で、カレントディレクトリをマウントするので、
-# ワークツリーで compose のスタックを立てると main とぶつかる
+# ワークツリーで compose のスタックを立てると main とぶつかる。イメージは main とワークツリーで共有するので、
+# ワークツリーでビルドすると全員のイメージが書き換わる
 require-main:
 	@if [ "$(CURDIR)" = "$(MAIN_CHECKOUT)" ]; then exit 0; fi; \
 	echo "ここはワークツリーです。この操作は main チェックアウト ($(MAIN_CHECKOUT)) で実行してください。"; \
 	echo "  ワークツリーでは make setup-worktree / make db-up / make app-up を使います。"; \
+	if [ -n "$(filter docker-build,$(MAKECMDGOALS))" ]; then \
+		echo "  Dockerfile を試すときは別名でビルドしてください:"; \
+		echo "    docker build -t sklog-web-$(WT_HOST) -f docker/web/Dockerfile ."; \
+		echo "    make WEB_IMAGE=sklog-web-$(WT_HOST) test"; \
+	fi; \
 	exit 1
 
 # Fail early when a target needs the running stack (DB, long-running processes)
@@ -100,7 +107,7 @@ require-php:
 		exit 1; \
 	fi; \
 	if ! docker image inspect $(WEB_IMAGE) >/dev/null 2>&1; then \
-		echo "$(WEB_IMAGE) イメージがありません。make docker-build してください。"; \
+		echo "$(WEB_IMAGE) イメージがありません。main チェックアウト ($(MAIN_CHECKOUT)) で make docker-build してください。"; \
 		echo "別名のイメージを使う場合: make WEB_IMAGE=<image> <target>"; \
 		exit 1; \
 	fi
@@ -122,7 +129,7 @@ db-up: require-php
 		exit 1; \
 	fi
 	@docker image inspect $(DB_IMAGE) >/dev/null 2>&1 || { \
-		echo "$(DB_IMAGE) イメージがありません。make docker-build してください。"; \
+		echo "$(DB_IMAGE) イメージがありません。main チェックアウト ($(MAIN_CHECKOUT)) で make docker-build してください。"; \
 		exit 1; \
 	}
 	@if [ -n "$(WT_DB_RUNNING)" ]; then echo "$(WT_DB) は既に起動しています。"; exit 0; fi; \
@@ -247,7 +254,7 @@ docker-down: require-main
 	docker compose down
 
 # Build Docker containers
-docker-build:
+docker-build: require-main
 	docker compose build
 
 # Rebuild Docker containers
