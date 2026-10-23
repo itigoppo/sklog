@@ -6,9 +6,9 @@
 # git 管理外のファイル（src/.env, vendor, node_modules）は新しいワークツリーには
 # 存在しないため、ここで揃えます。
 #
-# Docker はワークツリーでは起動しません。docker-compose.yml は container_name と
-# ポートが固定のため、main チェックアウトの環境と衝突します。
-# アプリの動作確認は main チェックアウト側 (~/git/sklog) の Docker 環境で行ってください。
+# Docker はワークツリー専用の MySQL・アプリ・Mailpit を docker run で起動します（make db-up / app-up）。
+# docker-compose.yml は container_name とポートが固定で main チェックアウトの環境と衝突するので、
+# compose のスタックは使いません。あとから起動・停止するときは make docker-up / docker-down です。
 #
 # 使い方:
 #   bash .orca/setup.sh           # 通常（vendor が既にあれば composer install はスキップ）
@@ -137,10 +137,13 @@ fi
 # ---------- PHP (使い捨てコンテナ) ----------
 # ホストに php / composer が無いため、composer イメージで vendor を作る。
 # 静的解析や IDE 補完のために vendor があると都合がよい。
+DOCKER_UP=1
+docker info >/dev/null 2>&1 || DOCKER_UP=0
+
 step "PHP の依存関係をインストールします (composer install)"
 if [ -f src/vendor/autoload.php ] && [ "$FORCE" -eq 0 ]; then
   info "src/vendor は既にあるためスキップします (--force でやり直せます)。"
-elif ! docker info >/dev/null 2>&1; then
+elif [ "$DOCKER_UP" -eq 0 ]; then
   warn "Docker が起動していないためスキップします。"
   warn "  あとで実行する場合: bash .orca/setup.sh --force"
 else
@@ -164,7 +167,9 @@ fi
 # make test / lint はこのイメージから使い捨てコンテナを起動する。
 # イメージは main チェックアウトの compose が作る（名前は docker-compose.yml の image: で固定）ので、一度もビルドしていないと存在しない。
 step "web イメージを確認します"
-if docker image inspect sklog-web >/dev/null 2>&1; then
+if [ "$DOCKER_UP" -eq 0 ]; then
+  warn "Docker が起動していないため確認できません。make test / make lint には Docker が要ります。"
+elif docker image inspect sklog-web >/dev/null 2>&1; then
   info "sklog-web: OK"
 else
   warn "sklog-web イメージがありません。make test / make lint はこのままでは動きません。"
@@ -175,15 +180,23 @@ fi
 # main の DB とは別の、このワークツリー専用の MySQL を立てる。
 # 軽量設定 (docker/db/worktree.cnf) を効かせて 1台あたり約 110MB に抑えている。
 step "ワークツリー専用の MySQL を起動します"
+DB_OK=0
+APP_OK=0
 if [ "$WITH_DB" -eq 0 ]; then
-  info "--no-db が指定されたのでスキップします（あとで make db-up で起動できます）。"
+  info "--no-db が指定されたのでスキップします（あとで make docker-up で起動できます）。"
 elif [ "$MAIN" = "$ROOT" ]; then
   info "ここは main チェックアウトなのでスキップします。"
+elif [ "$DOCKER_UP" -eq 0 ]; then
+  warn "Docker が起動していないためスキップします。"
+  warn "  Docker を起動してから make docker-up してください（DB・マイグレーション・シード・アプリまで起動します）。"
+  WITH_APP=0
 elif ! docker image inspect sklog-mysql >/dev/null 2>&1; then
   warn "sklog-mysql イメージがないためスキップします。"
   warn "  main チェックアウトで一度ビルドしてください: cd $MAIN && make docker-build"
+  WITH_APP=0
 elif make db-up && make migrate && make seed; then
   info "マイグレーションとシードまで完了しました。"
+  DB_OK=1
 else
   warn "DB のセットアップに失敗しました。make db-up / make migrate を手で試してください。"
   WITH_APP=0
@@ -194,11 +207,11 @@ fi
 # ワークツリーの変更を画面で見るには専用のアプリが要る。
 step "ワークツリー専用のアプリを起動します"
 if [ "$WITH_APP" -eq 0 ]; then
-  info "スキップします（あとで make app-up で起動できます）。"
+  info "スキップします（あとで make docker-up で起動できます）。"
 elif [ "$MAIN" = "$ROOT" ]; then
   info "ここは main チェックアウトなのでスキップします。"
 elif make app-up; then
-  :
+  APP_OK=1
 else
   warn "アプリの起動に失敗しました。make app-up を手で試してください。"
 fi
@@ -213,6 +226,10 @@ cat <<'MSG'
   make test     # テスト（sqlite :memory:）
   make lint     # Pint のチェック
   make format   # Pint の自動修正
+MSG
+
+if [ "$DB_OK" -eq 1 ]; then
+  cat <<'MSG'
 
 専用の MySQL（約110MB）が起動していて、マイグレーションとシードも済んでいます。
 main の DB とは別物なので、いくら壊しても main には影響しません。
@@ -220,16 +237,22 @@ main の DB とは別物なので、いくら壊しても main には影響し�
   make migrate  # このワークツリーの DB に対して実行される
   make seed     # シードを流し直す
 MSG
+else
+  cat <<'MSG'
 
-if [ "$WITH_APP" -eq 1 ] && docker ps --format '{{.Names}}' | grep -q "^sklog_wt_.*_app$"; then
+専用の MySQL は起動していません。DB を使うときは make docker-up してください。
+MSG
+fi
+
+if [ "$APP_OK" -eq 1 ]; then
   echo ""
   echo "専用のアプリ（Laravel + Mailpit）も起動済みです。"
   echo ""
   make -s app-info
   cat <<'MSG'
 
-  make run       # CSS/JS を触るときに別ターミナルで（Vite。HMR が効きます）
-  make dev       # アプリと Vite をまとめて起動したいとき
+  make run          # CSS/JS を触るときに別ターミナルで（Vite。HMR が効きます）
+  make dev          # アプリと Vite をまとめて起動したいとき
   make app-down     # アプリを止めてメモリを空ける（DB は残る）
   make docker-down  # アプリ・Mailpit・DB を全部止める（DB のデータも消える）
 
@@ -243,7 +266,7 @@ MSG
 else
   cat <<'MSG'
 
-アプリは起動していません。画面を確認するときは make app-up してください。
+アプリは起動していません。画面を確認するときは make docker-up してください。
 MSG
 fi
 
