@@ -183,3 +183,6 @@ fabric.properties
 /src/node_modules/
 /src/.env
 
+
+# 作業用の一時ファイル (スクショなど)
+/tmp/
