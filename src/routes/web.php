@@ -3,10 +3,12 @@
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CalendarController;
+use App\Http\Controllers\DevLoginController;
 use App\Http\Controllers\PostManageController;
 use App\Http\Controllers\WaitlistController;
 use App\Http\Middleware\AdminAuth;
 use App\Models\BlueskyAccount;
+use App\Support\LocalDev;
 use Illuminate\Support\Facades\Route;
 
 // 1. ルートURLへのアクセス
@@ -40,6 +42,12 @@ Route::middleware('auth')->group(function () {
   Route::post('/accounts/add/register', [AuthController::class, 'addAccountRegister'])->name('accounts.add.register');
   Route::post('/accounts/switch', [AuthController::class, 'switchAccount'])->name('accounts.switch');
 });
+
+// 3-3. ローカル開発用ログイン（APP_ENV=local かつ DEV_LOGIN=true のときだけ登録する）
+if (LocalDev::loginEnabled()) {
+  Route::get('/dev/login', [DevLoginController::class, 'index'])->name('dev.login');
+  Route::get('/dev/login/{handle}', [DevLoginController::class, 'login'])->name('dev.login.as');
+}
 
 // 4. 参加申請（ウェイトリスト - 固定）
 Route::get('/join', [WaitlistController::class, 'show'])->name('waitlist.show');

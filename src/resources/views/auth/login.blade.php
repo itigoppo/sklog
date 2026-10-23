@@ -235,6 +235,13 @@
           アカウントをお持ちでない方（参加申請はこちら）
         </a>
       @endif
+      @if (\App\Support\LocalDev::loginEnabled())
+        <br>
+        <a href="{{ route('dev.login') }}" class="inline-flex items-center gap-1.5 text-xs text-amber-400 hover:text-amber-300 font-semibold transition duration-300 cursor-pointer">
+          <x-icon name="key" class="h-3.5 w-3.5" stroke-width="2.5" />
+          開発用ログイン（Bluesky の認証なし）
+        </a>
+      @endif
       <br>
       <div class="flex items-center justify-center gap-4 text-xs font-semibold select-none">
         <a href="{{ route('about') }}" class="text-slate-500 hover:text-sky-400 transition duration-300 cursor-pointer">

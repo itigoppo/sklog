@@ -45,6 +45,8 @@ return [
 
     'bluesky' => [
         'demo_handle' => env('BLUESKY_DEMO_HANDLE', 'sklog.nono150.com'),
+        // ローカル開発用: 本物の Bluesky につながない偽物に差し替える (APP_ENV=local のときだけ効く)
+        'fake' => (bool) env('BLUESKY_FAKE', false),
     ],
 
 ];
