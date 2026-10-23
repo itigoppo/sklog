@@ -859,6 +859,78 @@ class DatabaseSeeder extends Seeder
             }
             $previousPost = $currentPost;
         }
+
+        // ==========================================
+        // 7. 削除モードのページ送り検証用 (4日前〜33日前)
+        // ==========================================
+        // 削除モードは1ページ50件。ここまでの自分の投稿 (約33件) と合わせて2ページ目ができるよう、
+        // 1日2件ずつ足す。12日前は4件のスレッドにして、ページの切れ目がスレッドにかかるようにする
+        $pagingThreadDay = 12;
+
+        for ($daysAgo = 4; $daysAgo <= 33; $daysAgo++) {
+            $day = $now->copy()->subDays($daysAgo)->startOfDay();
+
+            if ($daysAgo === $pagingThreadDay) {
+                $rootPost = null;
+                $previousPost = null;
+
+                for ($i = 1; $i <= 4; $i++) {
+                    $postUri = 'at://did:plc:testuser1234567890/app.bsky.feed.post/manage_paging_thread_'.$i;
+                    $postedAt = $day->copy()->addHours(21)->addMinutes(($i - 1) * 10);
+                    $text = "削除モードのページまたぎスレッド #{$i}/4。ページの切れ目がこのスレッドにかかります。";
+
+                    $currentPost = Post::create([
+                        'user_id' => $user->id,
+                        'uri' => $postUri,
+                        'cid' => 'cidmanagepagingthread'.$i,
+                        'text' => $text,
+                        'raw_data' => [
+                            'post' => [
+                                'uri' => $postUri,
+                                'cid' => 'cidmanagepagingthread'.$i,
+                                'author' => $this->createAuthorField($bskyAccount, $testUserDisplayName),
+                                'record' => [
+                                    'text' => $text,
+                                    'createdAt' => $postedAt->toIso8601String(),
+                                ],
+                            ],
+                            'reply' => $previousPost ? $this->createReplyField($previousPost, $rootPost) : null,
+                        ],
+                        'posted_at' => $postedAt,
+                    ]);
+
+                    $rootPost ??= $currentPost;
+                    $previousPost = $currentPost;
+                }
+
+                continue;
+            }
+
+            foreach ([9, 20] as $hour) {
+                $postUri = "at://did:plc:testuser1234567890/app.bsky.feed.post/manage_paging_{$daysAgo}_{$hour}";
+                $postedAt = $day->copy()->addHours($hour);
+                $text = "{$daysAgo}日前の{$hour}時のつぶやき（削除モードのページ送り確認用）";
+
+                Post::create([
+                    'user_id' => $user->id,
+                    'uri' => $postUri,
+                    'cid' => "cidmanagepaging{$daysAgo}{$hour}",
+                    'text' => $text,
+                    'raw_data' => [
+                        'post' => [
+                            'uri' => $postUri,
+                            'cid' => "cidmanagepaging{$daysAgo}{$hour}",
+                            'author' => $this->createAuthorField($bskyAccount, $testUserDisplayName),
+                            'record' => [
+                                'text' => $text,
+                                'createdAt' => $postedAt->toIso8601String(),
+                            ],
+                        ],
+                    ],
+                    'posted_at' => $postedAt,
+                ]);
+            }
+        }
     }
 
     /**
