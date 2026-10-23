@@ -11,6 +11,8 @@ DB_IMAGE ?= sklog-mysql
 MAIL_IMAGE ?= sklog-mail
 WEB_CONTAINER := $(shell docker compose ps -q web 2>/dev/null)
 MAIN_CHECKOUT := $(shell cd "$$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)/.." 2>/dev/null && pwd)
+# docker-up / docker-down / setup などは、main では compose のスタック、ワークツリーでは専用のコンテナを扱う
+IS_MAIN := $(if $(filter $(MAIN_CHECKOUT),$(CURDIR)),1,)
 
 # ワークツリー専用の使い捨て MySQL (make db-up / db-down)
 # main の DB を汚さずにマイグレーションを流すためのもの。--rm なのでデータは残らない。
@@ -58,13 +60,17 @@ endif
 	migrate migrate-fresh migrate-fresh-seed seed cache-clear \
 	test test-coverage \
 	lint format \
-	require-main require-web require-php require-db \
+	require-main require-web require-app require-php require-db \
 	db-up db-down db-prune \
 	app-up app-down app-info app-url dev
 
-# Set up the local development environment
-setup: require-main
+# Set up the local development environment (worktree: .orca/setup.sh)
+ifeq ($(IS_MAIN),1)
+setup:
 	./setup.sh
+else
+setup: setup-worktree
+endif
 
 # Set up the local development environment from scratch (recreate DB)
 setup-fresh: require-main
@@ -75,13 +81,12 @@ setup-worktree:
 	bash .orca/setup.sh
 
 # Fail early when a target is only for the main checkout
-# docker-compose.yml は container_name とポートが固定で、カレントディレクトリをマウントするので、
-# ワークツリーで compose のスタックを立てると main とぶつかる。イメージは main とワークツリーで共有するので、
-# ワークツリーでビルドすると全員のイメージが書き換わる
+# イメージは main とワークツリーで共有するので、ワークツリーでビルドすると全員のイメージが書き換わる。
+# setup-fresh は main の DB を作り直すためのもの
 require-main:
 	@if [ "$(CURDIR)" = "$(MAIN_CHECKOUT)" ]; then exit 0; fi; \
 	echo "ここはワークツリーです。この操作は main チェックアウト ($(MAIN_CHECKOUT)) で実行してください。"; \
-	echo "  ワークツリーでは make setup-worktree / make db-up / make app-up を使います。"; \
+	echo "  ワークツリーでは make setup / make docker-up / make docker-down を使います。"; \
 	if [ -n "$(filter docker-build,$(MAKECMDGOALS))" ]; then \
 		echo "  Dockerfile を試すときは別名でビルドしてください:"; \
 		echo "    docker build -t sklog-web-$(WT_HOST) -f docker/web/Dockerfile ."; \
@@ -97,6 +102,12 @@ require-web:
 	else \
 		echo "ここはワークツリーです。この操作は main チェックアウト ($(MAIN_CHECKOUT)) で実行してください。"; \
 	fi; \
+	exit 1
+
+# Fail early when this worktree's app is not running
+require-app:
+	@if [ -n "$$(docker ps -q -f name=^$(WT_APP)$$)" ]; then exit 0; fi; \
+	echo "ワークツリーのアプリが起動していません。make docker-up してください。"; \
 	exit 1
 
 # Fail early when the throwaway container cannot be started
@@ -118,7 +129,7 @@ require-db:
 	if [ "$(CURDIR)" = "$(MAIN_CHECKOUT)" ]; then \
 		echo "web コンテナが起動していません。make docker-up してください。"; \
 	else \
-		echo "ワークツリー用の DB が起動していません。make db-up してください。"; \
+		echo "ワークツリー用の DB が起動していません。make docker-up してください。"; \
 	fi; \
 	exit 1
 
@@ -245,13 +256,30 @@ db-down: app-down
 	@docker rm -f $(WT_DB) >/dev/null 2>&1 && echo "$(WT_DB) を停止しました。" || echo "$(WT_DB) は起動していません。"
 	@docker network rm $(WT_NET) >/dev/null 2>&1 || true
 
+# docker-compose.yml は container_name とポートが固定で、カレントディレクトリをマウントするので、
+# ワークツリーで compose のスタックを立てると main とぶつかる。ワークツリーでは専用のコンテナを扱う
+ifeq ($(IS_MAIN),1)
 # Start Docker containers
-docker-up: require-main
+docker-up:
 	docker compose up -d
 
 # Stop Docker containers
-docker-down: require-main
+docker-down:
 	docker compose down
+else
+# Start this worktree's DB and app (migrate and seed when the DB is newly created)
+docker-up:
+	@$(MAKE) -s db-up || exit 1; \
+	if [ -z "$(WT_DB_RUNNING)" ]; then \
+		$(MAKE) -s migrate && $(MAKE) -s seed || exit 1; \
+	fi; \
+	$(MAKE) -s app-up
+
+# Stop this worktree's app, Mailpit and DB (the DB data is removed)
+docker-down:
+	@echo "ワークツリーのアプリ・Mailpit・DB を止めます（DB のデータも消えます）。"
+	@$(MAKE) -s db-down
+endif
 
 # Build Docker containers
 docker-build: require-main
@@ -262,8 +290,13 @@ docker-rebuild: require-main
 	docker compose up --build -d
 
 # Get into the web container
+ifeq ($(IS_MAIN),1)
 docker-web: require-web
 	docker compose exec web bash
+else
+docker-web: require-app
+	docker exec -it $(WT_APP) bash
+endif
 
 # Get into the mysql container
 docker-db: require-db
@@ -274,8 +307,13 @@ docker-db: require-db
 	fi
 
 # Get into the mailpit container
+ifeq ($(IS_MAIN),1)
 docker-mail: require-web
 	docker compose exec mail sh
+else
+docker-mail: require-app
+	docker exec -it $(WT_MAIL) sh
+endif
 
 # Run the development server
 run:

@@ -35,24 +35,26 @@ Orca の repo 設定 → Setup script に `bash .orca/setup.sh` が登録済み�
 - `src/.env` は main チェックアウトからコピーし、`APP_URL` と `SESSION_COOKIE` をワークツリー用に書き換えます（後述の cookie 分離のため）
 - `src/node_modules` はホストの `pnpm install` で作ります
 - `src/vendor` は使い捨ての `composer:2` コンテナで作ります（ホストに PHP 不要）
-- **compose のスタックは起動しません。** `docker-compose.yml` は `container_name` とポートが固定なので、main チェックアウトの環境と衝突します。ワークツリーのアプリをブラウザで見たいときは後述の `make app-up` を使います
+- **compose のスタックは起動しません。** `docker-compose.yml` は `container_name` とポートが固定なので、main チェックアウトの環境と衝突します。ワークツリーで `make docker-up` / `make docker-down` / `make setup` を実行すると、compose の代わりにワークツリー専用のコンテナを扱います（後述）
 - `vendor` が既にある場合はスキップします。作り直すときは `bash .orca/setup.sh --force`
 - `.husky/_` も生成します（git 管理外のため、これが無いとワークツリーでは pre-commit のアセットビルドが黙ってスキップされます）
 
 ワークツリーでも `make test` / `make lint` / `make format` / `make build` は動きます。web コンテナが起動していない場所では、Makefile が `sklog-web` イメージから使い捨てコンテナを起動して実行するためです（テストは sqlite `:memory:` なので DB 不要）。
 
-ただしその `sklog-web` イメージは **main チェックアウトの compose が作るもの**です。したがって **一度は main 側で `make docker-build`（または `./setup.sh`）を通しておく必要があります**。イメージは main とワークツリーで共有するので、ワークツリーでは `make docker-build` は止まります。Dockerfile を試すときは `docker build -t sklog-web-<名前> -f docker/web/Dockerfile .` のように別名でビルドし、`make WEB_IMAGE=sklog-web-<名前> test` で指定してください。無い場合は Makefile がその旨を出して止まります。別名のイメージを使いたいときは `make WEB_IMAGE=<image> test` で上書きできます。
+ただしその `sklog-web` イメージは **main チェックアウトの compose が作るもの**です。したがって **一度は main 側で `make docker-build`（または `./setup.sh`）を通しておく必要があります**。イメージは main とワークツリーで共有するので、ワークツリーでは `make docker-build` は止まります。Dockerfile を試すときは `docker build -t sklog-web-<名前> -f docker/web/Dockerfile .` のように別名でビルドし、`make WEB_IMAGE=sklog-web-<名前> test` で指定してください。イメージが無い場合は Makefile がその旨を出して止まります。
 
 DB はセットアップスクリプトが用意します。ワークツリー専用の MySQL を起動し、マイグレーションとシードまで済ませるので、作成直後から `make migrate` などが使えます。main の DB とは完全に別物なので、何をしても main 側には影響しません。
 
 ```
-make db-down   # 止めてメモリを空ける（--rm なのでコンテナごと消え、データも残らない）
-make db-up     # また使うときに起動する
-make migrate   # 専用 DB に対して実行される
+make docker-down  # アプリ・Mailpit・DB を全部止める（--rm なのでコンテナごと消え、データも残らない）
+make docker-up    # また使うときに起動する（DB を作り直したときは migrate と seed も流す）
+make db-down      # DB だけ止めたいとき（DB を使うアプリも止まる）
+make db-up        # DB だけ起動する
+make migrate      # 専用 DB に対して実行される
 make seed      # シードを流し直す
 ```
 
-MySQL は既定のままだと 1台 360MB ほど使うため、`docker/db/worktree.cnf` で `performance_schema` とバッファを絞って **約110MB** に抑えています（main の DB には影響しません）。DB が不要なワークツリーでは `make db-down`、最初から立てたくない場合は `bash .orca/setup.sh --no-db` を使ってください。
+MySQL は既定のままだと 1台 360MB ほど使うため、`docker/db/worktree.cnf` で `performance_schema` とバッファを絞って **約110MB** に抑えています（main の DB には影響しません）。DB が不要なワークツリーでは `make docker-down`、最初から立てたくない場合は `bash .orca/setup.sh --no-db` を使ってください。
 
 DB を止めた状態で `make migrate` を叩くとガードで止まります。
 

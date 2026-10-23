@@ -230,7 +230,8 @@ if [ "$WITH_APP" -eq 1 ] && docker ps --format '{{.Names}}' | grep -q "^sklog_wt
 
   make run       # CSS/JS を触るときに別ターミナルで（Vite。HMR が効きます）
   make dev       # アプリと Vite をまとめて起動したいとき
-  make app-down  # アプリを止めてメモリを空ける
+  make app-down     # アプリを止めてメモリを空ける（DB は残る）
+  make docker-down  # アプリ・Mailpit・DB を全部止める（DB のデータも消える）
 
 main の compose スタック (http://localhost:18080) は main のディレクトリを
 見ているので、ワークツリーの変更はそちらには出ません。
@@ -247,4 +248,4 @@ MSG
 fi
 
 echo ""
-echo "止めたものは make db-up / make app-up で戻せます。"
+echo "止めたものは make docker-up で戻せます（DB を作り直したときは migrate と seed も流します）。"
