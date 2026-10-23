@@ -32,7 +32,7 @@
         </div>
       </div>
 
-      <a href="{{ $backUrl }}" class="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white text-xs font-semibold transition flex items-center gap-1 shrink-0 self-start">
+      <a href="{{ $backUrl }}" class="js-manage-leave px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white text-xs font-semibold transition flex items-center gap-1 shrink-0 self-start">
         <x-icon name="arrow-left" class="h-3.5 w-3.5" />
         削除モードを終わる
       </a>
@@ -42,7 +42,7 @@
     <div class="flex items-center gap-2 select-none">
       @foreach (['posts' => '投稿', 'reposts' => 'リポスト'] as $tabKey => $tabLabel)
         <a href="{{ route('calendar.manage', ['handle' => $bskyAccount->handle] + $filters + ($tabKey === 'reposts' ? ['tab' => 'reposts'] : [])) }}"
-           class="px-4 py-1.5 rounded-lg border text-xs font-bold transition duration-300 flex items-center gap-1.5 {{ $tab === $tabKey ? 'bg-rose-500/10 border-rose-500/30 text-rose-300' : 'bg-slate-900/40 border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white' }}">
+           class="js-manage-leave px-4 py-1.5 rounded-lg border text-xs font-bold transition duration-300 flex items-center gap-1.5 {{ $tab === $tabKey ? 'bg-rose-500/10 border-rose-500/30 text-rose-300' : 'bg-slate-900/40 border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white' }}">
           <x-icon :name="$tabKey === 'reposts' ? 'repost' : 'list'" class="h-3.5 w-3.5" />
           {{ $tabLabel }}
         </a>
@@ -131,7 +131,7 @@
         @endforeach
 
         @if ($posts->hasPages())
-          <div class="pt-2">
+          <div class="js-manage-pagination pt-2">
             {{ $posts->onEachSide(1)->links() }}
           </div>
         @endif
@@ -185,6 +185,11 @@
         childrenOf.get(parentUri).push(check);
       });
 
+      const leaveLinks = () => [
+        ...document.querySelectorAll('a.js-manage-leave'),
+        ...form.querySelectorAll('.js-manage-pagination a'),
+      ];
+
       const descendants = (check, found = []) => {
         (childrenOf.get(check.dataset.uri) || []).forEach((child) => {
           found.push(child);
@@ -203,25 +208,28 @@
           : `${count}件をBlueskyとカレンダーの両方から削除しますか？`;
         message += `<br><span class='text-[10px] text-rose-400 font-bold'>※Bluesky側も変更され、元に戻せません。</span>`;
 
-        // 親を消して続きを残すと、Bluesky上では返信先の無い投稿になる
+        // 親を消して続きを残すと、Bluesky上では返信先が「投稿が見つかりません」になり、スレッドが切れる
         const leavesOrphans = checks.some((check) => check.checked && descendants(check).some((child) => !child.checked));
         if (leavesOrphans) {
-          message += `<br><span class='text-[10px] text-amber-400 font-bold'>※続きを残すスレッドがあります。残した続きは返信先の無い投稿になります。</span>`;
+          message += `<br><span class='text-[10px] text-amber-400 font-bold'>※続きを残すスレッドがあります。Bluesky上では、残した続きの返信先が「投稿が見つかりません」と表示され、スレッドがそこで切れます。</span>`;
         }
 
         return message;
       };
 
       const refresh = () => {
-        // 自分は未選択で、続きの一部だけが選ばれているときは「一部選択」にする
-        checks.forEach((check) => {
-          check.indeterminate = !check.checked && descendants(check).some((child) => child.checked);
-        });
-
         const count = checks.filter((check) => check.checked).length;
         countEl.textContent = count;
         submitBtn.disabled = count === 0;
         submitBtn.setAttribute('data-confirm-message', confirmMessage(count));
+
+        // 選択中にページ送りやタブ切り替えをすると選択が外れるので、確認してから移る
+        leaveLinks().forEach((link) => {
+          link.classList.toggle('js-confirm-link', count > 0);
+          link.setAttribute('data-confirm-title', '選択が外れます');
+          link.setAttribute('data-confirm-message', `${count}件の選択が外れます。このまま移動しますか？<br><span class='text-[10px] text-slate-500 font-bold'>※選択はページごとです。先にこのページで削除してください。</span>`);
+          link.setAttribute('data-confirm-action', '移動する');
+        });
       };
 
       // 親を付け外しすると、続きもまとめて付け外しする

@@ -33,6 +33,7 @@
     const cancelBtn = confirmModal.querySelector('#confirm-modal-cancel');
     const contentCard = confirmModal.querySelector('.modal-content-card');
     let formToSubmit = null;
+    let linkToFollow = null;
 
     const closeModal = () => {
       confirmModal.classList.add('opacity-0', 'pointer-events-none');
@@ -41,36 +42,56 @@
         contentCard.classList.add('scale-95');
       }
       formToSubmit = null;
+      linkToFollow = null;
     };
+
+    const openModal = (source) => {
+      const message = source.getAttribute('data-confirm-message') || '本当に実行しますか？';
+      const title = source.getAttribute('data-confirm-title') || '確認';
+      const actionText = source.getAttribute('data-confirm-action') || '送信する';
+      const btnColorClass = source.getAttribute('data-confirm-btn-color') || 'bg-sky-600 hover:bg-sky-500';
+
+      if (confirmTitle) confirmTitle.textContent = title;
+      if (confirmMessage) confirmMessage.innerHTML = message;
+      if (confirmBtn) {
+        confirmBtn.textContent = actionText;
+        confirmBtn.className = `px-4 py-2 rounded-lg text-xs font-bold text-white transition cursor-pointer active:scale-[0.98] select-none ${btnColorClass}`;
+      }
+
+      // 表示切り替え (MutationObserver が検知して自動でスクロールロックする)
+      confirmModal.classList.remove('opacity-0', 'pointer-events-none');
+      setTimeout(() => {
+        if (contentCard) {
+          contentCard.classList.remove('scale-95');
+          contentCard.classList.add('scale-100');
+        }
+      }, 10);
+    };
+
+    // リンクのクリックを監視 (イベント委譲)。確認してから遷移する
+    document.body.addEventListener('click', (e) => {
+      const link = e.target.closest('a.js-confirm-link');
+      if (!link || e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+
+      e.preventDefault();
+      formToSubmit = null;
+      linkToFollow = link;
+      openModal(link);
+    });
 
     // フォームの送信イベントを監視 (イベント委譲)
     document.body.addEventListener('submit', (e) => {
       const form = e.target.closest('.js-confirm-form');
       if (form && formToSubmit !== form) {
         e.preventDefault();
+        linkToFollow = null;
         formToSubmit = form;
 
         const button = e.submitter || form.querySelector('button[type="submit"]') || form;
-        const message = button.getAttribute('data-confirm-message') || form.getAttribute('data-confirm-message') || '本当に実行しますか？';
-        const title = button.getAttribute('data-confirm-title') || form.getAttribute('data-confirm-title') || '確認';
-        const actionText = button.getAttribute('data-confirm-action') || form.getAttribute('data-confirm-action') || '送信する';
-        const btnColorClass = button.getAttribute('data-confirm-btn-color') || form.getAttribute('data-confirm-btn-color') || 'bg-sky-600 hover:bg-sky-500';
-
-        if (confirmTitle) confirmTitle.textContent = title;
-        if (confirmMessage) confirmMessage.innerHTML = message;
-        if (confirmBtn) {
-          confirmBtn.textContent = actionText;
-          confirmBtn.className = `px-4 py-2 rounded-lg text-xs font-bold text-white transition cursor-pointer active:scale-[0.98] select-none ${btnColorClass}`;
-        }
-
-        // 表示切り替え (MutationObserver が検知して自動でスクロールロックする)
-        confirmModal.classList.remove('opacity-0', 'pointer-events-none');
-        setTimeout(() => {
-          if (contentCard) {
-            contentCard.classList.remove('scale-95');
-            contentCard.classList.add('scale-100');
-          }
-        }, 10);
+        // 文言はボタン側に無ければフォーム側から取る
+        openModal({
+          getAttribute: (name) => button.getAttribute(name) || form.getAttribute(name),
+        });
       }
     });
 
@@ -78,10 +99,14 @@
 
     if (confirmBtn) {
       confirmBtn.addEventListener('click', () => {
+        const href = linkToFollow ? linkToFollow.href : null;
         if (formToSubmit) {
           formToSubmit.submit();
         }
         closeModal();
+        if (href) {
+          window.location.href = href;
+        }
       });
     }
   });
