@@ -300,7 +300,14 @@ class Post extends Model
       return false;
     }
 
-    $parentDid = $this->raw_data['reply']['parent']['author']['did'] ?? null;
+    $parent = $this->raw_data['reply']['parent'] ?? [];
+    $parentDid = $parent['author']['did'] ?? null;
+
+    // 返信先が削除されていると author が無くなるが、uri (at://{did}/...) には投稿者の did が残っている
+    if (! $parentDid && preg_match('#^at://(did:[^/]+)/#', $parent['uri'] ?? '', $matches)) {
+      $parentDid = $matches[1];
+    }
+
     $myDid = $this->user->blueskyAccount->did ?? null;
 
     return $parentDid && $myDid && ($parentDid === $myDid);
@@ -334,15 +341,38 @@ class Post extends Model
   }
 
   /**
+   * 返信先（親ポスト）が削除などで見つからない状態かを判定します。
+   *
+   * 親が消えると reply.parent は app.bsky.feed.defs#notFoundPost になり、uri しか持ちません。
+   */
+  public function getIsReplyParentNotFoundAttribute(): bool
+  {
+    if (! $this->is_reply) {
+      return false;
+    }
+
+    $parent = $this->raw_data['reply']['parent'] ?? [];
+
+    return ($parent['$type'] ?? '') === 'app.bsky.feed.defs#notFoundPost'
+      || ($parent['notFound'] ?? false) === true;
+  }
+
+  /**
    * 返信先（親ポスト）のBluesky詳細URLを取得します。
+   *
+   * 返信先が見つからない場合や、投稿者が分からず URL を組み立てられない場合は null を返します
+   * （開いても Bluesky でエラーになるため）。
    */
   public function getReplyParentUrlAttribute(): ?string
   {
-    if (! $this->is_reply) {
+    if (! $this->is_reply || $this->is_reply_parent_not_found) {
       return null;
     }
 
     $parent = $this->raw_data['reply']['parent'] ?? [];
+    if (empty($parent['author']['handle']) && empty($parent['author']['did'])) {
+      return null;
+    }
     $uri = $parent['uri'] ?? null;
     $handle = $parent['author']['handle'] ?? $parent['author']['did'] ?? null;
 

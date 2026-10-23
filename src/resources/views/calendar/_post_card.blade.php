@@ -107,7 +107,10 @@
   $replyHandle = null;
   $replyAvatar = null;
   if ($post->is_reply_to_others && $replyAuthor = $post->reply_parent_author) {
-      if ($shouldMaskReply) {
+      if ($post->is_reply_parent_not_found) {
+          // 返信先が削除などで見つからない（投稿者も分からない）
+          $replyName = '投稿が見つかりません';
+      } elseif ($shouldMaskReply) {
           $replyName = '非公開ユーザー';
           $replyHandle = 'private.user';
           $replyAvatar = null;
@@ -203,7 +206,9 @@
             </button>
           @endif
 
-          @if ($parentUrl = $post->reply_parent_url)
+          @if ($post->is_reply_parent_not_found)
+            {{-- 返信先が見つからないので、リンクもハンドルも出さない --}}
+          @elseif ($parentUrl = $post->reply_parent_url)
             <a href="{{ $parentUrl }}" target="_blank" class="flex items-center gap-1 text-[10px] font-bold text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2 py-0.5 rounded-full hover:bg-sky-500/20 transition cursor-pointer shrink-0">
               <x-icon name="bluesky" class="h-3 w-3 text-sky-400 shrink-0" />
               <span>{{ '@' . $replyHandle }}</span>
@@ -233,7 +238,17 @@
     @php
       $hasParentText = isset($post->raw_data['reply']['parent']['record']['text']);
     @endphp
-    @if ($prevPost || $hasParentText)
+    @if (!$prevPost && $post->is_reply_parent_not_found)
+      <!-- 直前の投稿が Bluesky で削除されていて、カレンダーにも残っていない -->
+      <div class="flex items-center gap-1.5 mb-3.5 pb-3 border-b border-slate-900/40 text-[10px] font-bold text-slate-500 flex-wrap select-none">
+        <x-icon name="list" class="h-3.5 w-3.5 text-slate-500 shrink-0" />
+        <span>スレッドの続き</span>
+        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-[9px] text-slate-500 font-bold leading-none">
+          <x-icon name="trash" class="h-2.5 w-2.5 shrink-0" />
+          直前の投稿は見つかりません
+        </span>
+      </div>
+    @elseif ($prevPost || $hasParentText)
       <div class="flex items-center justify-between mb-3.5 pb-3 border-b border-slate-900/40 select-none">
         <div class="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 flex-wrap">
           <x-icon name="list" class="h-3.5 w-3.5 text-slate-500 shrink-0" />

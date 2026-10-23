@@ -1506,6 +1506,81 @@ class CalendarControllerTest extends TestCase
   }
 
   /**
+   * 返信先が削除されて見つからない（notFoundPost）返信を作ります。
+   */
+  private function createReplyToDeletedPost(string $parentDid, string $text): Post
+  {
+    return Post::create([
+      'user_id' => $this->user->id,
+      'uri' => 'at://did:plc:test123456/app.bsky.feed.post/orphan_'.md5($text),
+      'cid' => 'cidorphan'.md5($text),
+      'text' => $text,
+      'raw_data' => [
+        'post' => ['uri' => 'at://did:plc:test123456/app.bsky.feed.post/orphan_'.md5($text)],
+        'reply' => [
+          'parent' => [
+            '$type' => 'app.bsky.feed.defs#notFoundPost',
+            'uri' => "at://{$parentDid}/app.bsky.feed.post/deleted_parent",
+            'notFound' => true,
+          ],
+          'root' => [
+            '$type' => 'app.bsky.feed.defs#postView',
+            'uri' => "at://{$parentDid}/app.bsky.feed.post/thread_root",
+            'author' => ['did' => $parentDid, 'handle' => 'someone.bsky.social'],
+          ],
+        ],
+      ],
+      'posted_at' => Carbon::now(),
+    ]);
+  }
+
+  /**
+   * 自分のスレッドの途中が削除されたとき、残った続きは「スレッドの続き（直前の投稿は見つかりません）」として出し、
+   * Bluesky で開けないリンクを出さないことを検証。
+   */
+  public function test_thread_continuation_after_deleted_own_post_is_shown_as_self_thread(): void
+  {
+    $this->actingAs($this->user);
+
+    $post = $this->createReplyToDeletedPost('did:plc:test123456', '自分の投稿が消えたあとの続き');
+
+    $this->assertTrue($post->is_self_thread);
+    $this->assertFalse($post->is_reply_to_others);
+    $this->assertNull($post->reply_parent_url);
+
+    $response = $this->get('/profile/test.bsky.social');
+
+    $response->assertStatus(200);
+    $response->assertSee('自分の投稿が消えたあとの続き');
+    $response->assertSee('直前の投稿は見つかりません');
+    $response->assertDontSee('Unknown');
+    $response->assertDontSee('deleted_parent');
+    $response->assertDontSee('bsky.app/profile/profile/', false);
+  }
+
+  /**
+   * 他の人の投稿への返信で返信先が削除されたとき、「投稿が見つかりません」と出し、リンクを出さないことを検証。
+   */
+  public function test_reply_to_deleted_post_of_others_has_no_parent_link(): void
+  {
+    $this->actingAs($this->user);
+
+    $post = $this->createReplyToDeletedPost('did:plc:someone999', '他の人の消えた投稿への返信');
+
+    $this->assertTrue($post->is_reply_to_others);
+    $this->assertNull($post->reply_parent_url);
+
+    $response = $this->get('/profile/test.bsky.social');
+
+    $response->assertStatus(200);
+    $response->assertSee('他の人の消えた投稿への返信');
+    $response->assertSee('投稿が見つかりません');
+    $response->assertDontSee('Unknown');
+    $response->assertDontSee('deleted_parent');
+    $response->assertDontSee('bsky.app/profile/profile/', false);
+  }
+
+  /**
    * ローカルで削除されたポストが、同期ジョブ実行時に再インポートされて復活しないことを検証。
    */
   public function test_deleted_post_is_not_reimported_on_sync(): void
