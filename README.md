@@ -71,38 +71,12 @@ docker compose exec web composer install
 cp src/.env.example src/.env
 ```
 
+DB と Mail の接続先は `setup.sh` が書き込む値と同じものが最初から入っているので、書き換えは不要です。
+
 #### APP_KEY生成
 
 ```
 docker compose exec web php artisan key:generate
-```
-
-#### DB設定
-
-src/.env
-
-```
-DB_CONNECTION=mysql
-DB_HOST=mysql
-DB_PORT=3306
-DB_DATABASE=sklog
-DB_USERNAME=user
-DB_PASSWORD=password
-```
-
-#### Mail設定
-
-src/.env
-
-```
-MAIL_MAILER=smtp
-MAIL_HOST=mail
-MAIL_PORT=1025
-MAIL_USERNAME=null
-MAIL_PASSWORD=null
-MAIL_SCHEME=null
-MAIL_FROM_ADDRESS="hello@example.com"
-MAIL_FROM_NAME="${APP_NAME}"
 ```
 
 #### マイグレーション
@@ -159,6 +133,8 @@ pnpm build
 ```
 ./deploy.sh
 ```
+
+本番の `src/.env` では、DB（MySQL）とメール送信（SMTP）の接続先を本番のものに設定してください。メールが届かないと、招待コードやウェイトリストの通知が送れません。`APP_KEY` は Bluesky のアプリパスワードの暗号化に使っているので、変えたりなくしたりしないでください。
 
 本番では cron で `php artisan schedule:run` を5分ごとに実行してください。キューの消化（`queue:work --stop-when-empty`）もスケジューラから動くので、cron に `queue:work` を別に登録する必要はありません。
 
