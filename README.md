@@ -1,4 +1,25 @@
-# SKLOG
+# SkLoG
+
+Bluesky の自分の投稿を自動で取り込み、カレンダー形式のログとして保存・公開する Web サービスです。
+
+https://sklog.nono150.com/
+
+## 主な機能
+
+- **自動同期**: Bluesky のアプリパスワードで登録すると、自分の投稿（テキスト・画像・ハッシュタグ）とリポストを1時間ごとに取り込みます
+- **カレンダー表示**: 年・月・日ごとのアーカイブ、タグ一覧、月めくりのカレンダーで過去の投稿をたどれます
+- **公開範囲の連動**: Bluesky 側でログアウト時の公開範囲を制限していると、カレンダーも本人以外には見えなくなります
+- **削除モード**: 投稿やリポストをまとめて選び、カレンダーから非表示にするか、Bluesky 側からも削除（リポストは取り消し）できます
+- **マルチアカウント**: 複数の Bluesky アカウントを1つのセッションで切り替えて使えます
+- **招待制**: 参加申請（ウェイトリスト）を受け付け、管理画面から招待を送ります。管理画面は二要素認証（TOTP）に対応しています
+
+## 技術スタック
+
+- PHP 8.3 / Laravel 13
+- MySQL
+- Tailwind CSS 4 / Vite
+- Bluesky（AT Protocol）の XRPC API を SDK を使わずに直接呼び出しています
+- Docker Compose でのローカル開発環境、GitHub Actions でのテスト
 
 ## セットアップ（推奨）
 
@@ -22,78 +43,9 @@ make setup
 
 完了後、必要に応じて `src/.env` の管理画面・Bluesky まわりの設定（`ADMIN_PASSWORD`、`ADMIN_NOTIFICATION_EMAIL`、`BLUESKY_DEMO_HANDLE` など）を編集してください。
 
-## ワークツリー用セットアップ
+## ワークツリーでの開発
 
-Orca でワークツリーを作成したときに走らせるスクリプトです。git 管理外のファイル（`src/.env` / `src/vendor` / `src/node_modules`）は新しいワークツリーには無いため、これで揃えます。
-
-```
-bash .orca/setup.sh
-```
-
-Orca の repo 設定 → Setup script に `bash .orca/setup.sh` が登録済みで、ワークツリー作成時に自動実行されます（動作確認済み）。
-
-- `src/.env` は main チェックアウトからコピーし、`APP_URL` と `SESSION_COOKIE` をワークツリー用に書き換えます（後述の cookie 分離のため）
-- `src/node_modules` はホストの `pnpm install` で作ります
-- `src/vendor` は使い捨ての `composer:2` コンテナで作ります（ホストに PHP 不要）
-- **compose のスタックは起動しません。** `docker-compose.yml` は `container_name` とポートが固定なので、main チェックアウトの環境と衝突します。ワークツリーで `make docker-up` / `make docker-down` / `make setup` を実行すると、compose の代わりにワークツリー専用のコンテナを扱います（後述）
-- `vendor` が既にある場合はスキップします。作り直すときは `bash .orca/setup.sh --force`
-- `.husky/_` も生成します（git 管理外のため、これが無いとワークツリーでは pre-commit のアセットビルドが黙ってスキップされます）
-
-ワークツリーでも `make test` / `make lint` / `make format` / `make build` は動きます。web コンテナが起動していない場所では、Makefile が `sklog-web` イメージから使い捨てコンテナを起動して実行するためです（テストは sqlite `:memory:` なので DB 不要）。
-
-ただしその `sklog-web` イメージは **main チェックアウトの compose が作るもの**です。したがって **一度は main 側で `make docker-build`（または `./setup.sh`）を通しておく必要があります**。イメージは main とワークツリーで共有するので、ワークツリーでは `make docker-build` は止まります。Dockerfile を試すときは `docker build -t sklog-web-<名前> -f docker/web/Dockerfile .` のように別名でビルドし、`make WEB_IMAGE=sklog-web-<名前> test` で指定してください。イメージが無い場合は Makefile がその旨を出して止まります。
-
-DB はセットアップスクリプトが用意します。ワークツリー専用の MySQL を起動し、マイグレーションとシードまで済ませるので、作成直後から `make migrate` などが使えます。main の DB とは完全に別物なので、何をしても main 側には影響しません。
-
-```
-make docker-down  # アプリ・Mailpit・DB を全部止める（--rm なのでコンテナごと消え、データも残らない）
-make docker-up    # また使うときに起動する（DB を作り直したときは migrate と seed も流す）
-make db-down      # DB だけ止めたいとき（DB を使うアプリも止まる）
-make db-up        # DB だけ起動する
-make migrate      # 専用 DB に対して実行される
-make seed      # シードを流し直す
-```
-
-MySQL は既定のままだと 1台 360MB ほど使うため、`docker/db/worktree.cnf` で `performance_schema` とバッファを絞って **約110MB** に抑えています（main の DB には影響しません）。DB が不要なワークツリーでは `make docker-down`、最初から立てたくない場合は `bash .orca/setup.sh --no-db` を使ってください。
-
-DB を止めた状態で `make migrate` を叩くとガードで止まります。
-
-止め忘れたままワークツリーを消すとコンテナとネットワークが残るので、Orca の repo 設定 → Archive script に `bash .orca/archive.sh` を登録してあります。
-
-ただし **`orca worktree rm` は `--run-hooks` を付けないと archive フックを実行しません**（`orca.yaml archive hook skipped ... pass --run-hooks to run it.` という警告が出ます）。フックが走らずに消えてしまった分は次で回収できます。
-
-```
-make db-prune   # ワークツリーが存在しない sklog_wt_* を削除する
-```
-
-### ワークツリーのアプリをブラウザで見る
-
-compose のスタックは main のディレクトリをマウントしているので、ワークツリーの変更は `http://localhost:18080` には出ません。そのため専用のアプリ（Laravel + Mailpit）を**セットアップ時に自動で起動**しています。URL はセットアップの最後に表示されます。
-
-```
-make app-info   # URL を再表示
-make app-down   # 停止してメモリを空ける
-make app-up     # また起動する（起動済みなら何もしません）
-make dev        # アプリ + Vite をまとめて起動（Vite はフォアグラウンド）
-```
-
-アプリが不要なワークツリーは `bash .orca/setup.sh --no-app`（DB も要らなければ `--no-db`）で立てずに済ませられます。
-
-`php artisan serve` をワークツリー専用ネットワークで動かすので、DB も Mailpit もそのワークツリーのものを使います。ポートはワークツリー名から決まります（アプリ 19100〜19999、Mailpit 20100〜20999）。ポートがすでに使われていると `make app-up` は止まるので、`make APP_PORT=19500 MAIL_PORT=20500 app-up` のように上書きしてください。
-
-**アプリの URL は `http://<ワークツリー名>.localhost:<ポート>` です。** cookie はポートを区別しないので、`localhost:19xxx` で開くと main（`localhost:18080`）とセッションや remember me の cookie を食い合い、片方を開くともう片方がログアウトします。DB は別物なので復元もできません。ホスト名を分けることで cookie を分離しています（`*.localhost` は 127.0.0.1 に解決されます）。`.orca/setup.sh` がワークツリーの `src/.env` の `APP_URL` と `SESSION_COOKIE` をこれに合わせて書き換えます。
-
-`*.localhost` が解決できない環境では `make APP_HOST=localhost app-info` のように上書きできます（その場合は main と cookie を食い合います）。
-
-アセットを編集しながら確認するときは、別ターミナルで `make run`（Vite）も起動します。ワークツリーの `public/hot` をそのワークツリーの Laravel が読むので、HMR がそのまま効きます。
-
-**起動順はどちらでも構いません。** Laravel はリクエストのたびに `public/hot` を見るため、後から `make run` しても次のリロードで dev サーバーに切り替わり、Vite を Ctrl-C で止めればビルド済みアセットに戻ります。
-
-ただし Vite を強制終了（`kill -9` など）すると `public/hot` が残り、アプリが死んだ dev サーバーを指し続けてアセットが読めなくなります。`make app-up` は起動時にこれを検出して削除しますが、実行中に起きた場合は `rm src/public/hot` してください。
-
-メモリはアプリ 73MB + Mailpit 10MB です（DB 119MB と合わせて約200MB）。
-
-`src/vendor` や `src/node_modules` は `orca worktree rm`（`--force` なし）でワークツリーごと削除されるので、後始末は `make db-up` した DB コンテナだけです（上記の Archive script が担当）。
+git worktree で並行して開発するときの手順は [docs/worktree.md](docs/worktree.md) にまとめています（Orca での使い方も含みます）。
 
 ## 手動セットアップ
 
@@ -189,79 +141,27 @@ make format   # 自動修正
 
 ```
 make queue        # ワーカーを常駐させる
-make queue-once   # 溜まっている分だけ消化して終了（本番の cron と同じ）
+make queue-once   # 溜まっている分だけ消化して終了（本番でスケジューラが5分ごとに動かすのと同じ）
 make schedule     # スケジューラ（bluesky:sync-all は1時間ごと）
 ```
 
 ## デプロイ
 
-at local
+アセットはローカルでビルドします。
 
 ```
 cd src
 pnpm build
 ```
 
-at server
-
-### 初回デプロイ
-
-1. リポジトリをクローンします。
+サーバーでは `deploy.sh` を実行します。コードの最新化（`git pull`）、依存関係のインストール（`composer install --no-dev`）、マイグレーション（`migrate --force`）、キャッシュの作り直しまでを行います。
 
 ```
-cd ~/git
-git clone <リポジトリのURL> sklog
-```
-
-2. `.env` ファイルを作成し、本番環境の各種設定（DB接続、Blueskyアカウントなど）を編集します。
-
-```
-cd ~/git/sklog
-cp src/.env.example src/.env
-# エディタ等で src/.env を編集
-```
-
-3. 依存関係のインストール、マイグレーション、キャッシュ初期設定を行います。
-
-```
-chmod +x deploy.sh
 ./deploy.sh
 ```
 
-4. アプリケーションキーを生成します（初回のみ）。
+本番では cron で `php artisan schedule:run` を5分ごとに実行してください。キューの消化（`queue:work --stop-when-empty`）もスケジューラから動くので、cron に `queue:work` を別に登録する必要はありません。
 
-```
-cd src
-php artisan key:generate
-```
+## ライセンス
 
-5. 公開ディレクトリへ公開用ディレクトリのシンボリックリンクを作成します。
-
-```
-cd ~/www
-ln -s ../git/sklog/src/public sklog
-```
-
-### 2回目以降のデプロイ
-
-`deploy.sh` を実行するだけで、コードの最新化（`git pull`）、依存関係のインストール、**マイグレーションの実行（`migrate --force`）**、およびキャッシュの最適化までが自動で行われます。
-
-```
-cd ~/git/sklog
-./deploy.sh
-```
-
-### 自動同期ジョブ（Cron）の設定
-
-Blueskyからの自動同期をスケジュールどおりに起動させ、かつ非同期のキュータスク（同期処理）を本番で消化させるため、本番サーバーの `cron` に以下の2つのジョブを登録します。
-
-1. サーバー側で `crontab -e` を実行して編集画面を開きます。
-2. 以下の2行を追加して保存します。
-
-```cron
-# 定期スケジュールジョブのトリガー (5分毎にチェック)
-*/5 * * * * cd ~/git/sklog/src && php artisan schedule:run >> ~/git/sklog/cron.log 2>&1
-
-# キューに溜まった同期タスクの実行 (5分毎にチェック・空になったら自動終了)
-*/5 * * * * cd ~/git/sklog/src && php artisan queue:work --stop-when-empty >> ~/git/sklog/cron.log 2>&1
-```
+All rights reserved. 無断での利用・再配布はできません。
