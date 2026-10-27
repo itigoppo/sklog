@@ -219,6 +219,11 @@ app-up: require-php require-db
 app-info:
 	@echo "  アプリ    : http://$(APP_HOST):$(APP_PORT)"
 	@echo "  Mailpit   : http://localhost:$(MAIL_PORT)"
+	@if grep -qx 'APP_ENV=local' src/.env 2>/dev/null && grep -qx 'DEV_LOGIN=true' src/.env; then \
+		echo "  開発ログイン: http://$(APP_HOST):$(APP_PORT)/dev/login"; \
+	else \
+		echo "  開発ログイン: src/.env を APP_ENV=local・DEV_LOGIN=true にすると /dev/login が使えます"; \
+	fi
 
 # Print this worktree's app URL (used by .orca/setup.sh)
 app-url:

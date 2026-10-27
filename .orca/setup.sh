@@ -74,6 +74,7 @@ fi
 # 同じホスト名で開くと、セッションと remember me の cookie を共有してしまい、片方を
 # 開いたらもう片方がログアウトする。DB は別物なので、復元もできない。
 # ホスト名を分けて cookie を分離し、セッション cookie の名前もワークツリー名にする。
+# ワークツリーの DB はシードのアカウントしか無いので、/dev/login でログインできるようにしておく。
 env_set() { # key value -> 変更したら 0
   key="$1"
   value="$2"
@@ -111,9 +112,11 @@ else
     changed=0
     env_set APP_URL "$APP_URL_VALUE" && changed=1
     env_set SESSION_COOKIE "$SESSION_COOKIE_VALUE" && changed=1
+    env_set DEV_LOGIN true && changed=1
     if [ "$changed" -eq 1 ]; then
       info "APP_URL=$APP_URL_VALUE"
       info "SESSION_COOKIE=$SESSION_COOKIE_VALUE"
+      info "DEV_LOGIN=true"
     else
       info "すでに調整済みです。"
     fi
