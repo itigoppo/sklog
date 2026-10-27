@@ -163,6 +163,22 @@ class PostManageTest extends TestCase
     $response->assertDontSee('今日はうどんを食べた');
   }
 
+  public function test_manage_page_search_form_keeps_other_filters(): void
+  {
+    $this->actingAs($this->user);
+
+    $response = $this->get('/profile/test.bsky.social/manage?tab=reposts&period=2026-10&media=1&q='.urlencode('カレー').'&mode=or');
+
+    $response->assertStatus(200);
+    // 検索し直してもタブ・期間・画像のみは引き継ぐ
+    $response->assertSee('<input type="hidden" name="tab" value="reposts">', false);
+    $response->assertSee('<input type="hidden" name="period" value="2026-10">', false);
+    $response->assertSee('<input type="hidden" name="media" value="1">', false);
+    $response->assertSee('name="q" value="カレー"', false);
+    // 検索の解除は検索語だけを外す
+    $response->assertSee(e(route('calendar.manage', ['handle' => 'test.bsky.social', 'period' => '2026-10', 'media' => '1', 'tab' => 'reposts'])), false);
+  }
+
   public function test_manage_page_is_only_for_owner(): void
   {
     // ゲストはログイン画面へ

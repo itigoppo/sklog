@@ -49,6 +49,45 @@
       @endforeach
     </div>
 
+    <!-- 削除モードの中で検索する (タブ・期間・画像のみの条件は引き継ぐ) -->
+    <form action="{{ route('calendar.manage', ['handle' => $bskyAccount->handle]) }}" method="GET" id="manageSearch"
+          class="flex flex-wrap items-center gap-x-3 gap-y-2 m-0"
+          data-confirm-title="選択が外れます" data-confirm-action="検索する">
+      @if ($isRepostTab)
+        <input type="hidden" name="tab" value="reposts">
+      @endif
+      @isset($filters['period'])
+        <input type="hidden" name="period" value="{{ $filters['period'] }}">
+      @endisset
+      @isset($filters['media'])
+        <input type="hidden" name="media" value="1">
+      @endisset
+      <div class="relative flex-1 min-w-48 flex items-center">
+        <input type="text" name="q" value="{{ $q }}" placeholder="{{ $isRepostTab ? 'リポストを検索...' : '投稿を検索...' }}"
+               class="w-full bg-slate-950/60 border border-slate-800/80 hover:border-slate-700/80 focus:border-sky-500/80 text-white rounded-xl py-2 pl-9 pr-4 text-xs placeholder-slate-500 focus:outline-hidden transition shadow-inner">
+        <span class="absolute left-3 text-slate-500 select-none">
+          <x-icon name="search" class="h-4 w-4" stroke-width="2" />
+        </span>
+      </div>
+      <div class="flex items-center gap-3 text-[10px] text-slate-400 font-bold select-none">
+        @foreach (['and' => 'AND', 'or' => 'OR'] as $modeKey => $modeLabel)
+          <label class="flex items-center gap-1.5 cursor-pointer hover:text-slate-200 transition">
+            <input type="radio" name="mode" value="{{ $modeKey }}" {{ $searchMode === $modeKey ? 'checked' : '' }} class="accent-sky-500 cursor-pointer">
+            {{ $modeLabel }}
+          </label>
+        @endforeach
+        <button type="submit" aria-label="検索" class="p-2 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 hover:border-sky-500/50 text-sky-400 rounded-xl transition duration-300 cursor-pointer active:scale-95 flex items-center justify-center">
+          <x-icon name="search" class="h-4 w-4" stroke-width="2.5" />
+        </button>
+        @if ($q !== '')
+          <a href="{{ route('calendar.manage', ['handle' => $bskyAccount->handle] + array_diff_key($filters, array_flip(['q', 'mode'])) + ($isRepostTab ? ['tab' => 'reposts'] : [])) }}"
+             class="js-manage-leave text-slate-500 hover:text-white transition">
+            検索を解除
+          </a>
+        @endif
+      </div>
+    </form>
+
     <p class="text-[11px] text-slate-500 leading-relaxed">
       @if ($isRepostTab)
         カレンダーから非表示にするか、Bluesky のリポストも取り消すかを選べます。行を押すと本文の全体を確認できます。
@@ -170,6 +209,7 @@
       if (!form) return;
 
       const isRepostTab = form.dataset.tab === 'reposts';
+      const searchForm = document.getElementById('manageSearch');
       const checks = [...form.querySelectorAll('.js-manage-check')];
       const countEl = document.getElementById('manageCount');
       const submitBtn = document.getElementById('manageSubmit');
@@ -223,13 +263,16 @@
         submitBtn.disabled = count === 0;
         submitBtn.setAttribute('data-confirm-message', confirmMessage(count));
 
-        // 選択中にページ送りやタブ切り替えをすると選択が外れるので、確認してから移る
+        // 選択中にページ送りやタブ切り替え・検索をすると選択が外れるので、確認してから移る
+        const leaveNote = `<br><span class='text-[10px] text-slate-500 font-bold'>※選択はページごとです。先にこのページで削除してください。</span>`;
         leaveLinks().forEach((link) => {
           link.classList.toggle('js-confirm-link', count > 0);
           link.setAttribute('data-confirm-title', '選択が外れます');
-          link.setAttribute('data-confirm-message', `${count}件の選択が外れます。このまま移動しますか？<br><span class='text-[10px] text-slate-500 font-bold'>※選択はページごとです。先にこのページで削除してください。</span>`);
+          link.setAttribute('data-confirm-message', `${count}件の選択が外れます。このまま移動しますか？${leaveNote}`);
           link.setAttribute('data-confirm-action', '移動する');
         });
+        searchForm.classList.toggle('js-confirm-form', count > 0);
+        searchForm.setAttribute('data-confirm-message', `${count}件の選択が外れます。このまま検索しますか？${leaveNote}`);
       };
 
       // 親を付け外しすると、続きもまとめて付け外しする
