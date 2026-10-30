@@ -128,11 +128,13 @@ cd src
 pnpm build
 ```
 
-サーバーでは `deploy.sh` を実行します。コードの最新化（`git pull`）、依存関係のインストール（`composer install --no-dev`）、マイグレーション（`migrate --force`）、キャッシュの作り直しまでを行います。
+サーバーでは `deploy.sh` を実行します。コードの最新化（`git pull --ff-only`）、依存関係のインストール（`composer install --no-dev`）、キャッシュの作り直し（`optimize`）、マイグレーション（`migrate --force`）を行います。pull で `deploy.sh` 自体が変わったときは、新しい中身で起動し直してから続けます。
 
 ```
 ./deploy.sh
 ```
+
+cron と php のバージョンをそろえたいときなどは、`PHP=/path/to/php ./deploy.sh` のように使う php を指定できます（composer もその php で動かします）。
 
 本番の `src/.env` では、DB（MySQL）とメール送信（SMTP）の接続先を本番のものに設定してください。メールが届かないと、招待コードやウェイトリストの通知が送れません。`APP_KEY` は Bluesky のアプリパスワードの暗号化に使っているので、変えたりなくしたりしないでください。
 
