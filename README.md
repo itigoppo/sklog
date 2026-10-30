@@ -140,6 +140,8 @@ cron と php のバージョンをそろえたいときなどは、`PHP=/path/to
 
 本番では cron で `php artisan schedule:run` を5分ごとに実行してください。キューの消化（`queue:work --stop-when-empty`）もスケジューラから動くので、cron に `queue:work` を別に登録する必要はありません。
 
+本番のサーバーへの設置・更新・cron は nono150com-server-ops の [docs/sklog.md](https://github.com/itigoppo/nono150com-server-ops/blob/main/docs/sklog.md) で管理しています。
+
 ## ライセンス
 
 All rights reserved. 無断での利用・再配布はできません。
