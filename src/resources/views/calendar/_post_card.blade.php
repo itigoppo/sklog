@@ -214,7 +214,7 @@
               <span>{{ '@' . $replyHandle }}</span>
             </a>
           @else
-            <span class="text-[10px] font-bold text-slate-500 bg-slate-880/40 border border-slate-800 px-2 py-0.5 rounded-full shrink-0">
+            <span class="text-[10px] font-bold text-slate-500 bg-slate-800/40 border border-slate-800 px-2 py-0.5 rounded-full shrink-0">
               {{ '@' . $replyHandle }}
             </span>
           @endif
@@ -395,10 +395,10 @@
          data-index="0">
         <img src="{{ $gifUrl }}" alt="{{ $external['title'] ?? 'GIF' }}" class="w-full h-40 object-cover opacity-80">
         <div class="p-4 pr-16">
-          <h5 class="text-sm font-bold text-white mb-1.5 flex items-center gap-1.5">
+          <h4 class="text-sm font-bold text-white mb-1.5 flex items-center gap-1.5">
             <x-icon name="image" class="h-4 w-4 text-sky-400 shrink-0" />
             <span>{{ $external['title'] }}</span>
-          </h5>
+          </h4>
           <p class="text-xs text-slate-400 line-clamp-2 leading-relaxed">{{ $external['description'] }} (クリックで拡大)</p>
           <!-- GIFバッジ -->
           <span class="absolute right-4 bottom-4 text-[9px] font-bold text-sky-400 bg-sky-500/10 border border-sky-500/20 px-1.5 py-0.5 rounded uppercase select-none tracking-wider">{{ $gifProvider }}</span>
@@ -418,7 +418,7 @@
               <span>{{ $domain }}</span>
             </div>
           @endif
-          <h5 class="text-sm font-bold text-white mb-1.5">{{ $external['title'] }}</h5>
+          <h4 class="text-sm font-bold text-white mb-1.5">{{ $external['title'] }}</h4>
           <p class="text-xs text-slate-400 line-clamp-2 leading-relaxed">{{ $external['description'] }}</p>
         </div>
       </a>

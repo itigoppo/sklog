@@ -49,7 +49,7 @@
     <div class="glow-effect-right"></div>
   </div>
 
-  <div class="w-full max-w-lg z-10">
+  <main class="w-full max-w-lg z-10">
 
     <!-- ロゴ -->
     <div class="text-center mb-8 select-none">
@@ -102,7 +102,7 @@
           <form action="{{ url('/login/confirm-handle-change') }}" method="POST">
             @csrf
             <input type="hidden" name="action" value="consent">
-            <button type="submit" class="w-full py-3 sm:py-3.5 px-4 rounded-lg cursor-pointer bg-linear-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-sky-950/50 hover:shadow-sky-500/10 focus:outline-none transition duration-300 transform active:scale-[0.98] flex items-center justify-center gap-2">
+            <button type="submit" class="w-full py-3 sm:py-3.5 px-4 rounded-lg cursor-pointer bg-linear-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-sky-950/50 hover:shadow-sky-500/10 transition duration-300 transform active:scale-[0.98] flex items-center justify-center gap-2">
               はい、新しいハンドルに引き継いで使い続ける
             </button>
           </form>
@@ -120,7 +120,7 @@
           <form action="{{ url('/login/confirm-handle-change') }}" method="POST">
             @csrf
             <input type="hidden" name="action" value="cancel">
-            <button type="submit" class="w-full py-2 text-center text-xs text-slate-500 hover:text-slate-400 transition duration-300 cursor-pointer focus:outline-none">
+            <button type="submit" class="w-full py-2 text-center text-xs text-slate-500 hover:text-slate-400 transition duration-300 cursor-pointer">
               ログインをキャンセル
             </button>
           </form>
@@ -129,6 +129,6 @@
     </div>
 
     @include('layouts._footer')
-  </div>
+  </main>
 </body>
 </html>

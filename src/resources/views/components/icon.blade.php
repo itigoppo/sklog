@@ -1,6 +1,9 @@
 @props(['name'])
 
 @php
+  // アイコンは装飾として扱い、読み上げから外す。意味を伝える必要があるときは、親のボタンやリンクに aria-label を付ける
+  $attributes = $attributes->merge(['aria-hidden' => 'true', 'focusable' => 'false']);
+
   // 塗りつぶし型（fill）アイコンかどうかの判定
   $isFillIcon = in_array($name, ['logo', 'user', 'repost', 'heart', 'bluesky']);
 

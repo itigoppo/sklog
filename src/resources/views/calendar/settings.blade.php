@@ -10,12 +10,12 @@
     
     <!-- 特定ポストのインポートカード -->
     <div class="glass-card rounded-2xl p-6 border border-slate-800/80 space-y-4">
-      <div class="flex items-center gap-2.5 border-b border-slate-850 pb-4 mb-2">
+      <div class="flex items-center gap-2.5 border-b border-slate-800 pb-4 mb-2">
         <div class="p-2 rounded-lg bg-sky-500/10 text-sky-400">
           <x-icon name="sync" class="h-5 w-5" stroke-width="2" />
         </div>
         <div>
-          <h3 class="text-base font-bold text-white tracking-wide">特定のポストを取り込む</h3>
+          <h2 class="text-base font-bold text-white tracking-wide">特定のポストを取り込む</h2>
           <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">
             APIの取得漏れや、誤って非表示にしたポストのURLを入力して再インポート（またはカレンダーへの復元）を行います。
           </p>
@@ -61,12 +61,12 @@
 
     <!-- アプリパスワードの更新カード -->
     <div class="glass-card rounded-2xl p-6 border border-slate-800/80 space-y-4">
-      <div class="flex items-center gap-2.5 border-b border-slate-850 pb-4 mb-2">
+      <div class="flex items-center gap-2.5 border-b border-slate-800 pb-4 mb-2">
         <div class="p-2 rounded-lg bg-sky-500/10 text-sky-400">
           <x-icon name="key" class="h-5 w-5" stroke-width="2" />
         </div>
         <div>
-          <h3 class="text-base font-bold text-white tracking-wide">アプリパスワードの更新</h3>
+          <h2 class="text-base font-bold text-white tracking-wide">アプリパスワードの更新</h2>
           <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">
             Bluesky側でアプリパスワードを再生成した場合や、同期エラー（認証エラー）を解除したい場合は、新しいアプリパスワードを入力して更新してください。
           </p>
@@ -116,7 +116,7 @@
           <x-icon name="trash" class="h-5 w-5" stroke-width="2" />
         </div>
         <div>
-          <h3 class="text-base font-bold text-rose-300 tracking-wide">退会（アカウントの削除）</h3>
+          <h2 class="text-base font-bold text-rose-300 tracking-wide">退会（アカウントの削除）</h2>
           <p class="text-[11px] text-rose-400/80 mt-1 leading-relaxed">
             本サービスから完全に退会し、これまでに取り込んだすべてのポストやアバター画像、連携パスワードなどのデータをすべて消去します。
           </p>
@@ -151,10 +151,10 @@
   <!-- 右カラム：アカウント情報サマリー -->
   <div class="space-y-6">
     <div class="glass-card rounded-2xl p-5 border border-slate-800/80 space-y-4">
-      <h4 class="text-xs font-bold text-white mb-2 flex items-center gap-2 border-b border-slate-850 pb-3">
+      <h2 class="text-xs font-bold text-white mb-2 flex items-center gap-2 border-b border-slate-800 pb-3">
         <x-icon name="user" class="h-4 w-4 text-sky-400 shrink-0" />
         連携ステータス
-      </h4>
+      </h2>
 
       <div class="space-y-3.5 text-xs">
         <div class="flex items-center justify-between py-1.5 border-b border-slate-900">
@@ -201,7 +201,7 @@
 
       <!-- カレンダーへ戻るボタン -->
       <div class="pt-2">
-        <a href="{{ route('calendar.show', ['handle' => $bskyAccount->handle]) }}" class="w-full py-2.5 rounded-xl cursor-pointer bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white font-bold text-xs transition duration-300 flex items-center justify-center gap-1.5 shadow-md active:scale-[0.98]">
+        <a href="{{ route('calendar.show', ['handle' => $bskyAccount->handle]) }}" class="w-full py-2.5 rounded-xl cursor-pointer bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white font-bold text-xs transition duration-300 flex items-center justify-center gap-1.5 shadow-md active:scale-[0.98]">
           <x-icon name="home" class="h-4 w-4 text-sky-400 shrink-0" stroke-width="2" />
           <span>カレンダーへ戻る</span>
         </a>

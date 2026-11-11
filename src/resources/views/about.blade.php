@@ -40,9 +40,12 @@
 <body class="min-h-full flex flex-col items-center justify-center p-4 md:p-8 relative overflow-x-hidden">
 
   <!-- 背景の光彩エフェクト -->
-  <div class="absolute top-[-200px] left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-radial from-sky-500/10 to-transparent pointer-events-none z-0"></div>
+  <!-- 画面より大きいので、はみ出した分で横スクロールが出ないよう切り取る -->
+  <div class="absolute inset-0 overflow-hidden pointer-events-none z-0" aria-hidden="true">
+    <div class="absolute top-[-200px] left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-radial from-sky-500/10 to-transparent"></div>
+  </div>
 
-  <div class="w-full max-w-2xl glass-card rounded-2xl p-6 md:p-10 space-y-8 z-10 relative">
+  <main class="w-full max-w-2xl glass-card rounded-2xl p-6 md:p-10 space-y-8 z-10 relative">
     
     <!-- ヘッダー・ロゴ -->
     <div class="text-center space-y-3">
@@ -141,12 +144,12 @@
 
     <!-- 戻るアクション -->
     <div class="pt-4 flex justify-center">
-      <button onclick="window.history.back()" class="px-6 py-2.5 rounded-xl cursor-pointer bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white font-bold text-xs transition duration-300 flex items-center gap-1.5 active:scale-[0.98]">
+      <button onclick="window.history.back()" class="px-6 py-2.5 rounded-xl cursor-pointer bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white font-bold text-xs transition duration-300 flex items-center gap-1.5 active:scale-[0.98]">
         ← 元のページに戻る
       </button>
     </div>
 
-  </div>
+  </main>
 
 </body>
 </html>

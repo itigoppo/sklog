@@ -60,7 +60,7 @@
       <div class="space-y-10">
         @if ($archivesByYear->isEmpty())
           <div class="glass-card rounded-2xl p-12 text-center">
-            <h4 class="text-base font-bold text-slate-300 mb-1">アーカイブがありません</h4>
+            <h3 class="text-base font-bold text-slate-300 mb-1">アーカイブがありません</h3>
             <p class="text-xs text-slate-500">投稿データが同期されると、月別のアーカイブが自動的に作成されます。</p>
           </div>
         @else
@@ -85,10 +85,10 @@
           @foreach ($archivesByYear as $year => $archives)
             <div id="year-{{ $year }}" class="year-section space-y-4">
               <!-- 年ヘッダー -->
-              <h3 class="text-lg font-extrabold text-white tracking-wide flex items-center gap-2 border-b border-slate-900/60 pb-2 mb-2 select-none">
+              <h2 class="text-lg font-extrabold text-white tracking-wide flex items-center gap-2 border-b border-slate-900/60 pb-2 mb-2 select-none">
                 <x-icon name="calendar" class="h-5 w-5 text-sky-400" stroke-width="2" />
                 <span>{{ $year }}年</span>
-              </h3>
+              </h2>
 
 
               <!-- 月カードのグリッド表示 -->

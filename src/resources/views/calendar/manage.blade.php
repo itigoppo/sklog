@@ -13,10 +13,10 @@
     <!-- タイトル & 戻るボタン -->
     <div class="flex flex-col md:flex-row md:items-start justify-between border-b border-slate-800 pb-3 gap-3">
       <div class="space-y-1.5">
-        <h3 class="text-lg font-bold text-white tracking-wide flex items-center gap-2 select-none">
+        <h2 class="text-lg font-bold text-white tracking-wide flex items-center gap-2 select-none">
           <x-icon name="trash" class="h-5 w-5 text-rose-400" stroke-width="2" />
           削除モード
-        </h3>
+        </h2>
         <!-- 引き継いだ絞り込み条件 -->
         <div class="flex items-center gap-1.5 flex-wrap text-[10px] font-bold select-none">
           <span class="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">{{ $period['label'] ?? 'すべての期間' }}</span>
@@ -98,7 +98,7 @@
 
     @if ($groupsByDay->isEmpty())
       <div class="glass-card rounded-2xl p-12 text-center">
-        <h4 class="text-base font-bold text-slate-300 mb-1">{{ $isRepostTab ? 'リポストはありません' : '投稿はありません' }}</h4>
+        <h3 class="text-base font-bold text-slate-300 mb-1">{{ $isRepostTab ? 'リポストはありません' : '投稿はありません' }}</h3>
         <p class="text-xs text-slate-500">この条件で削除できる{{ $isRepostTab ? 'リポスト' : '投稿' }}は見つかりませんでした。</p>
       </div>
     @else
@@ -112,9 +112,9 @@
           @endphp
           <section class="space-y-2 js-manage-day">
             <div class="flex items-center justify-between gap-2 select-none">
-              <h4 class="text-xs font-bold text-slate-300 tracking-wide">
+              <h3 class="text-xs font-bold text-slate-300 tracking-wide">
                 {{ $day->format('Y年n月j日') }}<span class="text-slate-500 ml-1">({{ $weekdays[$day->dayOfWeek] }})</span>
-              </h4>
+              </h3>
               <button type="button" class="js-manage-select-day text-[10px] font-bold text-slate-500 hover:text-rose-300 transition cursor-pointer bg-transparent border-0 p-0">
                 この日を全選択
               </button>
@@ -154,7 +154,7 @@
                           <span class="flex items-center gap-1 text-emerald-400/80 truncate"><x-icon name="repost" class="h-3 w-3" />{{ '@' . $repostAuthor['handle'] }}</span>
                         @endif
                       </span>
-                      <span class="js-manage-text block text-xs text-slate-300 leading-relaxed whitespace-pre-wrap wrap-break-words line-clamp-1 mt-0.5">{{ $rowPost->text !== '' ? $rowPost->text : '（本文なし）' }}</span>
+                      <span class="js-manage-text block text-xs text-slate-300 leading-relaxed whitespace-pre-wrap wrap-break-word line-clamp-1 mt-0.5">{{ $rowPost->text !== '' ? $rowPost->text : '（本文なし）' }}</span>
                     </button>
 
                     @if ($rowPost->bsky_url)

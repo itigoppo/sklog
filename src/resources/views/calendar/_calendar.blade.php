@@ -29,10 +29,10 @@
   }
 @endphp
 
-<div id="miniCalendarInner" class="transition-opacity duration-150">
+<div class="transition-opacity duration-150">
   
   <!-- 月変更ナビゲーション -->
-  <div id="calendarNav" class="flex items-center justify-between gap-3 mb-4 border-b border-slate-850 pb-3">
+  <div class="flex items-center justify-between gap-3 mb-4 border-b border-slate-800 pb-3">
     @php
       $prevYearStr = substr($prevMonth, 0, 4);
       $prevMonthStr = substr($prevMonth, 5, 2);
@@ -50,12 +50,13 @@
     @if ($canGoPrev)
       <a href="{{ route('calendar.show.month', ['handle' => $bskyAccount->handle, 'year' => $prevYearStr, 'month' => $prevMonthStr]) }}" 
          class="js-calendar-nav p-2 rounded-lg cursor-pointer bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white transition shadow-sm"
+         aria-label="前の月（{{ (int) $prevYearStr }}年{{ (int) $prevMonthStr }}月）"
          data-year="{{ $prevYearStr }}"
          data-month="{{ $prevMonthStr }}">
         <x-icon name="chevron-left" class="h-3.5 w-3.5" stroke-width="2" />
       </a>
     @else
-      <div class="p-2 rounded-lg bg-slate-950/20 border border-slate-900 text-slate-650 opacity-30 cursor-not-allowed select-none shadow-xs">
+      <div class="p-2 rounded-lg bg-slate-950/20 border border-slate-900 text-slate-600 opacity-30 cursor-not-allowed select-none shadow-xs">
         <x-icon name="chevron-left" class="h-3.5 w-3.5" stroke-width="2" />
       </div>
     @endif
@@ -72,12 +73,13 @@
     @if ($currentMonth->lt(\Illuminate\Support\Carbon::now()->startOfMonth()))
       <a href="{{ route('calendar.show.month', ['handle' => $bskyAccount->handle, 'year' => $nextYearStr, 'month' => $nextMonthStr]) }}" 
          class="js-calendar-nav p-2 rounded-lg cursor-pointer bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white transition shadow-sm"
+         aria-label="次の月（{{ (int) $nextYearStr }}年{{ (int) $nextMonthStr }}月）"
          data-year="{{ $nextYearStr }}"
          data-month="{{ $nextMonthStr }}">
         <x-icon name="chevron-right" class="h-3.5 w-3.5" stroke-width="2" />
       </a>
     @else
-      <div class="p-2 rounded-lg bg-slate-950/20 border border-slate-900 text-slate-650 opacity-30 cursor-not-allowed select-none shadow-xs">
+      <div class="p-2 rounded-lg bg-slate-950/20 border border-slate-900 text-slate-600 opacity-30 cursor-not-allowed select-none shadow-xs">
         <x-icon name="chevron-right" class="h-3.5 w-3.5" stroke-width="2" />
       </div>
     @endif
@@ -93,7 +95,7 @@
   </div>
 
   <!-- 日付グリッド (ここだけをフェード対象にする) -->
-  <div id="calendarGrid" class="transition-opacity duration-150 grid grid-cols-7 gap-1 text-center">
+  <div class="js-calendar-grid transition-opacity duration-150 grid grid-cols-7 gap-1 text-center">
     <!-- 前月空白 -->
     @for ($i = 0; $i < $firstDayOfWeek; $i++)
       <div class="calendar-cell bg-slate-950/10 rounded-lg border border-transparent opacity-10"></div>

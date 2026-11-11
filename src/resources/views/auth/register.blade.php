@@ -71,7 +71,7 @@
     <div class="glow-effect-right"></div>
   </div>
 
-  <div class="w-full max-w-md z-10">
+  <main class="w-full max-w-md z-10">
 
     <!-- ロゴ -->
     <div class="text-center mb-8 select-none">
@@ -142,7 +142,7 @@
             @csrf
             <input type="hidden" name="expired_code" value="{{ session('expired_code') ?? old('invite_code') }}">
             <button type="submit"
-                    class="py-2 px-3 bg-amber-600 hover:bg-amber-500 text-white font-semibold rounded-md shadow-md focus:outline-none transition duration-300 active:scale-[0.98] cursor-pointer">
+                    class="py-2 px-3 bg-amber-600 hover:bg-amber-500 text-white font-semibold rounded-md shadow-md transition duration-300 active:scale-[0.98] cursor-pointer">
               再送をリクエストする ➔
             </button>
           </form>
@@ -197,7 +197,7 @@
                 ※ この招待コードの発行先アカウントです。このアカウントのアプリパスワードで登録してください
               </p>
               @if ($canUnlockHandle)
-                <button type="button" id="unlockHandleBtn" class="mt-1.5 text-[10px] text-sky-400 hover:text-sky-300 hover:underline font-semibold cursor-pointer focus:outline-none">
+                <button type="button" id="unlockHandleBtn" class="mt-1.5 text-[10px] text-sky-400 hover:text-sky-300 hover:underline font-semibold cursor-pointer">
                   Blueskyでハンドル名を変更した方はこちら
                 </button>
               @endif
@@ -210,18 +210,18 @@
                 Bluesky ハンドル名
               </label>
               <!-- ドメイン切り替えスイッチ -->
-              <div class="flex rounded-md bg-slate-950 p-0.5 border border-slate-800/80 text-[10px] font-bold select-none">
-                <button type="button" id="toggleSuffix" class="px-2 py-0.5 rounded bg-slate-800 text-white transition-all cursor-pointer focus:outline-none">
+              <div role="group" aria-label="ハンドルの種類" class="flex rounded-md bg-slate-950 p-0.5 border border-slate-800/80 text-[10px] font-bold select-none">
+                <button type="button" id="toggleSuffix" aria-pressed="true" class="px-2 py-0.5 rounded bg-slate-800 text-white transition-all cursor-pointer">
                   .bsky.social
                 </button>
-                <button type="button" id="toggleCustom" class="px-2 py-0.5 rounded text-slate-500 hover:text-slate-300 transition-all cursor-pointer focus:outline-none">
+                <button type="button" id="toggleCustom" aria-pressed="false" class="px-2 py-0.5 rounded text-slate-400 hover:text-slate-200 transition-all cursor-pointer">
                   カスタムドメイン
                 </button>
               </div>
             </div>
             <div class="relative flex items-center">
               <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 text-sm">@</span>
-              <input type="text" id="handleInput"
+              <input type="text" id="handleInput" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" aria-describedby="handleHint"
                      placeholder="username"
                      class="w-full pl-8 pr-28 py-3 rounded-lg bg-slate-900/60 border border-slate-700/60 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition duration-300">
               <span id="bskySuffix" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 text-xs font-mono font-bold select-none pointer-events-none transition-all duration-200">
@@ -239,7 +239,7 @@
           <label for="app_password" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
             アプリパスワード
           </label>
-          <input type="password" name="app_password" id="app_password"
+          <input type="password" name="app_password" id="app_password" autocomplete="current-password"
                  placeholder="xxxx-xxxx-xxxx-xxxx"
                  class="w-full px-4 py-3 rounded-lg bg-slate-900/60 border border-slate-700/60 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition duration-300 tracking-wider">
         </div>
@@ -261,7 +261,7 @@
 
         <!-- 送信ボタン -->
         <button type="submit" id="registerBtn"
-                class="w-full py-3.5 px-4 rounded-lg cursor-pointer bg-linear-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-semibold text-sm shadow-lg shadow-sky-950/50 hover:shadow-sky-500/10 focus:outline-none transition duration-300 transform active:scale-[0.98] flex items-center justify-center gap-2">
+                class="w-full py-3.5 px-4 rounded-lg cursor-pointer bg-linear-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-semibold text-sm shadow-lg shadow-sky-950/50 hover:shadow-sky-500/10 transition duration-300 transform active:scale-[0.98] flex items-center justify-center gap-2">
           <span id="registerBtnText" class="flex items-center justify-center gap-2">{{ $isAdding ? '登録してアカウントを追加する ➔' : '登録する ➔' }}</span>
         </button>
 
@@ -295,7 +295,7 @@
     </div>
 
     @include('layouts._footer')
-  </div>
+  </main>
 
   @if (! $isAccountLimitReached)
   <script>
@@ -314,9 +314,11 @@
         mode = newMode;
         if (mode === 'bsky') {
           toggleSuffix.classList.add('bg-slate-800', 'text-white');
-          toggleSuffix.classList.remove('text-slate-500', 'hover:text-slate-300');
+          toggleSuffix.setAttribute('aria-pressed', 'true');
+          toggleCustom.setAttribute('aria-pressed', 'false');
+          toggleSuffix.classList.remove('text-slate-400', 'hover:text-slate-200');
           toggleCustom.classList.remove('bg-slate-800', 'text-white');
-          toggleCustom.classList.add('text-slate-500', 'hover:text-slate-300');
+          toggleCustom.classList.add('text-slate-400', 'hover:text-slate-200');
 
           bskySuffix.classList.remove('hidden');
           handleInput.placeholder = 'username';
@@ -325,9 +327,11 @@
           handleHint.textContent = '※「.bsky.social」を除いたユーザー名だけを入力してください';
         } else {
           toggleCustom.classList.add('bg-slate-800', 'text-white');
-          toggleCustom.classList.remove('text-slate-500', 'hover:text-slate-300');
+          toggleCustom.setAttribute('aria-pressed', 'true');
+          toggleSuffix.setAttribute('aria-pressed', 'false');
+          toggleCustom.classList.remove('text-slate-400', 'hover:text-slate-200');
           toggleSuffix.classList.remove('bg-slate-800', 'text-white');
-          toggleSuffix.classList.add('text-slate-500', 'hover:text-slate-300');
+          toggleSuffix.classList.add('text-slate-400', 'hover:text-slate-200');
 
           bskySuffix.classList.add('hidden');
           handleInput.placeholder = 'username.com';

@@ -73,11 +73,14 @@
 </head>
 <body class="min-h-full flex flex-col justify-between p-4 md:p-8 relative overflow-x-hidden">
 
-  <div class="glow-effect"></div>
-  <div class="glow-effect-bottom"></div>
+  <!-- 背景の光彩。画面より大きいので、はみ出した分で横スクロールが出ないよう切り取る -->
+  <div class="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+    <div class="glow-effect"></div>
+    <div class="glow-effect-bottom"></div>
+  </div>
 
   <!-- メインコンテンツコンテナ -->
-  <div class="w-full max-w-5xl mx-auto z-10 space-y-12 md:space-y-16 py-8">
+  <main class="w-full max-w-5xl mx-auto z-10 space-y-12 md:space-y-16 py-8">
     
     <!-- ヒーローセクション -->
     <div class="text-center space-y-6 max-w-2xl mx-auto select-none">
@@ -106,13 +109,13 @@
       <div class="pt-4 flex justify-center gap-4">
         @auth
           @if ($authBskyAccount = Auth::user()->blueskyAccount)
-            <a href="{{ route('calendar.show', ['handle' => $authBskyAccount->handle]) }}" class="px-6 py-3.5 rounded-xl cursor-pointer bg-linear-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-sky-950/50 hover:shadow-sky-500/15 focus:outline-none transition duration-300 transform hover:scale-[1.05] active:scale-[0.98] flex items-center gap-2">
+            <a href="{{ route('calendar.show', ['handle' => $authBskyAccount->handle]) }}" class="px-6 py-3.5 rounded-xl cursor-pointer bg-linear-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-sky-950/50 hover:shadow-sky-500/15 transition duration-300 transform hover:scale-[1.05] active:scale-[0.98] flex items-center gap-2">
               <x-icon name="calendar" class="h-4 w-4" stroke-width="2.5" />
               自分のカレンダーを見る
             </a>
           @endif
         @else
-          <a href="/login" class="px-6 py-3.5 rounded-xl cursor-pointer bg-linear-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-sky-950/50 hover:shadow-sky-500/15 focus:outline-none transition duration-300 transform hover:scale-[1.05] active:scale-[0.98] flex items-center gap-2">
+          <a href="/login" class="px-6 py-3.5 rounded-xl cursor-pointer bg-linear-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-sky-950/50 hover:shadow-sky-500/15 transition duration-300 transform hover:scale-[1.05] active:scale-[0.98] flex items-center gap-2">
             <x-icon name="login" class="h-4 w-4" stroke-width="2.5" />
             ログイン
           </a>
@@ -122,7 +125,6 @@
           </a>
         @endauth
       </div>
-    </div>
 
     <!-- サンプルアカウント案内バナー -->
     <div class="max-w-xl mx-auto">
@@ -138,11 +140,11 @@
           </div>
           
           <div class="flex-1 min-w-0 text-left">
-            <div class="flex items-center gap-1.5 mb-0.5">
+            <div class="flex flex-wrap items-center gap-1.5 mb-0.5">
               <span class="text-[9px] font-extrabold tracking-widest text-sky-400 bg-sky-500/10 border border-sky-500/20 px-1.5 py-0.5 rounded uppercase leading-none">Sample</span>
-              <span class="text-xs font-bold text-white truncate">サンプルカレンダーを体験する</span>
+              <span class="text-xs font-bold text-white">サンプルカレンダーを体験する</span>
             </div>
-            <p class="text-[11px] text-slate-400 leading-relaxed truncate">
+            <p class="text-[11px] text-slate-400 leading-relaxed">
               実際のアーカイブ画面を見ることができます。
             </p>
           </div>
@@ -245,7 +247,7 @@
       @endif
     </div>
 
-  </div>
+  </main>
 
   @include('layouts._footer')
 

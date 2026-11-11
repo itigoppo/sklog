@@ -43,18 +43,18 @@
       <!-- メインコンテンツ -->
       <div class="space-y-6">
         <div class="flex items-center justify-between border-b border-slate-900/60 pb-3 mb-2 select-none">
-          <h3 class="text-lg font-extrabold text-white tracking-wide flex items-center gap-2">
+          <h2 class="text-lg font-extrabold text-white tracking-wide flex items-center gap-2">
             <x-icon name="tag" class="h-5 w-5 text-sky-400" stroke-width="2" />
             <span>タグ一覧</span>
-          </h3>
-          <span class="text-xs text-slate-400 font-bold bg-slate-900 border border-slate-850 px-3 py-1 rounded-full">
+          </h2>
+          <span class="text-xs text-slate-400 font-bold bg-slate-900 border border-slate-800 px-3 py-1 rounded-full">
             総計 {{ $tags->total() }} 種類のタグ
           </span>
         </div>
 
         @if ($tags->isEmpty())
           <div class="glass-card rounded-2xl p-12 text-center select-none">
-            <h4 class="text-base font-bold text-slate-300 mb-1">タグがありません</h4>
+            <h3 class="text-base font-bold text-slate-300 mb-1">タグがありません</h3>
             <p class="text-xs text-slate-500">投稿データにハッシュタグが含まれていると、自動的にここに抽出されます。</p>
           </div>
         @else

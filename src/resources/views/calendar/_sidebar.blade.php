@@ -15,7 +15,8 @@
     @include('calendar._search')
 
     <!-- ミニカレンダーの読み込み -->
-    <div id="miniCalendarContainer" data-handle="{{ $bskyAccount->handle }}" class="glass-card rounded-2xl p-4 border border-slate-800/80">
+    {{-- サイドバーはページ本体とモバイルドロワーの2か所に描画されるので、id ではなくクラスで探す --}}
+    <div data-handle="{{ $bskyAccount->handle }}" class="js-mini-calendar glass-card rounded-2xl p-4 border border-slate-800/80">
       @include('calendar._calendar')
     </div>
 

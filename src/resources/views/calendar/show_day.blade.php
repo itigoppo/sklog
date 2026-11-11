@@ -80,7 +80,7 @@
       <!-- 投稿一覧 -->
       @if ($posts->isEmpty())
         <div class="glass-card rounded-2xl p-12 text-center">
-          <h4 class="text-base font-bold text-slate-300 mb-1">この日はまだログがありません</h4>
+          <h3 class="text-base font-bold text-slate-300 mb-1">この日はまだログがありません</h3>
           <p class="text-xs text-slate-500">Blueskyでの新規投稿がある場合は、手動で同期してください。</p>
         </div>
       @else

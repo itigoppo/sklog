@@ -15,7 +15,7 @@
   @vite(['resources/css/app.css'])
 </head>
 <body class="min-h-full flex items-center justify-center p-4">
-  <div class="w-full max-w-md">
+  <main class="w-full max-w-md">
 
     <div class="text-center mb-8">
       <a href="/" class="inline-flex items-center gap-2.5 cursor-pointer">
@@ -48,7 +48,7 @@
           <input type="hidden" name="invite_code" value="{{ $inviteCode }}">
         @endif
         <button type="submit"
-                class="w-full py-3.5 px-4 rounded-lg cursor-pointer bg-linear-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-semibold text-sm shadow-lg shadow-sky-950/50 focus:outline-none transition duration-300 active:scale-[0.98]">
+                class="w-full py-3.5 px-4 rounded-lg cursor-pointer bg-linear-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-semibold text-sm shadow-lg shadow-sky-950/50 transition duration-300 active:scale-[0.98]">
           ログアウトして{{ $isJoin ? '申請' : '登録' }}に進む ➔
         </button>
       </form>
@@ -63,6 +63,6 @@
     </div>
 
     @include('layouts._footer')
-  </div>
+  </main>
 </body>
 </html>

@@ -82,7 +82,7 @@
           <x-icon name="image" class="w-7 h-7 text-slate-700/50" />
         </div>
         <!-- サムネイル画像 -->
-        <img src="{{ $item['thumb'] }}" alt="{{ $item['alt'] }}" class="w-full h-full object-cover group-hover:scale-105 transition-all duration-500 opacity-0" loading="lazy" onload="this.classList.remove('opacity-0'); if (this.previousElementSibling && this.previousElementSibling.classList.contains('img-skeleton')) this.previousElementSibling.remove();" onerror="if (this.previousElementSibling && this.previousElementSibling.classList.contains('img-skeleton')) this.previousElementSibling.remove();">
+        <img src="{{ $item['thumb'] }}" alt="{{ ($item['alt'] ?? '') ?: '添付画像' }}" class="w-full h-full object-cover group-hover:scale-105 transition-all duration-500 opacity-0" loading="lazy" onload="this.classList.remove('opacity-0'); if (this.previousElementSibling && this.previousElementSibling.classList.contains('img-skeleton')) this.previousElementSibling.remove();" onerror="if (this.previousElementSibling && this.previousElementSibling.classList.contains('img-skeleton')) this.previousElementSibling.remove();">
 
         <!-- ホバー時のオーバーレイ -->
         <div class="absolute inset-0 bg-slate-950/80 opacity-0 group-hover:opacity-100 transition duration-300 flex flex-col justify-between p-4.5">

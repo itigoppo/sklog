@@ -62,7 +62,7 @@
                 <span>{{ $domain }}</span>
               </div>
             @endif
-            <h5 class="font-bold text-white mb-0.5 truncate">{{ $external['title'] }}</h5>
+            <h4 class="font-bold text-white mb-0.5 truncate">{{ $external['title'] }}</h4>
             <p class="text-[9px] text-slate-500 line-clamp-1 leading-relaxed">{{ $external['description'] }}</p>
           </div>
         </div>
@@ -76,7 +76,7 @@
 
     <!-- 引用ポストが存在することを示すバッジ -->
     @if ($hasQuote)
-      <div class="inline-flex items-center gap-1 text-[9px] font-bold text-slate-500 bg-slate-850/40 border border-slate-800 px-2 py-0.5 rounded-full mt-2.5">
+      <div class="inline-flex items-center gap-1 text-[9px] font-bold text-slate-500 bg-slate-800/40 border border-slate-800 px-2 py-0.5 rounded-full mt-2.5">
         <x-icon name="link" class="h-2.5 w-2.5 text-slate-500 shrink-0" stroke-width="2.5" />
         <span>引用ポストあり</span>
       </div>

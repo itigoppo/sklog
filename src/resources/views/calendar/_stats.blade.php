@@ -66,7 +66,7 @@
   @endif
 
   <div class="glass-card rounded-2xl p-4 border {{ $isAnniversary ? 'anniversary-card border-amber-500/40' : 'border-slate-800/80' }} space-y-3 select-none">
-    <h4 class="text-xs font-bold text-white mb-2 flex items-center justify-between border-b border-slate-850 pb-2.5">
+    <h2 class="text-xs font-bold text-white mb-2 flex items-center justify-between border-b border-slate-800 pb-2.5">
       <div class="flex items-center gap-2">
         <x-icon name="bar-chart" class="h-4 w-4 text-sky-400 shrink-0" stroke-width="2" />
         Stats
@@ -77,7 +77,7 @@
           Happy Anniv.
         </span>
       @endif
-    </h4>
+    </h2>
 
     @if($isAnniversary)
       <!-- 記念日特別お祝い枠 -->

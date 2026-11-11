@@ -26,11 +26,13 @@
     <div class="flex justify-between items-center select-none pt-0.5">
       <span class="text-[9px] text-slate-600 font-bold tracking-wider uppercase leading-none">Search Settings</span>
       <button type="button" 
-              onclick="document.getElementById('search-options').classList.toggle('hidden'); document.getElementById('search-options-arrow').classList.toggle('rotate-180');"
+              {{-- サイドバーはページ本体とモバイルドロワーの2か所にあるので、押したボタンと同じフォームの中を開閉する --}}
+              onclick="const form = this.closest('form'); const open = form.querySelector('.js-search-options').classList.toggle('hidden') === false; form.querySelector('.js-search-options-arrow').classList.toggle('rotate-180', open); this.setAttribute('aria-expanded', open ? 'true' : 'false');"
+              aria-expanded="{{ request('mode') === 'or' || request('rt') === '1' ? 'true' : 'false' }}"
               class="text-[9px] font-bold text-slate-500 hover:text-slate-300 transition flex items-center gap-1 cursor-pointer select-none">
         <x-icon name="settings" class="h-3 w-3 text-slate-500" />
         <span>検索オプション</span>
-        <span id="search-options-arrow" class="inline-block text-[7px] transition-transform duration-200 {{ request('mode') === 'or' || request('rt') === '1' ? 'rotate-180' : '' }}">▼</span>
+        <span aria-hidden="true" class="js-search-options-arrow inline-block text-[7px] transition-transform duration-200 {{ request('mode') === 'or' || request('rt') === '1' ? 'rotate-180' : '' }}">▼</span>
       </button>
     </div>
 
@@ -38,7 +40,7 @@
     @php
       $showOptions = request('mode') === 'or' || request('rt') === '1';
     @endphp
-    <div id="search-options" class="{{ $showOptions ? '' : 'hidden' }} space-y-2.5 pt-2 border-t border-slate-900/40">
+    <div class="js-search-options {{ $showOptions ? '' : 'hidden' }} space-y-2.5 pt-2 border-t border-slate-900/40">
       <!-- AND/OR 条件切替 -->
       <div class="flex items-center justify-between gap-4 text-[10px] text-slate-400 font-bold select-none">
         <span class="text-slate-500">一致条件</span>

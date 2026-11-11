@@ -1,6 +1,6 @@
 @if (!($isMainPage ?? false))
   <!-- 戻るボタン -->
-  <a href="{{ route('calendar.show', ['handle' => $bskyAccount->handle]) }}" class="w-full py-2.5 rounded-xl cursor-pointer bg-slate-900/60 hover:bg-slate-850 border border-slate-800/80 hover:border-slate-700 text-slate-300 hover:text-white font-bold text-xs transition duration-300 flex items-center justify-center gap-1.5 shadow-md active:scale-[0.98] mb-3">
+  <a href="{{ route('calendar.show', ['handle' => $bskyAccount->handle]) }}" class="w-full py-2.5 rounded-xl cursor-pointer bg-slate-900/60 hover:bg-slate-800 border border-slate-800/80 hover:border-slate-700 text-slate-300 hover:text-white font-bold text-xs transition duration-300 flex items-center justify-center gap-1.5 shadow-md active:scale-[0.98] mb-3">
     <x-icon name="home" class="h-4 w-4 text-sky-400 shrink-0" stroke-width="2" />
     <span>カレンダー / 全履歴へ</span>
   </a>

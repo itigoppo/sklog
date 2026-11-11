@@ -2,11 +2,18 @@
     'id',
     'maxWidth' => 'max-w-3xl',
     'heightClass' => 'max-h-[85vh]',
-    'showClose' => true
+    'showClose' => true,
+    // 読み上げ用の名前。見出しがあるときは labelledby にその id を渡す
+    'label' => null,
+    'labelledby' => null,
+    'describedby' => null,
 ])
 
 <!-- 汎用モーダルコンポーネント -->
-<div id="{{ $id }}" class="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 opacity-0 pointer-events-none transition-all duration-300" role="dialog" aria-modal="true">
+{{-- 閉じている間は inert にして、Tab での移動や読み上げの対象から外す（開閉時の切り替えは下のスクリプト） --}}
+<div id="{{ $id }}" class="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 opacity-0 pointer-events-none transition-all duration-300" role="dialog" aria-modal="true" inert
+  @if ($labelledby) aria-labelledby="{{ $labelledby }}" @elseif ($label) aria-label="{{ $label }}" @endif
+  @if ($describedby) aria-describedby="{{ $describedby }}" @endif>
   <!-- 背景オーバーレイ -->
   <div class="absolute inset-0 bg-slate-950/85 backdrop-blur-md transition-opacity duration-300 modal-bg-overlay"></div>
 
@@ -85,10 +92,64 @@
       });
     }
 
-    // ESCキーで閉じる
+    const isOpen = () => !modal.classList.contains('opacity-0') && !modal.classList.contains('hidden');
+
+    // フォーカスを移せる要素 (表示されているものだけ)
+    const focusableSelector = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const getFocusable = () => Array.from(modal.querySelectorAll(focusableSelector))
+      .filter((el) => el.offsetParent !== null || getComputedStyle(el).position === 'fixed');
+
+    // 開く前にフォーカスがあった要素。閉じたらここへ戻す
+    let returnFocusTo = null;
+
+    const onOpened = () => {
+      returnFocusTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      modal.inert = false;
+      // data-autofocus があればそれを、無ければ最初の操作できる要素を選ぶ
+      const target = modal.querySelector('[data-autofocus]') || getFocusable()[0];
+      if (target) {
+        target.focus({ preventScroll: true });
+      } else {
+        modal.setAttribute('tabindex', '-1');
+        modal.focus({ preventScroll: true });
+      }
+    };
+
+    const onClosed = () => {
+      modal.inert = true;
+      if (returnFocusTo && document.contains(returnFocusTo)) {
+        returnFocusTo.focus({ preventScroll: true });
+      }
+      returnFocusTo = null;
+    };
+
+    // ESCキーで閉じる / Tab でモーダルの外へ出ないようにする
     window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && !modal.classList.contains('opacity-0') && !modal.classList.contains('hidden')) {
+      if (!isOpen()) return;
+
+      if (e.key === 'Escape') {
         triggerClose();
+        return;
+      }
+
+      if (e.key === 'Tab') {
+        const focusable = getFocusable();
+        if (focusable.length === 0) {
+          e.preventDefault();
+          return;
+        }
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (!modal.contains(document.activeElement)) {
+          e.preventDefault();
+          first.focus();
+        } else if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
       }
     });
 
@@ -103,9 +164,11 @@
           if (isCurrentlyClosed && !wasClosed) {
             unlockScroll();
             wasClosed = true;
+            onClosed();
           } else if (!isCurrentlyClosed && wasClosed) {
             lockScroll();
             wasClosed = false;
+            onOpened();
           }
         }
       });

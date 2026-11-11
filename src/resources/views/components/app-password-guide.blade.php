@@ -1,6 +1,6 @@
 {{-- アプリパスワードの作り方（安全）共通コンポーネント --}}
 <div class="bg-slate-900/40 rounded-lg border border-slate-800 p-4">
-  <button type="button" id="toggleAppPwdInstructions" class="text-xs font-medium text-sky-400 hover:text-sky-300 flex items-center gap-1.5 focus:outline-none cursor-pointer">
+  <button type="button" id="toggleAppPwdInstructions" class="text-xs font-medium text-sky-400 hover:text-sky-300 flex items-center gap-1.5 cursor-pointer">
     <x-icon name="info" class="h-4 w-4" stroke-width="2" />
     アプリパスワードの作り方（安全）
   </button>

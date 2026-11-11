@@ -1,6 +1,6 @@
 @push('modals')
 <!-- ギャラリー用拡大ライトボックスモーダル -->
-<x-modal id="galleryModal" maxWidth="max-w-5xl" heightClass="max-h-[85vh] md:h-[80vh] overflow-y-auto md:overflow-hidden" :showClose="true">
+<x-modal id="galleryModal" maxWidth="max-w-5xl" heightClass="max-h-[85vh] md:h-[80vh] overflow-y-auto md:overflow-hidden" :showClose="true" label="画像の拡大表示">
   <div class="flex flex-col md:flex-row h-full">
     <!-- 左側: 画像表示エリア -->
     <div class="w-full md:flex-1 h-[45vh] md:h-auto bg-slate-950/80 flex items-center justify-center relative p-2 md:p-4 select-none shrink-0 border-b md:border-b-0 border-slate-800">

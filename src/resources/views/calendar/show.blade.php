@@ -19,10 +19,10 @@
         </div>
         
         <!-- タイトル -->
-        <h4 class="text-xs font-extrabold text-white tracking-wider leading-none flex items-center gap-1.5 self-center">
+        <h2 class="text-xs font-extrabold text-white tracking-wider leading-none flex items-center gap-1.5 self-center">
           <span>{{ config('app.name', 'SkLoG') }}</span>
-          <span class="text-[9px] text-slate-500 font-bold uppercase tracking-widest px-1.5 py-0.5 rounded bg-slate-950 border border-slate-900 leading-none">Viewer</span>
-        </h4>
+          <span class="text-[9px] text-slate-400 font-bold uppercase tracking-widest px-1.5 py-0.5 rounded bg-slate-950 border border-slate-900 leading-none">Viewer</span>
+        </h2>
         
         <!-- 説明文と注意書き (モバイルではロゴの下に全幅で回り込み、PCではロゴの右側に配置) -->
         <div class="col-span-2 sm:col-span-1 sm:col-start-2 text-left select-none">
@@ -89,10 +89,10 @@
           @endphp
           <!-- 検索結果ヘッダー -->
           <div class="space-y-1">
-            <h3 class="text-lg font-bold text-white tracking-wide flex items-center gap-2 select-none">
+            <h2 class="text-lg font-bold text-white tracking-wide flex items-center gap-2 select-none">
               <x-icon name="search" class="h-5 w-5 text-sky-400" stroke-width="2" />
               検索結果
-            </h3>
+            </h2>
             <p class="text-xs text-slate-400 flex items-center gap-1.5 flex-wrap">
               <span><span class="text-sky-400 font-bold">"{{ request('q') }}"</span> の検索結果 ({{ $posts->total() }}件)</span>
               <span class="px-1.5 py-0.5 rounded bg-slate-900 text-slate-500 border border-slate-800 text-[9px] font-bold uppercase tracking-wider select-none">{{ request('mode', 'and') === 'or' ? 'OR検索' : 'AND検索' }}</span>
@@ -108,10 +108,10 @@
             </p>
           </div>
         @elseif ($isMainPage)
-          <h3 class="text-lg font-bold text-white tracking-wide flex items-center gap-2">
+          <h2 class="text-lg font-bold text-white tracking-wide flex items-center gap-2">
             <x-icon name="list" class="h-5 w-5 text-sky-400" stroke-width="2" />
             すべてのログ
-          </h3>
+          </h2>
         @else
           <!-- 月ページ用のパンくずリスト -->
           <nav class="flex text-slate-400 text-xs md:text-sm font-semibold" aria-label="Breadcrumb">
@@ -191,10 +191,10 @@
       @if ($posts->isEmpty())
         <div class="glass-card rounded-2xl p-12 text-center">
           @if (request('q'))
-            <h4 class="text-base font-bold text-slate-300 mb-1">検索条件にマッチする投稿が見つかりませんでした</h4>
+            <h3 class="text-base font-bold text-slate-300 mb-1">検索条件にマッチする投稿が見つかりませんでした</h3>
             <p class="text-xs text-slate-500">別のキーワードや、AND / OR条件を変更して再度お試しください。</p>
           @else
-            <h4 class="text-base font-bold text-slate-300 mb-1">この期間はまだログがありません</h4>
+            <h3 class="text-base font-bold text-slate-300 mb-1">この期間はまだログがありません</h3>
             <p class="text-xs text-slate-500">Blueskyでの新規投稿がある場合は、手動で同期してください。</p>
           @endif
         </div>
@@ -285,12 +285,12 @@
               <div class="space-y-4">
                 
                 <!-- 日付ヘッダー -->
-                <h4 class="text-sm font-bold text-sky-400 border-b border-slate-900/60 pb-1.5 mb-1.5">
+                <h3 class="text-sm font-bold text-sky-400 border-b border-slate-900/60 pb-1.5 mb-1.5">
                   <a href="{{ route('calendar.show.day', ['handle' => $bskyAccount->handle, 'year' => $postedDate->format('Y'), 'month' => $postedDate->format('m'), 'day' => $postedDate->format('d')]) }}" class="flex items-center gap-2 cursor-pointer hover:text-sky-300 transition duration-300 w-fit">
                     <x-icon name="calendar" class="h-4 w-4" stroke-width="2" />
                     <span>{{ $postedDate->isoFormat('YYYY年MM月DD日 (dd)') }}</span>
                   </a>
-                </h4>
+                </h3>
 
                 <!-- その日の投稿一覧 -->
                 @foreach ($sortedPosts as $index => $post)

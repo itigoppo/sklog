@@ -26,7 +26,8 @@
          class="{{ $linkClass }}{{ $isLastVisible ? ' relative' : '' }}{{ $isOverflow ? ' hidden' : '' }}"
          data-post-id="{{ $postId }}"
          data-index="{{ $loop->index }}">
-        <img src="{{ $img['thumb'] }}" alt="{{ $img['alt'] ?? '添付画像' }}" class="{{ $imgClass }}">
+        {{-- Bluesky で代替テキストが未設定だと空文字が入るので、?? ではなく ?: で既定の文言にする（空だとリンクの名前が無くなる） --}}
+        <img src="{{ $img['thumb'] }}" alt="{{ ($img['alt'] ?? '') ?: '添付画像 ' . ($loop->index + 1) . '枚目' }}" class="{{ $imgClass }}">
         @if ($isLastVisible)
           <span class="absolute inset-0 flex items-center justify-center bg-slate-950/70 text-white text-lg font-bold backdrop-blur-[1px] pointer-events-none">
             +{{ $hiddenCount }}

@@ -21,3 +21,14 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+@layer base {
+    /*
+     * キーボード操作中のフォーカス表示をサイト全体で揃える。
+     * 入力欄は各ビューで focus:ring を付けているので、ここではボタンやリンクなどを対象にする。
+     */
+    :where(a, button, summary, [role='button'], [tabindex]:not([tabindex='-1']), input[type='checkbox'], input[type='radio']):focus-visible {
+        outline: 2px solid var(--color-sky-400);
+        outline-offset: 2px;
+    }
+}

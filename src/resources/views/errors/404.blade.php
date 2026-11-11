@@ -54,9 +54,12 @@
 </head>
 <body class="h-full flex flex-col justify-center items-center p-4 relative overflow-hidden">
 
-  <div class="glow-effect"></div>
+  <!-- 画面より大きいので、はみ出した分で横スクロールが出ないよう切り取る -->
+  <div class="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+    <div class="glow-effect"></div>
+  </div>
 
-  <div class="w-full max-w-lg z-10 text-center space-y-8 select-none">
+  <main class="w-full max-w-lg z-10 text-center space-y-8 select-none">
     
     <!-- アニメーションするブランド蝶ロゴ -->
     <div class="flex justify-center mb-2">
@@ -84,7 +87,7 @@
 
       <!-- アクションボタン -->
       <div class="pt-2">
-        <a href="/" class="inline-flex items-center justify-center px-6 py-3.5 rounded-xl cursor-pointer bg-linear-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-sky-950/50 hover:shadow-sky-500/15 focus:outline-none transition duration-300 transform hover:scale-[1.05] active:scale-[0.98] gap-2">
+        <a href="/" class="inline-flex items-center justify-center px-6 py-3.5 rounded-xl cursor-pointer bg-linear-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-sky-950/50 hover:shadow-sky-500/15 transition duration-300 transform hover:scale-[1.05] active:scale-[0.98] gap-2">
           <x-icon name="home" class="h-4 w-4" stroke-width="2.5" />
           トップページへ戻る
         </a>
@@ -92,7 +95,7 @@
     </div>
 
     @include('layouts._footer')
-  </div>
+  </main>
 
 </body>
 </html>

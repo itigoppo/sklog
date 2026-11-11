@@ -30,7 +30,7 @@
 </head>
 <body class="min-h-full flex flex-col justify-center items-center p-4">
 
-  <div class="w-full max-w-md">
+  <main class="w-full max-w-md">
 
     <div class="text-center mb-8 select-none">
       <a href="/" class="inline-block group cursor-pointer">
@@ -83,7 +83,7 @@
       <!-- アクションボタン -->
       <div class="mt-8">
         <a href="/"
-           class="inline-block w-full py-3.5 px-4 rounded-lg cursor-pointer bg-linear-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-semibold text-sm shadow-lg focus:outline-none transition duration-300 active:scale-[0.98]">
+           class="inline-block w-full py-3.5 px-4 rounded-lg cursor-pointer bg-linear-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-semibold text-sm shadow-lg transition duration-300 active:scale-[0.98]">
           トップページへ戻る
         </a>
       </div>
@@ -98,6 +98,6 @@
     </div>
 
     @include('layouts._footer')
-  </div>
+  </main>
 </body>
 </html>

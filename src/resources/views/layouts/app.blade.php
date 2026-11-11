@@ -62,6 +62,7 @@
   @yield('extra_css')
 </head>
 <body class="min-h-full flex flex-col pb-12">
+  <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-60 focus:px-4 focus:py-2 focus:rounded-lg focus:bg-slate-900 focus:text-white focus:text-sm focus:font-bold">本文へ移動</a>
 
   <!-- ヘッダーバナー -->
   <div class="relative h-48 md:h-72 w-full overflow-hidden bg-linear-to-r from-sky-900 via-indigo-900 to-purple-950">
@@ -110,11 +111,11 @@
 
         <!-- 名前 & ハンドル -->
         <div class="md:pt-6 flex-1 min-w-0 w-full">
-          <h2 class="text-2xl md:text-3xl font-extrabold text-white tracking-tight hover:text-sky-400 transition duration-300 leading-tight mb-2 text-center md:text-left">
+          <h1 class="text-2xl md:text-3xl font-extrabold text-white tracking-tight hover:text-sky-400 transition duration-300 leading-tight mb-2 text-center md:text-left">
             <a href="{{ route('calendar.show', ['handle' => $bskyAccount->handle]) }}" class="cursor-pointer">
               {{ $user->name ?: '@' . $bskyAccount->handle }}
             </a>
-          </h2>
+          </h1>
           <div class="flex flex-col md:flex-row md:items-center justify-center md:justify-start gap-2.5 md:gap-3 mb-2.5">
             <p class="text-sky-400 font-semibold text-sm md:text-base hover:text-sky-300 transition duration-300 leading-none text-center md:text-left">
               <a href="https://bsky.app/profile/{{ $bskyAccount->handle }}" target="_blank" rel="noopener noreferrer" class="cursor-pointer inline-flex items-center gap-1" title="Blueskyプロフィールを開く ➔">
@@ -217,7 +218,9 @@
     @endif
 
     <!-- 各画面ごとの個別コンテンツ -->
-    @yield('content')
+    <main id="main-content" tabindex="-1" class="focus:outline-none">
+      @yield('content')
+    </main>
 
     @include('layouts._footer')
   </div>
@@ -458,27 +461,67 @@
       const menuBtn = document.getElementById('mobileMenuBtn');
       const closeBtn = document.getElementById('closeDrawerBtn');
 
+      const isDrawerOpen = () => drawer && drawer.classList.contains('translate-x-0');
+
       function openDrawer() {
         if (!drawer || !overlay) return;
         drawer.classList.remove('translate-x-full');
         drawer.classList.add('translate-x-0');
         overlay.classList.remove('opacity-0', 'pointer-events-none');
         overlay.classList.add('opacity-100', 'pointer-events-auto');
+        // 閉じている間は inert で Tab の移動先から外しているので、開いたら戻してフォーカスを中へ移す
+        drawer.inert = false;
+        menuBtn?.setAttribute('aria-expanded', 'true');
         lockBodyScroll();
+        closeBtn?.focus({ preventScroll: true });
       }
 
       function closeDrawer() {
-        if (!drawer || !overlay) return;
+        if (!drawer || !overlay || !isDrawerOpen()) return;
         drawer.classList.remove('translate-x-0');
         drawer.classList.add('translate-x-full');
         overlay.classList.remove('opacity-100', 'pointer-events-auto');
         overlay.classList.add('opacity-0', 'pointer-events-none');
+        drawer.inert = true;
+        menuBtn?.setAttribute('aria-expanded', 'false');
         unlockBodyScroll();
+        menuBtn?.focus({ preventScroll: true });
       }
 
       if (menuBtn) menuBtn.addEventListener('click', openDrawer);
       if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
       if (overlay) overlay.addEventListener('click', closeDrawer);
+
+      // Esc で閉じる / 開いている間は Tab でドロワーの外へ出ないようにする
+      window.addEventListener('keydown', (e) => {
+        if (!isDrawerOpen()) return;
+        if (e.key === 'Escape') {
+          closeDrawer();
+          return;
+        }
+        if (e.key === 'Tab') {
+          const focusable = Array.from(drawer.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'))
+            .filter((el) => el.offsetParent !== null);
+          if (focusable.length === 0) return;
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+          if (!drawer.contains(document.activeElement)) {
+            e.preventDefault();
+            first.focus();
+          } else if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      });
+
+      // PC 幅に広げるとドロワーは非表示 (lg:hidden) になるので、開いたままのスクロールロックを解く
+      window.matchMedia('(min-width: 1024px)').addEventListener('change', (e) => {
+        if (e.matches) closeDrawer();
+      });
     });
 
     // ================= アカウント切り替えパネルの開閉 =================
@@ -528,7 +571,8 @@
 
       e.preventDefault();
 
-      const container = document.getElementById('miniCalendarContainer');
+      // サイドバーはページ本体とモバイルドロワーの2か所にあるので、押されたほうのカレンダーを差し替える
+      const container = navBtn.closest('.js-mini-calendar');
       if (!container) {
         // コンテナがなければ通常のページ遷移へフォールバック
         window.location.href = navBtn.getAttribute('href');
@@ -545,7 +589,7 @@
       }
 
       // フェードアウト
-      const grid = document.getElementById('calendarGrid');
+      const grid = container.querySelector('.js-calendar-grid');
       if (grid) {
         grid.style.opacity = '0';
       } else {
@@ -568,7 +612,7 @@
         setTimeout(() => {
           container.innerHTML = html;
           
-          const newGrid = document.getElementById('calendarGrid');
+          const newGrid = container.querySelector('.js-calendar-grid');
           if (newGrid) {
             // 一瞬 opacity 0 に設定
             newGrid.style.transition = 'none';
@@ -597,14 +641,14 @@
   <x-confirm-modal />
 
   <!-- ================= 画像拡大モーダル ================= -->
-  <x-modal id="imageModal" maxWidth="max-w-4xl" heightClass="h-[80vh] md:h-[75vh]" :showClose="true">
+  <x-modal id="imageModal" maxWidth="max-w-4xl" heightClass="h-[80vh] md:h-[75vh]" :showClose="true" label="画像の拡大表示">
     <!-- 前へボタン (カード内に absolute 配置して、画像の左右に重ねる) -->
-    <button id="prevImageBtn" class="absolute left-4 top-1/2 -translate-y-1/2 p-2.5 rounded-full cursor-pointer bg-slate-950/60 border border-slate-800/80 text-white hover:text-white hover:bg-slate-800/80 transition duration-300 z-30 shadow-2xl hidden" style="margin-top: -20px;">
+    <button type="button" id="prevImageBtn" aria-label="前の画像" class="absolute left-4 top-1/2 -translate-y-1/2 p-2.5 rounded-full cursor-pointer bg-slate-950/60 border border-slate-800/80 text-white hover:text-white hover:bg-slate-800/80 transition duration-300 z-30 shadow-2xl hidden" style="margin-top: -20px;">
       <x-icon name="chevron-left" class="h-5 w-5" />
     </button>
 
     <!-- 次へボタン -->
-    <button id="nextImageBtn" class="absolute right-4 top-1/2 -translate-y-1/2 p-2.5 rounded-full cursor-pointer bg-slate-950/60 border border-slate-800/80 text-white hover:text-white hover:bg-slate-800/80 transition duration-300 z-30 shadow-2xl hidden" style="margin-top: -20px;">
+    <button type="button" id="nextImageBtn" aria-label="次の画像" class="absolute right-4 top-1/2 -translate-y-1/2 p-2.5 rounded-full cursor-pointer bg-slate-950/60 border border-slate-800/80 text-white hover:text-white hover:bg-slate-800/80 transition duration-300 z-30 shadow-2xl hidden" style="margin-top: -20px;">
       <x-icon name="chevron-right" class="h-5 w-5" />
     </button>
 
@@ -628,27 +672,27 @@
 
 
   <!-- ================= ページ上部スクロールボタン (Back to Top) ================= -->
-  <button id="backToTopBtn" class="fixed bottom-22 lg:bottom-6 right-6 z-40 w-12 h-12 rounded-full glass-card border border-slate-800 hover:border-sky-500/50 flex items-center justify-center text-slate-400 hover:text-sky-400 shadow-xl opacity-0 pointer-events-none transition-all duration-300 transform translate-y-4 hover:scale-110 active:scale-95 cursor-pointer">
+  <button type="button" id="backToTopBtn" aria-label="ページの先頭へ戻る" class="fixed bottom-22 lg:bottom-6 right-6 z-40 w-12 h-12 rounded-full glass-card border border-slate-800 hover:border-sky-500/50 flex items-center justify-center text-slate-400 hover:text-sky-400 shadow-xl opacity-0 pointer-events-none transition-all duration-300 transform translate-y-4 hover:scale-110 active:scale-95 cursor-pointer">
     <x-icon name="chevron-up" class="h-5.5 w-5.5" stroke-width="2.5" />
   </button>
 
   <!-- ================= モバイル専用フローティングメニューボタン ================= -->
-  <button id="mobileMenuBtn" class="fixed bottom-6 right-6 z-40 lg:hidden w-12 h-12 rounded-full bg-linear-to-br from-sky-400 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-sky-500/30 hover:scale-110 active:scale-95 transition duration-300 cursor-pointer">
+  <button type="button" id="mobileMenuBtn" aria-label="メニュー（同期・検索・カレンダー）" aria-expanded="false" aria-controls="mobileDrawer" class="fixed bottom-6 right-6 z-40 lg:hidden w-12 h-12 rounded-full bg-linear-to-br from-sky-400 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-sky-500/30 hover:scale-110 active:scale-95 transition duration-300 cursor-pointer">
     <x-icon name="menu" class="h-5.5 w-5.5" stroke-width="2.5" />
   </button>
 
   <!-- ================= モバイルドロワー背景オーバーレイ ================= -->
-  <div id="drawerOverlay" class="fixed inset-0 z-45 bg-slate-950/60 backdrop-blur-xs opacity-0 pointer-events-none transition-opacity duration-300"></div>
+  <div id="drawerOverlay" aria-hidden="true" class="fixed inset-0 z-45 bg-slate-950/60 backdrop-blur-xs opacity-0 pointer-events-none transition-opacity duration-300"></div>
 
   <!-- ================= モバイル専用スライドドロワー ================= -->
-  <div id="mobileDrawer" class="fixed top-0 right-0 h-full w-80 max-w-[85vw] z-50 bg-slate-950/95 backdrop-blur-md border-l border-slate-850 p-5 space-y-6 overflow-y-auto transform translate-x-full transition-transform duration-300 shadow-2xl flex flex-col lg:hidden">
+  <div id="mobileDrawer" role="dialog" aria-modal="true" aria-labelledby="mobileDrawerTitle" inert class="fixed top-0 right-0 h-full w-80 max-w-[85vw] z-50 bg-slate-950/95 backdrop-blur-md border-l border-slate-800 p-5 space-y-6 overflow-y-auto transform translate-x-full transition-transform duration-300 shadow-2xl flex flex-col lg:hidden">
     <!-- ドロワーヘッダー（タイトル＆閉じるボタン） -->
-    <div class="flex items-center justify-between border-b border-slate-850 pb-3 mb-2 shrink-0 select-none">
-      <h3 class="text-sm font-bold text-white tracking-wider uppercase flex items-center gap-1.5">
+    <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-2 shrink-0 select-none">
+      <h2 id="mobileDrawerTitle" class="text-sm font-bold text-white tracking-wider uppercase flex items-center gap-1.5">
         <x-icon name="menu" class="h-4 w-4 text-sky-400" stroke-width="2.5" />
         Menu
-      </h3>
-      <button id="closeDrawerBtn" class="p-1.5 rounded-lg cursor-pointer bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition duration-300">
+      </h2>
+      <button type="button" id="closeDrawerBtn" aria-label="メニューを閉じる" class="p-1.5 rounded-lg cursor-pointer bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition duration-300">
         <x-icon name="close" class="h-4 w-4" stroke-width="2.5" />
       </button>
     </div>

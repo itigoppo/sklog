@@ -1,5 +1,5 @@
 <!-- 洗練されたカスタム確認モーダル共通コンポーネント -->
-<x-modal id="custom-confirm-modal" maxWidth="max-w-sm" heightClass="h-auto" :showClose="false">
+<x-modal id="custom-confirm-modal" maxWidth="max-w-sm" heightClass="h-auto" :showClose="false" labelledby="confirm-modal-title" describedby="confirm-modal-message">
   <div class="p-6">
     <div class="flex items-start gap-4 mb-5">
       <!-- アイコンエリア (情報マーク) -->
@@ -8,11 +8,12 @@
       </div>
       <div class="min-w-0 flex-1">
         <h3 id="confirm-modal-title" class="text-sm font-bold text-white tracking-wide">確認</h3>
-        <p id="confirm-modal-message" class="text-xs text-slate-400 mt-2 leading-relaxed wrap-break-words">本当に実行しますか？</p>
+        <p id="confirm-modal-message" class="text-xs text-slate-400 mt-2 leading-relaxed wrap-break-word">本当に実行しますか？</p>
       </div>
     </div>
     <div class="flex items-center justify-end gap-3 border-t border-slate-800/60 pt-4">
-      <button id="confirm-modal-cancel" type="button" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer select-none">
+      {{-- 取り消しにくい操作の確認なので、開いたときのフォーカスはキャンセルに置く --}}
+      <button id="confirm-modal-cancel" type="button" data-autofocus class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer select-none">
         キャンセル
       </button>
       <button id="confirm-modal-btn" type="button" class="px-4 py-2 rounded-lg text-xs font-bold text-white transition cursor-pointer active:scale-[0.98] select-none">

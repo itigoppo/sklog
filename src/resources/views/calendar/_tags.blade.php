@@ -30,10 +30,10 @@
 
 @if (!empty($popularTags))
   <div class="glass-card rounded-2xl p-5 border border-slate-800/80">
-    <h4 class="text-sm font-bold text-white mb-4 flex items-center gap-2 border-b border-slate-850 pb-2.5 select-none">
+    <h2 class="text-sm font-bold text-white mb-4 flex items-center gap-2 border-b border-slate-800 pb-2.5 select-none">
       <x-icon name="tag" class="h-4 w-4 text-sky-400 shrink-0" stroke-width="2" />
       Tags
-    </h4>
+    </h2>
     
     <ul class="space-y-1.5">
       @foreach ($popularTags as $tag => $count)
@@ -44,7 +44,7 @@
               <span class="text-slate-500 group-hover:text-sky-400 shrink-0 font-bold">#</span>
               <span class="truncate">{{ $tag }}</span>
             </span>
-            <span class="px-2 py-0.5 rounded-full bg-slate-900 group-hover:bg-sky-950 text-[10px] text-slate-500 group-hover:text-sky-400 border border-slate-850 group-hover:border-sky-900 font-bold transition shrink-0 ml-2">
+            <span class="px-2 py-0.5 rounded-full bg-slate-900 group-hover:bg-sky-950 text-[10px] text-slate-400 group-hover:text-sky-400 border border-slate-800 group-hover:border-sky-900 font-bold transition shrink-0 ml-2">
               {{ $count }}
             </span>
           </a>
@@ -53,7 +53,7 @@
     </ul>
 
     @if ($hasMoreTags)
-      <div class="mt-4 pt-3 border-t border-slate-850 text-center">
+      <div class="mt-4 pt-3 border-t border-slate-800 text-center">
         <a href="{{ route('calendar.tags', ['handle' => $bskyAccount->handle]) }}" 
            class="inline-flex items-center gap-1 text-xs text-sky-400 hover:text-sky-300 font-bold transition cursor-pointer">
           タグ一覧を表示 ➔

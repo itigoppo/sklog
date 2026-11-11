@@ -61,9 +61,9 @@
 
           <!-- 当年の日付情報 -->
           <div class="text-center">
-            <h1 class="text-lg md:text-2xl font-extrabold text-white tracking-tight">
+            <h2 class="text-lg md:text-2xl font-extrabold text-white tracking-tight">
               {{ $targetYear }}年のログ
-            </h1>
+            </h2>
             <p class="text-[10px] text-sky-400 font-semibold tracking-wider mt-0.5">
               年間総計 {{ $totalYearPosts }} 件のログ
             </p>
@@ -127,7 +127,7 @@
 
         @if (!$hasAnyPosts)
           <div class="col-span-full glass-card rounded-2xl p-12 text-center select-none">
-            <h4 class="text-base font-bold text-slate-300 mb-1">ログがありません</h4>
+            <h3 class="text-base font-bold text-slate-300 mb-1">ログがありません</h3>
             <p class="text-xs text-slate-500">{{ $targetYear }}年のログはまだ同期されていません。</p>
           </div>
         @endif

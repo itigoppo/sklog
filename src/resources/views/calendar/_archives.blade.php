@@ -24,10 +24,10 @@
 
 @if ($monthlyArchives->isNotEmpty())
   <div class="glass-card rounded-2xl p-5 border border-slate-800/80">
-    <h4 class="text-sm font-bold text-white mb-4 flex items-center gap-2 border-b border-slate-850 pb-2.5">
+    <h2 class="text-sm font-bold text-white mb-4 flex items-center gap-2 border-b border-slate-800 pb-2.5">
       <x-icon name="calendar" class="h-4 w-4 text-sky-400 shrink-0" stroke-width="2" />
       Archives
-    </h4>
+    </h2>
     
     <ul class="space-y-1.5">
       @foreach ($monthlyArchives as $archive)
@@ -41,7 +41,7 @@
               <x-icon name="chevron-right" class="h-3 w-3 text-slate-500 group-hover:text-sky-400 shrink-0 transition" stroke-width="2" />
               <span>{{ $archiveDate->format('Y年m月') }}</span>
             </span>
-            <span class="px-2 py-0.5 rounded-full bg-slate-900 group-hover:bg-sky-950 text-[10px] text-slate-500 group-hover:text-sky-400 border border-slate-850 group-hover:border-sky-900 font-bold transition">
+            <span class="px-2 py-0.5 rounded-full bg-slate-900 group-hover:bg-sky-950 text-[10px] text-slate-400 group-hover:text-sky-400 border border-slate-800 group-hover:border-sky-900 font-bold transition">
               {{ $archive->count }}
             </span>
           </a>
@@ -50,7 +50,7 @@
     </ul>
 
     @if ($hasMoreArchives)
-      <div class="mt-4 pt-3 border-t border-slate-850 text-center">
+      <div class="mt-4 pt-3 border-t border-slate-800 text-center">
         <a href="{{ route('calendar.archives', ['handle' => $bskyAccount->handle]) }}" 
            class="inline-flex items-center gap-1 text-xs text-sky-400 hover:text-sky-300 font-bold transition cursor-pointer">
           アーカイブ一覧を表示 ➔
