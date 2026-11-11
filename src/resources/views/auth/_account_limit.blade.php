@@ -42,7 +42,7 @@
           @csrf
           <input type="hidden" name="user_id" value="{{ $account->id }}">
           <button type="submit"
-                  class="px-2.5 py-1.5 rounded-lg cursor-pointer text-[10px] font-extrabold tracking-wider text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 border border-slate-800 hover:border-rose-500/40 whitespace-nowrap transition duration-300 active:scale-[0.98]"
+                  class="px-2.5 py-1.5 rounded-lg cursor-pointer text-xs font-extrabold tracking-wider text-slate-400 hover:text-rose-300 hover:bg-rose-500/10 border border-slate-800 hover:border-rose-500/40 whitespace-nowrap transition duration-300 active:scale-[0.98]"
                   title="{{ '@' . $account->blueskyAccount->handle }} からログアウトする">
             ログアウト
           </button>
@@ -52,7 +52,7 @@
   </div>
 
   @if ($activeHandle)
-    <p class="text-[10px] text-slate-600 leading-relaxed px-1">
+    <p class="text-xs text-slate-600 leading-relaxed px-1">
       いま使っている {{ '@' . $activeHandle }} は、この画面からは外せません。カレンダー画面のログアウトから行ってください。
     </p>
   @endif

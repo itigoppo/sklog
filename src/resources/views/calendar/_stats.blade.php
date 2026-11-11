@@ -69,7 +69,7 @@
     <h2 class="text-xs font-bold text-white mb-2 flex items-center justify-between border-b border-slate-800 pb-2.5">
       <div class="flex items-center gap-2">
         <x-icon name="bar-chart" class="h-4 w-4 text-sky-400 shrink-0" stroke-width="2" />
-        Stats
+        統計
       </div>
       @if($isAnniversary)
         <span class="px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 text-[9px] font-bold tracking-wider inline-flex items-center gap-1 shrink-0 whitespace-nowrap animate-bounce select-none" style="animation-duration: 2.5s;">
@@ -85,7 +85,7 @@
         <x-icon name="gift" class="h-5 w-5 text-amber-400 shrink-0 select-none" stroke-width="2" />
         <div class="flex flex-col min-w-0">
           <span class="text-[9px] font-extrabold tracking-wider text-amber-400 uppercase leading-none mb-1">Bluesky Anniversary</span>
-          <span class="text-[9px] text-slate-300 font-semibold leading-relaxed">
+          <span class="text-xs text-slate-300 font-semibold leading-relaxed">
             本日、Bluesky登録から <strong>{{ $anniversaryYears }}周年</strong> を迎えました！<br />
             おめでとうございます！
           </span>
@@ -96,29 +96,29 @@
     <div class="grid grid-cols-3 gap-1.5 text-center">
       <!-- 総ポスト数 (Bluesky) -->
       <div class="bg-slate-950/40 border border-slate-900 rounded-xl p-1.5 flex flex-col justify-center">
-        <span class="text-[8px] font-bold text-slate-500 tracking-wider">総ポスト数</span>
+        <span class="text-xs font-bold text-slate-500 tracking-wider">総ポスト数</span>
         <span class="text-xs font-extrabold text-white mt-0.5 tracking-tight leading-none">
           {{ number_format($stats['bsky_total']) }}
         </span>
-        <span class="text-[7px] text-slate-600 font-bold mt-0.5">posts</span>
+        <span class="text-[10px] text-slate-600 font-bold mt-0.5">posts</span>
       </div>
 
       <!-- 日平均投稿数 -->
       <div class="bg-slate-950/40 border border-slate-900 rounded-xl p-1.5 flex flex-col justify-center">
-        <span class="text-[8px] font-bold text-slate-500 tracking-wider">日平均</span>
+        <span class="text-xs font-bold text-slate-500 tracking-wider">日平均</span>
         <span class="text-xs font-extrabold text-white mt-0.5 tracking-tight leading-none">
           {{ $stats['per_day'] }}
         </span>
-        <span class="text-[7px] text-slate-600 font-bold mt-0.5">posts/日</span>
+        <span class="text-[10px] text-slate-600 font-bold mt-0.5">posts/日</span>
       </div>
 
       <!-- 記録日数 -->
       <div class="bg-slate-950/40 border border-slate-900 rounded-xl p-1.5 flex flex-col justify-center">
-        <span class="text-[8px] font-bold text-slate-500 tracking-wider">活動日数</span>
+        <span class="text-xs font-bold text-slate-500 tracking-wider">活動日数</span>
         <span class="text-xs font-extrabold text-white mt-0.5 tracking-tight leading-none">
           {{ number_format($stats['days']) }}
         </span>
-        <span class="text-[7px] text-slate-600 font-bold mt-0.5">日</span>
+        <span class="text-[10px] text-slate-600 font-bold mt-0.5">日</span>
       </div>
     </div>
 

@@ -16,7 +16,7 @@
         </div>
         <div>
           <h2 class="text-base font-bold text-white tracking-wide">特定のポストを取り込む</h2>
-          <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">
+          <p class="text-xs text-slate-400 mt-1 leading-relaxed">
             APIの取得漏れや、誤って非表示にしたポストのURLを入力して再インポート（またはカレンダーへの復元）を行います。
           </p>
         </div>
@@ -41,7 +41,7 @@
             rows="6" 
             class="w-full rounded-xl bg-slate-950/60 border border-slate-800 focus:border-sky-500/60 focus:ring-1 focus:ring-sky-500/30 text-slate-200 text-xs px-3.5 py-3 placeholder-slate-600 transition duration-200 focus:outline-hidden font-mono leading-relaxed"
             placeholder="https://bsky.app/profile/{{ $bskyAccount->handle }}/post/3kp5u2jx5hk2b&#10;https://bsky.app/profile/{{ $bskyAccount->handle }}/post/3kp..."></textarea>
-          <span class="text-[10px] text-slate-500 block leading-relaxed">
+          <span class="text-xs text-slate-500 block leading-relaxed">
             ※ご自身（{{ '@' . $bskyAccount->handle }}）のオリジナルポストのみが対象となります。他人のポストやリポストのURLはインポートできません。<br>
             ※一度に処理できるのは最大20件までとなります。大量のポストを同期する場合は、マイページ上部の「同期」ボタンを使用してください。
           </span>
@@ -67,7 +67,7 @@
         </div>
         <div>
           <h2 class="text-base font-bold text-white tracking-wide">アプリパスワードの更新</h2>
-          <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">
+          <p class="text-xs text-slate-400 mt-1 leading-relaxed">
             Bluesky側でアプリパスワードを再生成した場合や、同期エラー（認証エラー）を解除したい場合は、新しいアプリパスワードを入力して更新してください。
           </p>
         </div>
@@ -117,13 +117,13 @@
         </div>
         <div>
           <h2 class="text-base font-bold text-rose-300 tracking-wide">退会（アカウントの削除）</h2>
-          <p class="text-[11px] text-rose-400/80 mt-1 leading-relaxed">
+          <p class="text-xs text-rose-400/80 mt-1 leading-relaxed">
             本サービスから完全に退会し、これまでに取り込んだすべてのポストやアバター画像、連携パスワードなどのデータをすべて消去します。
           </p>
         </div>
       </div>
 
-      <div class="p-3.5 rounded-xl bg-rose-500/5 border border-rose-500/15 text-[11px] text-rose-300/90 leading-relaxed space-y-1">
+      <div class="p-3.5 rounded-xl bg-rose-500/5 border border-rose-500/15 text-xs text-rose-300/90 leading-relaxed space-y-1">
         <p class="font-bold">⚠️ 注意事項:</p>
         <p>• 削除されたデータはバックアップを含め、一切復元することができません。</p>
         <p>• カレンダーURL（{{ route('calendar.show', ['handle' => $bskyAccount->handle]) }}）も即時無効となり、アクセス不可になります。</p>

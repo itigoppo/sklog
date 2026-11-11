@@ -60,11 +60,11 @@
   <div id="{{ $previewId }}" class="hidden mb-3.5 p-4 pl-5 rounded-r-xl border-l-2 border-sky-500/30 bg-slate-950/30 text-xs text-slate-400 select-none">
     @if ($isParentReplyToOthers && $rootAuthorName)
       <div class="flex items-center gap-1.5 pb-2.5 mb-2.5 border-b border-slate-900/60">
-        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-900/80 border border-slate-800 text-[8px] text-slate-400 font-medium shrink-0">
+        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-900/80 border border-slate-800 text-xs text-slate-400 font-medium shrink-0">
           <x-icon name="reply" class="h-2 w-2 text-slate-400 translate-y-[-1.2px]" stroke-width="2" />
           返信先: {{ $rootAuthorName }}
         </span>
-        <span class="text-[9px] text-slate-500">への返信ポスト</span>
+        <span class="text-xs text-slate-500">への返信ポスト</span>
       </div>
     @endif
 
@@ -81,13 +81,13 @@
           <div class="min-w-0 flex-1">
             @php $domain = parse_url($parentExternal['uri'], PHP_URL_HOST); @endphp
             @if ($domain)
-              <div class="flex items-center gap-1 text-[8px] text-slate-500 font-bold mb-0.5">
+              <div class="flex items-center gap-1 text-[10px] text-slate-500 font-bold mb-0.5">
                 <x-icon name="globe" class="h-3 w-3 text-slate-500 shrink-0" stroke-width="2.5" />
                 <span>{{ $domain }}</span>
               </div>
             @endif
             <h4 class="font-bold text-white mb-0.5 truncate">{{ $parentExternal['title'] }}</h4>
-            <p class="text-[9px] text-slate-500 line-clamp-1 leading-relaxed">{{ $parentExternal['description'] }}</p>
+            <p class="text-xs text-slate-500 line-clamp-1 leading-relaxed">{{ $parentExternal['description'] }}</p>
           </div>
         </div>
       </a>

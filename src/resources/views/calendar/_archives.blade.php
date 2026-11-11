@@ -26,7 +26,7 @@
   <div class="glass-card rounded-2xl p-5 border border-slate-800/80">
     <h2 class="text-sm font-bold text-white mb-4 flex items-center gap-2 border-b border-slate-800 pb-2.5">
       <x-icon name="calendar" class="h-4 w-4 text-sky-400 shrink-0" stroke-width="2" />
-      Archives
+      月別アーカイブ
     </h2>
     
     <ul class="space-y-1.5">

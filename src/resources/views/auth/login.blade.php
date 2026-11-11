@@ -190,7 +190,7 @@
             </span>
           </div>
           <input type="hidden" name="handle" id="finalHandle" value="{{ old('handle', $prefillHandle ?? '') }}">
-          <p class="mt-1.5 text-[10px] text-slate-500">
+          <p class="mt-1.5 text-xs text-slate-500">
             <span id="handleHint">※「.bsky.social」を除いたユーザー名だけを入力してください</span>
           </p>
         </div>

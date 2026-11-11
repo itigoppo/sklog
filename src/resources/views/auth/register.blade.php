@@ -171,10 +171,10 @@
                  class="w-full px-4 py-3 rounded-lg border text-sm focus:outline-none transition duration-300 tracking-widest font-mono uppercase {{ $errors->has('invite_code') ? 'border-rose-500' : 'border-slate-700/60' }} {{ $lockedCode ? 'bg-slate-950/60 border-slate-800 text-slate-300 cursor-default select-all' : 'bg-slate-900/60 text-white placeholder-slate-500 focus:border-sky-500 focus:ring-1 focus:ring-sky-500' }}"
                  autocomplete="off">
           @if ($lockedCode)
-            <p class="mt-1.5 text-[10px] text-slate-500">※ 招待メールのリンクから開いたため、招待コードを自動入力しました</p>
+            <p class="mt-1.5 text-xs text-slate-500">※ 招待メールのリンクから開いたため、招待コードを自動入力しました</p>
           @endif
           @error('invite_code')
-            <p class="mt-1 text-[10px] text-rose-400">{{ $message }}</p>
+            <p class="mt-1 text-xs text-rose-400">{{ $message }}</p>
           @enderror
         </div>
 
@@ -193,11 +193,11 @@
                 <span class="text-sm font-semibold text-white truncate">{{ '@' . $lockedHandle }}</span>
                 <span class="ml-auto shrink-0 text-[9px] font-extrabold tracking-widest text-sky-400 bg-sky-500/10 border border-sky-500/20 px-1.5 py-0.5 rounded uppercase leading-none select-none">招待済み</span>
               </div>
-              <p class="mt-1.5 text-[10px] text-slate-500 leading-relaxed">
+              <p class="mt-1.5 text-xs text-slate-500 leading-relaxed">
                 ※ この招待コードの発行先アカウントです。このアカウントのアプリパスワードで登録してください
               </p>
               @if ($canUnlockHandle)
-                <button type="button" id="unlockHandleBtn" class="mt-1.5 text-[10px] text-sky-400 hover:text-sky-300 hover:underline font-semibold cursor-pointer">
+                <button type="button" id="unlockHandleBtn" class="mt-1.5 text-xs text-sky-400 hover:text-sky-300 hover:underline font-semibold cursor-pointer">
                   Blueskyでハンドル名を変更した方はこちら
                 </button>
               @endif
@@ -228,7 +228,7 @@
                 .bsky.social
               </span>
             </div>
-            <p class="mt-1.5 text-[10px] text-slate-500">
+            <p class="mt-1.5 text-xs text-slate-500">
               <span id="handleHint">※「.bsky.social」を除いたユーザー名だけを入力してください</span>
             </p>
           </div>

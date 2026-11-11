@@ -111,7 +111,7 @@
           <form action="{{ url('/login/confirm-handle-change') }}" method="POST" onsubmit="return confirm('本当にアカウントとカレンダーの全データを完全に削除しますか？この操作は取り消せません。');">
             @csrf
             <input type="hidden" name="action" value="delete">
-            <button type="submit" class="w-full py-2.5 sm:py-3 px-4 rounded-lg cursor-pointer bg-rose-950/20 hover:bg-rose-900/30 border border-rose-800/40 hover:border-rose-500/50 text-rose-300 hover:text-rose-200 text-[11px] sm:text-xs font-semibold transition duration-300 transform active:scale-[0.98] flex items-center justify-center gap-2">
+            <button type="submit" class="w-full py-2.5 sm:py-3 px-4 rounded-lg cursor-pointer bg-rose-950/20 hover:bg-rose-900/30 border border-rose-800/40 hover:border-rose-500/50 text-rose-300 hover:text-rose-200 text-xs sm:text-xs font-semibold transition duration-300 transform active:scale-[0.98] flex items-center justify-center gap-2">
               いいえ、カレンダーの利用を停止し、全データを削除する（退会）
             </button>
           </form>

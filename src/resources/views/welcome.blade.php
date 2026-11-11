@@ -144,7 +144,7 @@
               <span class="text-[9px] font-extrabold tracking-widest text-sky-400 bg-sky-500/10 border border-sky-500/20 px-1.5 py-0.5 rounded uppercase leading-none">Sample</span>
               <span class="text-xs font-bold text-white">サンプルカレンダーを体験する</span>
             </div>
-            <p class="text-[11px] text-slate-400 leading-relaxed">
+            <p class="text-xs text-slate-400 leading-relaxed">
               実際のアーカイブ画面を見ることができます。
             </p>
           </div>
@@ -153,7 +153,7 @@
           <x-icon name="chevron-right" class="h-5 w-5 text-slate-500 group-hover:text-sky-400 group-hover:translate-x-1 transition duration-300 shrink-0" stroke-width="2.5" />
         </div>
       </a>
-      <div class="mt-3 px-1.5 text-[10px] text-slate-500 font-semibold leading-relaxed select-none text-left space-y-1">
+      <div class="mt-3 px-1.5 text-xs text-slate-500 font-semibold leading-relaxed select-none text-left space-y-1">
         <div class="flex items-start gap-1">
           <span class="text-slate-600 shrink-0">※</span>
           <span>プライバシー保護のため、ご本人以外のログを閲覧する際はカレンダーや検索などの詳細機能は制限され、シンプルなタイムライン（全件表示）となります。</span>
@@ -222,7 +222,7 @@
                 </p>
 
                 <!-- メタデータ -->
-                <div class="flex items-center justify-end text-[10px] text-slate-500 border-t border-slate-900/60 pt-3 font-semibold">
+                <div class="flex items-center justify-end text-xs text-slate-500 border-t border-slate-900/60 pt-3 font-semibold">
                   <span class="text-sky-400 flex items-center gap-1 font-bold group-hover:translate-x-1 transition duration-300">
                     カレンダーを見る ➔
                   </span>
@@ -239,7 +239,7 @@
           </div>
           <div class="space-y-1.5">
             <h3 class="text-sm font-bold text-white">公開中のアカウントはありません</h3>
-            <p class="text-slate-400 text-[11px] leading-relaxed">
+            <p class="text-slate-400 text-xs leading-relaxed">
               現在、公開設定のアカウントは登録されていません。<br>アカウントを連携して、カレンダーを作成しましょう。
             </p>
           </div>

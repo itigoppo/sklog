@@ -1,6 +1,6 @@
 <!-- フッター -->
 <footer class="w-full text-center py-6 mt-8 border-t border-slate-900/60 z-10 select-none space-y-2">
-  <p class="text-[11px] font-semibold tracking-wider">
+  <p class="text-xs font-semibold tracking-wider">
     <a href="{{ route('about') }}" class="text-slate-400 hover:text-sky-400 transition duration-300 cursor-pointer">
       {{ config('app.name', 'SkLoG') }}について
     </a>

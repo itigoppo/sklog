@@ -201,7 +201,7 @@
           @if ($parentText)
             <button type="button" 
                     onclick="document.getElementById('reply-parent-{{ $post->id }}').classList.toggle('hidden') ? (this.textContent = '会話を表示') : (this.textContent = '会話を非表示')"
-                    class="text-[10px] font-bold text-slate-400 hover:text-white bg-slate-900/40 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 px-2 py-0.5 rounded-full transition cursor-pointer select-none">
+                    class="text-xs font-bold text-slate-400 hover:text-white bg-slate-900/40 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 px-2 py-0.5 rounded-full transition cursor-pointer select-none">
               会話を表示
             </button>
           @endif
@@ -243,7 +243,7 @@
       <div class="flex items-center gap-1.5 mb-3.5 pb-3 border-b border-slate-900/40 text-[10px] font-bold text-slate-500 flex-wrap select-none">
         <x-icon name="list" class="h-3.5 w-3.5 text-slate-500 shrink-0" />
         <span>スレッドの続き</span>
-        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-[9px] text-slate-500 font-bold leading-none">
+        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-xs text-slate-500 font-bold leading-none">
           <x-icon name="trash" class="h-2.5 w-2.5 shrink-0" />
           直前の投稿は見つかりません
         </span>
@@ -253,18 +253,18 @@
         <div class="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 flex-wrap">
           <x-icon name="list" class="h-3.5 w-3.5 text-slate-500 shrink-0" />
           <span>スレッドの続き</span>
-          <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-[7px] text-slate-500 font-bold uppercase tracking-widest leading-none">継続</span>
+          <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-none">継続</span>
         </div>
         
         <div class="flex items-center gap-2">
           <button type="button" 
                   onclick="document.getElementById('self-parent-{{ $post->id }}').classList.toggle('hidden') ? (this.textContent = '直前の投稿を表示') : (this.textContent = '直前の投稿を非表示')"
-                  class="text-[10px] font-bold text-slate-400 hover:text-white bg-slate-900/40 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 px-2 py-0.5 rounded-full transition cursor-pointer select-none">
+                  class="text-xs font-bold text-slate-400 hover:text-white bg-slate-900/40 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 px-2 py-0.5 rounded-full transition cursor-pointer select-none">
             直前の投稿を表示
           </button>
 
           @if ($parentUrl = $post->reply_parent_url)
-            <a href="{{ $parentUrl }}" target="_blank" class="flex items-center gap-1 text-[10px] font-bold text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2 py-0.5 rounded-full hover:bg-sky-500/20 transition cursor-pointer shrink-0">
+            <a href="{{ $parentUrl }}" target="_blank" class="flex items-center gap-1 text-xs font-bold text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2 py-0.5 rounded-full hover:bg-sky-500/20 transition cursor-pointer shrink-0">
               <x-icon name="bluesky" class="h-3 w-3 text-sky-400 shrink-0" />
               <span>詳細 ➔</span>
             </a>
@@ -429,7 +429,7 @@
   <div class="flex items-center justify-between text-xs text-slate-500 border-t border-slate-900/60 pt-2 select-none">
     <div class="flex items-center gap-3 md:gap-4 flex-wrap">
       <!-- 投稿日時 -->
-      <span class="flex items-center gap-1 text-[10px] text-slate-500 font-bold">
+      <span class="flex items-center gap-1 text-xs text-slate-500 font-bold">
         <x-icon name="clock" class="h-3.5 w-3.5 text-slate-500 shrink-0" stroke-width="2" />
         <span>{{ $post->posted_at->format('Y年m月d日 H:i:s') }}</span>
       </span>
@@ -439,13 +439,13 @@
       @if ($hasThreadFollowup && $followupPost)
         <button type="button" 
                 onclick="document.getElementById('thread-followup-{{ $post->id }}').classList.toggle('hidden') ? (this.textContent = '続きを表示') : (this.textContent = '続きを非表示')"
-                class="text-[10px] font-bold text-sky-400/90 hover:text-white bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/20 hover:border-sky-500/40 px-2 py-0.5 rounded-full transition cursor-pointer select-none">
+                class="text-xs font-bold text-sky-400/90 hover:text-white bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/20 hover:border-sky-500/40 px-2 py-0.5 rounded-full transition cursor-pointer select-none">
           続きを表示
         </button>
       @endif
 
       @if ($post->bsky_url)
-        <a href="{{ $post->bsky_url }}" target="_blank" class="flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-sky-400 cursor-pointer transition">
+        <a href="{{ $post->bsky_url }}" target="_blank" class="flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-sky-400 cursor-pointer transition">
           <x-icon name="bluesky" class="h-3.5 w-3.5" />
           <span>Bluesky</span>
         </a>

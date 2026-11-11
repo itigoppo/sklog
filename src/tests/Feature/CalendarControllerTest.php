@@ -1003,7 +1003,7 @@ class CalendarControllerTest extends TestCase
     $response = $this->get('/profile/test.bsky.social');
 
     $response->assertStatus(200);
-    $response->assertSee('Stats');
+    $response->assertSee('総ポスト数'); // 統計カード
     $response->assertSee('5'); // 本家ポスト数
     $response->assertSee('最古の記録日'); // 始まりの日 (フォールバック)
     $response->assertSee('2025年05月10日'); // 始まりの日 (フォールバック)
@@ -1063,7 +1063,7 @@ class CalendarControllerTest extends TestCase
     $responseShow = $this->get('/profile/test.bsky.social');
     $responseShow->assertStatus(200);
     $responseShow->assertSee('デモ体験ページのため、すべての機能（カレンダー・検索・統計など）が特別に解放されています。');
-    $responseShow->assertSee('Stats'); // サイドバーが表示されていること
+    $responseShow->assertSee('総ポスト数'); // サイドバー（統計カード）が表示されていること
 
     $responseMonth = $this->get('/profile/test.bsky.social/2026/05');
     $responseMonth->assertStatus(200);

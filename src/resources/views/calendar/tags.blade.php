@@ -75,7 +75,7 @@
                   <span class="px-2 py-0.5 rounded-lg bg-slate-950/80 text-[10px] text-sky-400 border border-slate-900/60 font-bold">
                     {{ $tag->count }} 件
                   </span>
-                  <span class="text-[9px] text-slate-500 font-extrabold flex items-center gap-0.5">
+                  <span class="text-xs text-slate-500 font-extrabold flex items-center gap-0.5">
                     見る ➔
                   </span>
                 </div>

@@ -26,7 +26,7 @@
         
         <!-- 説明文と注意書き (モバイルではロゴの下に全幅で回り込み、PCではロゴの右側に配置) -->
         <div class="col-span-2 sm:col-span-1 sm:col-start-2 text-left select-none">
-          <p class="text-[10px] text-slate-400 font-medium leading-relaxed">
+          <p class="text-xs text-slate-400 font-medium leading-relaxed">
             @auth
               {{ $user->name ?: '@' . $bskyAccount->handle }} さんのログを閲覧中
             @else
@@ -34,7 +34,7 @@
             @endauth
           </p>
           
-          <div class="mt-2 flex items-start gap-1.5 text-[9px] text-slate-500 font-semibold select-none leading-relaxed">
+          <div class="mt-2 flex items-start gap-1.5 text-xs text-slate-500 font-semibold select-none leading-relaxed">
             @if ($isDemo)
               <span class="text-sky-400 shrink-0">💡</span>
               <span>デモ体験ページのため、すべての機能（カレンダー・検索・統計など）が特別に解放されています。</span>

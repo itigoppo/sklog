@@ -176,12 +176,12 @@
             <x-icon name="alert" class="h-5 w-5 text-rose-400 shrink-0 animate-pulse" />
             <div>
               <p class="font-bold mb-0.5">Blueskyとの自動同期が停止しています</p>
-              <p class="text-[11px] text-rose-400/90 leading-relaxed">アプリパスワードが変更または無効化された可能性があります。同期を再開するには、一度ログアウトして新しいアプリパスワードでログインし直してください。</p>
+              <p class="text-xs text-rose-400/90 leading-relaxed">アプリパスワードが変更または無効化された可能性があります。同期を再開するには、一度ログアウトして新しいアプリパスワードでログインし直してください。</p>
             </div>
           </div>
           <form action="{{ route('logout') }}" method="POST" class="shrink-0 m-0">
             @csrf
-            <button type="submit" class="px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 hover:scale-[1.03] text-white font-bold text-[11px] transition duration-200 cursor-pointer shadow-md">
+            <button type="submit" class="px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 hover:scale-[1.03] text-white font-bold text-xs transition duration-200 cursor-pointer shadow-md">
               ログアウトして再ログイン
             </button>
           </form>
@@ -202,7 +202,7 @@
             @foreach (session('deleted_post_ids') as $deletedPostId)
               <input type="hidden" name="post_ids[]" value="{{ $deletedPostId }}">
             @endforeach
-            <button type="submit" class="px-2 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-500/30 text-emerald-300 hover:text-white text-[10px] font-extrabold tracking-wider transition duration-200 cursor-pointer active:scale-95 flex items-center gap-1">
+            <button type="submit" class="px-2 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-500/30 text-emerald-300 hover:text-white text-xs font-extrabold tracking-wider transition duration-200 cursor-pointer active:scale-95 flex items-center gap-1">
               <x-icon name="sync" class="h-3 w-3" />
               元に戻す (Undo)
             </button>
@@ -610,9 +610,11 @@
         });
 
         backToTopBtn.addEventListener('click', () => {
+          // 「視差効果を減らす」などで動きを減らす設定にしている人には、すぐに移動する
+          const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
           window.scrollTo({
             top: 0,
-            behavior: 'smooth'
+            behavior: reduceMotion ? 'auto' : 'smooth'
           });
         });
       }
@@ -742,9 +744,9 @@
   <div id="mobileDrawer" role="dialog" aria-modal="true" aria-labelledby="mobileDrawerTitle" inert class="fixed top-0 right-0 h-full w-80 max-w-[85vw] z-50 bg-slate-950/95 backdrop-blur-md border-l border-slate-800 p-5 space-y-6 overflow-y-auto transform translate-x-full transition-transform duration-300 shadow-2xl flex flex-col lg:hidden">
     <!-- ドロワーヘッダー（タイトル＆閉じるボタン） -->
     <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-2 shrink-0 select-none">
-      <h2 id="mobileDrawerTitle" class="text-sm font-bold text-white tracking-wider uppercase flex items-center gap-1.5">
+      <h2 id="mobileDrawerTitle" class="text-sm font-bold text-white tracking-wider flex items-center gap-1.5">
         <x-icon name="menu" class="h-4 w-4 text-sky-400" stroke-width="2.5" />
-        Menu
+        メニュー
       </h2>
       <button type="button" id="closeDrawerBtn" aria-label="メニューを閉じる" class="p-1.5 rounded-lg cursor-pointer bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition duration-300">
         <x-icon name="close" class="h-4 w-4" stroke-width="2.5" />

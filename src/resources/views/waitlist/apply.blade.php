@@ -73,7 +73,7 @@
           <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">メールアドレス</label>
           <input type="email" name="email" value="{{ old('email') }}" placeholder="you@example.com"
                  class="w-full px-4 py-3 rounded-lg bg-slate-900/60 border border-slate-700/60 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition duration-300">
-          <p class="mt-1 text-[10px] text-slate-500">※メールアドレスは、招待コードの送信用にのみ使用されます</p>
+          <p class="mt-1 text-xs text-slate-500">※メールアドレスは、招待コードの送信用にのみ使用されます</p>
         </div>
 
         <div>
@@ -101,7 +101,7 @@
             </span>
           </div>
           <input type="hidden" name="handle" id="finalHandle" value="{{ old('handle') }}">
-          <p class="mt-1.5 text-[10px] text-slate-500">
+          <p class="mt-1.5 text-xs text-slate-500">
             <span id="handleHint">※「.bsky.social」を除いたユーザー名だけを入力してください</span>
           </p>
         </div>

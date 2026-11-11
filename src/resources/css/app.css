@@ -31,4 +31,23 @@
         outline: 2px solid var(--color-sky-400);
         outline-offset: 2px;
     }
+
+    /*
+     * 端末で動きを減らす設定（視差効果を減らす など）にしている人には、ロゴの浮遊や点滅、
+     * ホバー時の拡大などのアニメーションとトランジションを止め、スクロールもすぐに移動させる。
+     * 読み込み中のスピナー（animate-spin）は、処理中であることを伝えるために動かしたままにする。
+     */
+    @media (prefers-reduced-motion: reduce) {
+        html {
+            scroll-behavior: auto !important;
+        }
+
+        *:not(.animate-spin),
+        *::before,
+        *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+        }
+    }
 }

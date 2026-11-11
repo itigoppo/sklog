@@ -69,7 +69,7 @@
           <x-icon name="search" class="h-4 w-4" stroke-width="2" />
         </span>
       </div>
-      <div class="flex items-center gap-3 text-[10px] text-slate-400 font-bold select-none">
+      <div class="flex items-center gap-3 text-xs text-slate-400 font-bold select-none">
         @foreach (['and' => 'AND', 'or' => 'OR'] as $modeKey => $modeLabel)
           <label class="flex items-center gap-1.5 cursor-pointer hover:text-slate-200 transition">
             <input type="radio" name="mode" value="{{ $modeKey }}" {{ $searchMode === $modeKey ? 'checked' : '' }} class="accent-sky-500 cursor-pointer">
@@ -88,7 +88,7 @@
       </div>
     </form>
 
-    <p class="text-[11px] text-slate-500 leading-relaxed">
+    <p class="text-xs text-slate-500 leading-relaxed">
       @if ($isRepostTab)
         カレンダーから非表示にするか、Bluesky のリポストも取り消すかを選べます。行を押すと本文の全体を確認できます。
       @else
@@ -115,7 +115,7 @@
               <h3 class="text-xs font-bold text-slate-300 tracking-wide">
                 {{ $day->format('Y年n月j日') }}<span class="text-slate-500 ml-1">({{ $weekdays[$day->dayOfWeek] }})</span>
               </h3>
-              <button type="button" class="js-manage-select-day text-[10px] font-bold text-slate-500 hover:text-rose-300 transition cursor-pointer bg-transparent border-0 p-0">
+              <button type="button" class="js-manage-select-day text-xs font-bold text-slate-500 hover:text-rose-300 transition cursor-pointer bg-transparent border-0 p-0">
                 この日を全選択
               </button>
             </div>
@@ -142,7 +142,7 @@
                            aria-label="{{ $rowPost->posted_at->format('Y/m/d H:i') }} の{{ $isRepostTab ? 'リポスト' : '投稿' }}を選ぶ">
 
                     <button type="button" class="js-manage-expand flex-1 min-w-0 text-left bg-transparent border-0 p-0 cursor-pointer">
-                      <span class="flex items-center gap-2 text-[10px] text-slate-500 font-bold select-none">
+                      <span class="flex items-center gap-2 text-xs text-slate-500 font-bold select-none">
                         <span>{{ $rowPost->posted_at->format($isOtherDay ? 'n/j H:i' : 'H:i') }}</span>
                         @if ($total > 1)
                           <span class="px-1 rounded bg-slate-900 border border-slate-800 text-slate-400">{{ $index + 1 }}/{{ $total }}</span>
@@ -180,11 +180,11 @@
           <div class="max-w-3xl mx-auto pl-4 pr-20 lg:pr-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
             <div class="flex items-center gap-3 text-xs select-none">
               <span class="font-bold text-white"><span id="manageCount">0</span>件選択中</span>
-              <button type="button" id="manageSelectAll" class="text-[10px] font-bold text-slate-400 hover:text-white transition cursor-pointer bg-transparent border-0 p-0">このページを全選択</button>
-              <button type="button" id="manageClear" class="text-[10px] font-bold text-slate-400 hover:text-white transition cursor-pointer bg-transparent border-0 p-0">選択を解除</button>
+              <button type="button" id="manageSelectAll" class="text-xs font-bold text-slate-400 hover:text-white transition cursor-pointer bg-transparent border-0 p-0">このページを全選択</button>
+              <button type="button" id="manageClear" class="text-xs font-bold text-slate-400 hover:text-white transition cursor-pointer bg-transparent border-0 p-0">選択を解除</button>
             </div>
             <div class="flex items-center gap-3 ml-auto">
-              <label class="flex items-center gap-1.5 text-[11px] font-bold text-slate-300 cursor-pointer select-none">
+              <label class="flex items-center gap-1.5 text-xs font-bold text-slate-300 cursor-pointer select-none">
                 <input type="checkbox" name="also_bluesky" value="1" id="manageAlsoBluesky" class="h-4 w-4 accent-rose-500 cursor-pointer">
                 {{ $isRepostTab ? 'Blueskyのリポストも取り消す' : 'Blueskyからも削除' }}
               </label>
@@ -240,18 +240,18 @@
 
       const confirmMessage = (count) => {
         if (!alsoBluesky.checked) {
-          return `${count}件をカレンダーから非表示にしますか？<br><span class='text-[10px] text-slate-500 font-bold'>※Bluesky側はそのままです。削除の直後なら元に戻せます。</span>`;
+          return `${count}件をカレンダーから非表示にしますか？<br><span class='text-xs text-slate-500 font-bold'>※Bluesky側はそのままです。削除の直後なら元に戻せます。</span>`;
         }
 
         let message = isRepostTab
           ? `${count}件のリポストを取り消し、カレンダーからも削除しますか？`
           : `${count}件をBlueskyとカレンダーの両方から削除しますか？`;
-        message += `<br><span class='text-[10px] text-rose-400 font-bold'>※Bluesky側も変更され、元に戻せません。</span>`;
+        message += `<br><span class='text-xs text-rose-400 font-bold'>※Bluesky側も変更され、元に戻せません。</span>`;
 
         // 親を消して続きを残すと、Bluesky上では返信先が「投稿が見つかりません」になり、スレッドが切れる
         const leavesOrphans = checks.some((check) => check.checked && descendants(check).some((child) => !child.checked));
         if (leavesOrphans) {
-          message += `<br><span class='text-[10px] text-amber-400 font-bold'>※続きを残すスレッドがあります。Bluesky上では、残した続きの返信先が「投稿が見つかりません」と表示され、スレッドがそこで切れます。</span>`;
+          message += `<br><span class='text-xs text-amber-400 font-bold'>※続きを残すスレッドがあります。Bluesky上では、残した続きの返信先が「投稿が見つかりません」と表示され、スレッドがそこで切れます。</span>`;
         }
 
         return message;
@@ -264,7 +264,7 @@
         submitBtn.setAttribute('data-confirm-message', confirmMessage(count));
 
         // 選択中にページ送りやタブ切り替え・検索をすると選択が外れるので、確認してから移る
-        const leaveNote = `<br><span class='text-[10px] text-slate-500 font-bold'>※選択はページごとです。先にこのページで削除してください。</span>`;
+        const leaveNote = `<br><span class='text-xs text-slate-400 font-bold'>※選択はページごとです。先にこのページで削除してください。</span>`;
         leaveLinks().forEach((link) => {
           link.classList.toggle('js-confirm-link', count > 0);
           link.setAttribute('data-confirm-title', '選択が外れます');

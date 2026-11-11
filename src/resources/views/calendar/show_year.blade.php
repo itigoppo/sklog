@@ -116,7 +116,7 @@
                     {{ $count }} 件のログ
 
                   </span>
-                  <span class="text-[10px] text-slate-500 font-bold group-hover:text-sky-400 transition duration-300 flex items-center gap-0.5">
+                  <span class="text-xs text-slate-500 font-bold group-hover:text-sky-400 transition duration-300 flex items-center gap-0.5">
                     見る ➔
                   </span>
                 </div>

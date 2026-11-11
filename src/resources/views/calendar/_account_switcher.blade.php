@@ -76,11 +76,11 @@
           <x-icon name="user-plus" class="h-3.5 w-3.5 shrink-0" stroke-width="2.5" />
           <span>別のアカウントを追加</span>
         </a>
-        <p class="text-[10px] text-slate-600 text-center leading-relaxed select-none px-1">
+        <p class="text-xs text-slate-600 text-center leading-relaxed select-none px-1">
           登録済みのアカウントのみ追加できます
         </p>
       @else
-        <p class="text-[10px] text-slate-600 text-center leading-relaxed select-none px-1">
+        <p class="text-xs text-slate-600 text-center leading-relaxed select-none px-1">
           同時にログインできるのは最大{{ \App\Support\AccountSession::MAX_ACCOUNTS }}件です。
         </p>
       @endif
@@ -90,7 +90,7 @@
         <form action="{{ route('logout') }}" method="POST">
           @csrf
           <input type="hidden" name="all" value="1">
-          <button type="submit" class="w-full py-2 rounded-xl cursor-pointer text-slate-500 hover:text-rose-400 font-bold text-[11px] transition duration-300">
+          <button type="submit" class="w-full py-2 rounded-xl cursor-pointer text-slate-500 hover:text-rose-400 font-bold text-xs transition duration-300">
             すべてのアカウントからログアウト
           </button>
         </form>
