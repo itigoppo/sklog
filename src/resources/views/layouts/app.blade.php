@@ -217,6 +217,44 @@
       </div>
     @endif
 
+    <!-- スマホ用の検索とカレンダーへの近道 -->
+    {{-- スマホではサイドバーが投稿一覧の下に回り、検索とカレンダーが遠くなるので、プロフィールの直下に置く。
+         削除モードは独自の検索を、設定画面は検索を持たないので出さない --}}
+    @php
+      $showMobileShortcuts = isset($bskyAccount, $user)
+        && ((Auth::check() && Auth::id() === $user->id) || $bskyAccount->handle === config('services.bluesky.demo_handle'))
+        && ! request()->routeIs('calendar.manage', 'calendar.settings');
+    @endphp
+    @if ($showMobileShortcuts)
+      <div class="lg:hidden mb-6 flex items-center gap-2">
+        <form action="{{ route('calendar.show', ['handle' => $bskyAccount->handle]) }}" method="GET" role="search" class="flex-1 min-w-0 flex items-center gap-2"
+              onsubmit="if (this.querySelector('input[name=\'q\']').value.trim() === '') { event.preventDefault(); window.location.href = this.action + ({{ request('media') === '1' ? 'true' : 'false' }} ? '?media=1' : ''); }">
+          {{-- 検索オプション（一致条件・リポスト）や画像のみの絞り込みは、今の状態を引き継ぐ --}}
+          @foreach (['media', 'mode', 'rt'] as $keepParam)
+            @if (request()->filled($keepParam))
+              <input type="hidden" name="{{ $keepParam }}" value="{{ request($keepParam) }}">
+            @endif
+          @endforeach
+          <div class="relative flex-1 min-w-0 flex items-center">
+            <label for="mobileSearchInput" class="sr-only">投稿を検索</label>
+            <input type="search" id="mobileSearchInput" name="q" value="{{ request('q') }}" placeholder="投稿を検索…" enterkeyhint="search"
+                   class="w-full bg-slate-950/60 border border-slate-800/80 focus:border-sky-500/80 text-white rounded-xl py-2.5 pl-9 pr-3 text-sm placeholder-slate-500 focus:outline-hidden focus:ring-1 focus:ring-sky-500 transition">
+            <span class="absolute left-3 text-slate-500 pointer-events-none">
+              <x-icon name="search" class="h-4 w-4" stroke-width="2" />
+            </span>
+          </div>
+          <button type="submit" aria-label="検索" class="p-2.5 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 text-sky-400 rounded-xl transition cursor-pointer shrink-0">
+            <x-icon name="search" class="h-4 w-4" stroke-width="2.5" />
+          </button>
+        </form>
+        <button type="button" data-open-drawer-to="calendar" aria-controls="mobileDrawer"
+                class="px-3 py-2.5 rounded-xl bg-slate-900/60 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-sky-400 text-xs font-bold transition cursor-pointer shrink-0 flex items-center gap-1.5">
+          <x-icon name="calendar" class="h-4 w-4" stroke-width="2" />
+          カレンダー
+        </button>
+      </div>
+    @endif
+
     <!-- 各画面ごとの個別コンテンツ -->
     <main id="main-content" tabindex="-1" class="focus:outline-none">
       @yield('content')
@@ -462,6 +500,8 @@
       const closeBtn = document.getElementById('closeDrawerBtn');
 
       const isDrawerOpen = () => drawer && drawer.classList.contains('translate-x-0');
+      // 閉じたときにフォーカスを戻す先。開いたボタンが別にあればそちらへ戻す
+      let returnFocusAfterDrawer = null;
 
       function openDrawer() {
         if (!drawer || !overlay) return;
@@ -485,10 +525,24 @@
         drawer.inert = true;
         menuBtn?.setAttribute('aria-expanded', 'false');
         unlockBodyScroll();
-        menuBtn?.focus({ preventScroll: true });
+        (returnFocusAfterDrawer || menuBtn)?.focus({ preventScroll: true });
+        returnFocusAfterDrawer = null;
       }
 
       if (menuBtn) menuBtn.addEventListener('click', openDrawer);
+
+      // スマホ用の「カレンダー」ボタン: ドロワーを開いて、中のカレンダーまで送る
+      document.querySelectorAll('[data-open-drawer-to="calendar"]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          openDrawer();
+          const calendar = drawer?.querySelector('.js-mini-calendar');
+          if (!calendar) return;
+          calendar.scrollIntoView({ block: 'start' });
+          // 閉じたときにこのボタンへ戻れるよう、フォーカスはカレンダーの最初のリンクへ移す
+          calendar.querySelector('a[href]')?.focus({ preventScroll: true });
+          returnFocusAfterDrawer = btn;
+        });
+      });
       if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
       if (overlay) overlay.addEventListener('click', closeDrawer);
 
