@@ -9,6 +9,7 @@ use App\Models\Tag;
 use App\Models\User;
 use App\Services\BlueskyService;
 use App\Support\AccountSession;
+use App\Support\ReplyRef;
 use Exception;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -747,6 +748,9 @@ class CalendarController extends Controller
         $posts = $response['posts'] ?? [];
         $fetchedUris = [];
 
+        // getPosts は投稿本体しか返さないので、返信なら返信先などを取り直して同期と同じ reply を組み立てる
+        $replyRefs = ReplyRef::buildForPosts($posts, $blueskyService, $token);
+
         foreach ($posts as $postData) {
           $uri = $postData['uri'];
           $cid = $postData['cid'];
@@ -769,7 +773,8 @@ class CalendarController extends Controller
               'user_id' => $user->id,
               'cid' => $cid,
               'text' => $text,
-              'raw_data' => ['post' => $postData], // SyncJobの保存構造と統一
+              // 同期 (getAuthorFeed の1件分) と同じ形にそろえる。返信なら reply も入れる
+              'raw_data' => ['post' => $postData] + (isset($replyRefs[$uri]) ? ['reply' => $replyRefs[$uri]] : []),
               'posted_at' => $postedAt,
             ]
           );

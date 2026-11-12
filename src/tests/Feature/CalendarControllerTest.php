@@ -1823,6 +1823,129 @@ class CalendarControllerTest extends TestCase
   }
 
   /**
+   * URL から取り込んだ返信に、同期と同じ形の reply（返信先・スレッドトップ・grandparentAuthor）が入り、
+   * 返信として表示されることを検証。会話は A → B → C → 自分 と続いている。
+   */
+  public function test_imported_reply_gets_reply_context_like_sync(): void
+  {
+    $this->actingAs($this->user);
+
+    $myUri = 'at://did:plc:test123456/app.bsky.feed.post/imported_reply';
+    $aUri = 'at://did:plc:aaaa/app.bsky.feed.post/a';
+    $bUri = 'at://did:plc:bbbb/app.bsky.feed.post/b';
+    $cUri = 'at://did:plc:cccc/app.bsky.feed.post/c';
+
+    $view = fn (string $uri, string $did, string $name, string $text, ?string $replyTo = null) => [
+      'uri' => $uri,
+      'cid' => 'cid'.basename($uri),
+      'author' => ['did' => $did, 'handle' => basename($uri).'.bsky.social', 'displayName' => $name],
+      'record' => ['text' => $text, 'createdAt' => Carbon::now()->toIso8601String()]
+        + ($replyTo ? ['reply' => ['root' => ['uri' => $aUri], 'parent' => ['uri' => $replyTo]]] : []),
+    ];
+
+    $blueskyService = \Mockery::mock(BlueskyService::class);
+    $blueskyService->shouldReceive('authenticate')->andReturn(['accessJwt' => 'token', 'did' => 'did:plc:test123456']);
+    // 1回目: 取り込む投稿そのもの
+    $blueskyService->shouldReceive('getPosts')->once()->with([$myUri], 'token')
+      ->andReturn(['posts' => [$view($myUri, 'did:plc:test123456', 'テストユーザー', '取り込んだ返信', $cUri)]]);
+    // 2回目: 返信先 (C) とスレッドトップ (A)
+    $blueskyService->shouldReceive('getPosts')->once()->with([$cUri, $aUri], 'token')
+      ->andReturn(['posts' => [
+        $view($cUri, 'did:plc:cccc', 'Cさん', 'Cさんの本文', $bUri),
+        $view($aUri, 'did:plc:aaaa', 'Aさん', 'Aさんの本文'),
+      ]]);
+    // 3回目: C が返信した相手 (B)
+    $blueskyService->shouldReceive('getPosts')->once()->with([$bUri], 'token')
+      ->andReturn(['posts' => [$view($bUri, 'did:plc:bbbb', 'Bさん', 'Bさんの本文', $aUri)]]);
+    $this->app->instance(BlueskyService::class, $blueskyService);
+
+    $this->post('/profile/test.bsky.social/settings/import-posts', [
+      'urls' => 'https://bsky.app/profile/test.bsky.social/post/imported_reply',
+    ])->assertSessionHas('success');
+
+    $post = Post::where('uri', $myUri)->first();
+    $this->assertTrue($post->is_reply_to_others);
+    $this->assertSame('Cさん', $post->raw_data['reply']['parent']['author']['displayName']);
+    $this->assertSame('Cさんの本文', $post->raw_data['reply']['parent']['record']['text']);
+    $this->assertSame($aUri, $post->raw_data['reply']['root']['uri']);
+    $this->assertSame('Bさん', $post->raw_data['reply']['grandparentAuthor']['displayName']);
+
+    $this->get('/profile/test.bsky.social')
+      ->assertSee('会話を表示')
+      ->assertSeeInOrder(['Cさん', 'の投稿', 'Bさん', 'への返信']);
+  }
+
+  /**
+   * URL から取り込んだ返信の返信先が消えているときは、同期と同じ notFoundPost になることを検証。
+   */
+  public function test_imported_reply_to_deleted_post_is_marked_not_found(): void
+  {
+    $this->actingAs($this->user);
+
+    $myUri = 'at://did:plc:test123456/app.bsky.feed.post/imported_reply_gone';
+    $goneUri = 'at://did:plc:someone/app.bsky.feed.post/gone';
+
+    $blueskyService = \Mockery::mock(BlueskyService::class);
+    $blueskyService->shouldReceive('authenticate')->andReturn(['accessJwt' => 'token', 'did' => 'did:plc:test123456']);
+    $blueskyService->shouldReceive('getPosts')->once()->with([$myUri], 'token')
+      ->andReturn(['posts' => [[
+        'uri' => $myUri,
+        'cid' => 'cidgone',
+        'record' => [
+          'text' => '消えた投稿への返信',
+          'createdAt' => Carbon::now()->toIso8601String(),
+          'reply' => ['root' => ['uri' => $goneUri], 'parent' => ['uri' => $goneUri]],
+        ],
+      ]]]);
+    // 返信先は見つからない
+    $blueskyService->shouldReceive('getPosts')->once()->with([$goneUri], 'token')->andReturn(['posts' => []]);
+    $this->app->instance(BlueskyService::class, $blueskyService);
+
+    $this->post('/profile/test.bsky.social/settings/import-posts', [
+      'urls' => 'https://bsky.app/profile/test.bsky.social/post/imported_reply_gone',
+    ])->assertSessionHas('success');
+
+    $post = Post::where('uri', $myUri)->first();
+    $this->assertTrue($post->is_reply);
+    $this->assertTrue($post->is_reply_parent_not_found);
+  }
+
+  /**
+   * 返信先の取得に失敗しても、投稿の取り込み自体は成功することを検証（返信の情報なしで保存される）。
+   */
+  public function test_import_succeeds_even_when_reply_context_fetch_fails(): void
+  {
+    $this->actingAs($this->user);
+
+    $myUri = 'at://did:plc:test123456/app.bsky.feed.post/imported_reply_fail';
+    $parentUri = 'at://did:plc:someone/app.bsky.feed.post/parent';
+
+    $blueskyService = \Mockery::mock(BlueskyService::class);
+    $blueskyService->shouldReceive('authenticate')->andReturn(['accessJwt' => 'token', 'did' => 'did:plc:test123456']);
+    $blueskyService->shouldReceive('getPosts')->once()->with([$myUri], 'token')
+      ->andReturn(['posts' => [[
+        'uri' => $myUri,
+        'cid' => 'cidfail',
+        'record' => [
+          'text' => '返信先の取得に失敗する返信',
+          'createdAt' => Carbon::now()->toIso8601String(),
+          'reply' => ['root' => ['uri' => $parentUri], 'parent' => ['uri' => $parentUri]],
+        ],
+      ]]]);
+    $blueskyService->shouldReceive('getPosts')->once()->with([$parentUri], 'token')
+      ->andThrow(new \Exception('ポストの取得に失敗しました。'));
+    $this->app->instance(BlueskyService::class, $blueskyService);
+
+    $this->post('/profile/test.bsky.social/settings/import-posts', [
+      'urls' => 'https://bsky.app/profile/test.bsky.social/post/imported_reply_fail',
+    ])->assertSessionHas('success');
+
+    $post = Post::where('uri', $myUri)->first();
+    $this->assertNotNull($post);
+    $this->assertArrayNotHasKey('reply', $post->raw_data);
+  }
+
+  /**
    * 個別インポート実行時、アプリパスワード間違いなどの認証エラーが発生した場合に
    * 処理が中断され、具体的なエラーメッセージがセッションにセットされてリダイレクトされることを検証。
    */
