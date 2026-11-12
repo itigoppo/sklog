@@ -156,7 +156,7 @@
       <div class="mt-3 px-1.5 text-xs text-slate-500 font-semibold leading-relaxed select-none text-left space-y-1">
         <div class="flex items-start gap-1">
           <span class="text-slate-600 shrink-0">※</span>
-          <span>プライバシー保護のため、ご本人以外のログを閲覧する際はカレンダーや検索などの詳細機能は制限され、シンプルなタイムライン（全件表示）となります。</span>
+          <span>プライバシー保護のため、ご自身以外のログを閲覧する際は、カレンダーや検索などの詳細機能が制限され、シンプルなタイムライン（全件表示）となります。</span>
         </div>
         <div class="flex items-start gap-1 text-sky-500/70">
           <span class="text-sky-500/60 shrink-0">💡</span>

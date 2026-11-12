@@ -40,7 +40,7 @@
               <span>デモ体験ページのため、すべての機能（カレンダー・検索・統計など）が特別に解放されています。</span>
             @else
               <span class="shrink-0">🔒</span>
-              <span>プライバシー保護のため、ご本人以外によるカレンダーや検索などの詳細機能は制限されています。</span>
+              <span>プライバシー保護のため、カレンダーや検索などの詳細機能は、ご本人以外には制限されています。</span>
             @endif
           </div>
         </div>
@@ -192,7 +192,7 @@
         <div class="glass-card rounded-2xl p-12 text-center">
           @if (request('q'))
             <h3 class="text-base font-bold text-slate-300 mb-1">検索条件にマッチする投稿が見つかりませんでした</h3>
-            <p class="text-xs text-slate-500">別のキーワードや、AND / OR条件を変更して再度お試しください。</p>
+            <p class="text-xs text-slate-500">別のキーワードを使うか、AND / OR条件を変更して、再度お試しください。</p>
           @else
             <h3 class="text-base font-bold text-slate-300 mb-1">この期間はまだログがありません</h3>
             <p class="text-xs text-slate-500">Blueskyでの新規投稿がある場合は、手動で同期してください。</p>

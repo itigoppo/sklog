@@ -58,7 +58,7 @@
     <!-- ステータスカード -->
     <div class="mb-8 p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-lg">
       <h2 class="text-sm font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-2">
-        🛡️ 現在のセキュリティステータス
+        現在のセキュリティステータス
       </h2>
       <div class="flex items-center gap-4">
         @if (config('services.admin.2fa_enabled'))
@@ -91,7 +91,7 @@
         <div class="absolute -right-24 -top-24 w-48 h-48 bg-sky-500/5 rounded-full blur-3xl pointer-events-none"></div>
 
         <h2 class="text-base font-extrabold text-white mb-6 flex items-center gap-2">
-          ⚙️ 二要素認証 (2FA) の新規セットアップ手順
+          二要素認証 (2FA) の新規セットアップ手順
         </h2>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -116,7 +116,7 @@
           <div class="flex flex-col items-center text-center bg-slate-950/40 p-5 rounded-2xl border border-slate-800/80 justify-between">
             <div class="w-full flex flex-col items-center">
               <span class="w-7 h-7 rounded-full bg-sky-500/10 border border-sky-500/30 text-sky-400 text-sm flex items-center justify-center font-extrabold mb-3">2</span>
-              <span class="font-bold text-sm text-white mb-3">接続テスト (詰み防止)</span>
+              <span class="font-bold text-sm text-white mb-3">接続テスト</span>
               <p class="text-[11px] text-slate-400 mb-4 leading-normal">
                 スマホアプリに登録された 6 桁のワンタイムパスワードを入力し、正しく同期できているかテストします。
               </p>
@@ -235,7 +235,7 @@ ADMIN_2FA_SECRET={{ $tempSecret }}</pre>
           if (data.success) {
             // 検証成功
             resultDiv.className = 'w-full mt-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-left';
-            resultDiv.innerHTML = '<div class="font-bold flex items-center gap-1">✅ 接続テストに合格しました！</div><div class="mt-1 text-[10px] text-slate-300">スマホアプリとの同期が正常に確認できました。ステップ3のロックが解除されました。環境変数への適用を行ってください。</div>';
+            resultDiv.innerHTML = '<div class="font-bold flex items-center gap-1">接続テストに合格しました！</div><div class="mt-1 text-[10px] text-slate-300">スマホアプリとの同期が正常に確認できました。ステップ3のロックが解除されました。環境変数に適用してください。</div>';
             
             // 安全ロックの解除（ふわっと消えるフェードアウト）
             lockOverlay.classList.add('opacity-0', 'pointer-events-none');
@@ -246,7 +246,7 @@ ADMIN_2FA_SECRET={{ $tempSecret }}</pre>
           } else {
             // 検証失敗
             resultDiv.className = 'w-full mt-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-left';
-            resultDiv.innerHTML = '<div class="font-bold flex items-center gap-1">❌ 検証に失敗しました</div><div class="mt-1 text-[10px] text-slate-400">' + (data.message || 'ワンタイムパスワードが正しくありません。') + '</div>';
+            resultDiv.innerHTML = '<div class="font-bold flex items-center gap-1">検証に失敗しました</div><div class="mt-1 text-[10px] text-slate-400">' + (data.message || 'ワンタイムパスワードが正しくありません。') + '</div>';
           }
         })
         .catch(function(error) {

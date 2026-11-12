@@ -242,7 +242,7 @@ class PostManageTest extends TestCase
 
     // 直後の画面に、2件を戻すフォームが出る
     $page = $this->get('/profile/test.bsky.social');
-    $page->assertSee('元に戻す (Undo)');
+    $page->assertSee('元に戻す');
     $page->assertSee('value="'.$post1->id.'"', false);
     $page->assertSee('value="'.$post2->id.'"', false);
 

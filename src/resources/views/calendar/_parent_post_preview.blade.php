@@ -19,14 +19,34 @@
         $hasParentQuote = str_contains($parentEmbedType, 'app.bsky.embed.record');
       }
 
+      $parentAuthor = $post->raw_data['reply']['parent']['author'] ?? null;
       $rootAuthor = $post->raw_data['reply']['root']['author'] ?? null;
       $parentUri = $post->raw_data['reply']['parent']['uri'] ?? null;
       $rootUri = $post->raw_data['reply']['root']['uri'] ?? null;
       $myDid = $user->blueskyAccount->did ?? null;
-      
+
+      // 表示名を決める。自分なら自分の名前、本人以外が見ていて非公開アカウントなら伏せる
+      $displayNameFor = function (?array $author) use ($myDid, $user, $post, $isOwner) {
+          if (! $author) {
+              return null;
+          }
+          $did = $author['did'] ?? null;
+          if ($myDid && $did === $myDid) {
+              return $user->name ?: '@' . $user->blueskyAccount->handle;
+          }
+          if ($post->isPrivateUser($did) && ! $isOwner) {
+              return '非公開ユーザー';
+          }
+          return ($author['displayName'] ?? '') ?: ($author['handle'] ?? 'Unknown');
+      };
+
+      // 見出しの「○○ の投稿」。会話を開いたときに、誰の投稿かが分かるようにする
+      $parentAuthorName = $displayNameFor($parentAuthor);
+
+      // 返信先の投稿がさらに誰かへの返信なら、その相手を「（↩ ○○ への返信）」として添える
       $isParentReplyToOthers = false;
-      $rootAuthorName = null;
-      
+      $replyTargetName = null;
+
       if ($rootAuthor) {
           if ($post->is_reply_to_others) {
               if ($parentUri && $rootUri && ($parentUri !== $rootUri)) {
@@ -37,20 +57,11 @@
                   $isParentReplyToOthers = true;
               }
           }
-          
+
           if ($isParentReplyToOthers) {
-              if ($myDid && ($rootAuthor['did'] === $myDid)) {
-                  $rootAuthorName = $user->name ?: '@' . $user->blueskyAccount->handle;
-              } else {
-                  $isRootPrivate = $post->isPrivateUser($rootAuthor['did']);
-                  $shouldMaskRoot = $isRootPrivate && !$isOwner;
-                  
-                  if ($shouldMaskRoot) {
-                      $rootAuthorName = '非公開ユーザー';
-                  } else {
-                      $rootAuthorName = $rootAuthor['displayName'] ?? ($rootAuthor['handle'] ?? 'Unknown');
-                  }
-              }
+              // 返信先の投稿が返信した相手は grandparentAuthor に入る（Bluesky のフィードが返す場合だけ）。
+              // URL から取り込んだ投稿などで無いときは、スレッドを始めた人で代わりに表示する
+              $replyTargetName = $displayNameFor($post->raw_data['reply']['grandparentAuthor'] ?? $rootAuthor);
           }
       }
   }
@@ -58,13 +69,16 @@
 
 @if ($parentText)
   <div id="{{ $previewId }}" class="hidden mb-3.5 p-4 pl-5 rounded-r-xl border-l-2 border-sky-500/30 bg-slate-950/30 text-xs text-slate-400 select-none">
-    @if ($isParentReplyToOthers && $rootAuthorName)
-      <div class="flex items-center gap-1.5 pb-2.5 mb-2.5 border-b border-slate-900/60">
-        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-900/80 border border-slate-800 text-xs text-slate-400 font-medium shrink-0">
-          <x-icon name="reply" class="h-2 w-2 text-slate-400 translate-y-[-1.2px]" stroke-width="2" />
-          返信先: {{ $rootAuthorName }}
-        </span>
-        <span class="text-xs text-slate-500">への返信ポスト</span>
+    @if ($parentAuthorName)
+      {{-- 例: 「C の投稿（↩ B への返信）」。本文に混ぜるとその人が書いた文に見えるので、別の行に出す --}}
+      <div class="flex items-center gap-1 flex-wrap pb-2.5 mb-2.5 border-b border-slate-900/60 text-xs">
+        <span class="font-bold text-slate-300 break-all">{{ $parentAuthorName }}</span>
+        <span class="text-slate-500">の投稿</span>
+        @if ($isParentReplyToOthers && $replyTargetName)
+          <span class="inline-flex items-center gap-1 text-slate-500">
+            （<x-icon name="reply" class="h-3 w-3 shrink-0" stroke-width="2" /><span class="break-all">{{ $replyTargetName }}</span> への返信）
+          </span>
+        @endif
       </div>
     @endif
 

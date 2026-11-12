@@ -17,7 +17,7 @@
         <div>
           <h2 class="text-base font-bold text-white tracking-wide">特定のポストを取り込む</h2>
           <p class="text-xs text-slate-400 mt-1 leading-relaxed">
-            APIの取得漏れや、誤って非表示にしたポストのURLを入力して再インポート（またはカレンダーへの復元）を行います。
+            APIの取得で漏れたポストや、誤って非表示にしたポストを、URLを入力して再インポート（またはカレンダーへ復元）します。
           </p>
         </div>
       </div>
@@ -43,7 +43,7 @@
             placeholder="https://bsky.app/profile/{{ $bskyAccount->handle }}/post/3kp5u2jx5hk2b&#10;https://bsky.app/profile/{{ $bskyAccount->handle }}/post/3kp..."></textarea>
           <span class="text-xs text-slate-500 block leading-relaxed">
             ※ご自身（{{ '@' . $bskyAccount->handle }}）のオリジナルポストのみが対象となります。他人のポストやリポストのURLはインポートできません。<br>
-            ※一度に処理できるのは最大20件までとなります。大量のポストを同期する場合は、マイページ上部の「同期」ボタンを使用してください。
+            ※一度に処理できるのは最大20件までとなります。大量のポストを同期する場合は、カレンダー画面の「今すぐ同期」ボタンを使用してください。
           </span>
         </div>
 
@@ -118,20 +118,20 @@
         <div>
           <h2 class="text-base font-bold text-rose-300 tracking-wide">退会（アカウントの削除）</h2>
           <p class="text-xs text-rose-400/80 mt-1 leading-relaxed">
-            本サービスから完全に退会し、これまでに取り込んだすべてのポストやアバター画像、連携パスワードなどのデータをすべて消去します。
+            本サービスから完全に退会し、これまでに取り込んだすべてのポストやアバター画像、連携パスワードなどのデータを消去します。
           </p>
         </div>
       </div>
 
       <div class="p-3.5 rounded-xl bg-rose-500/5 border border-rose-500/15 text-xs text-rose-300/90 leading-relaxed space-y-1">
-        <p class="font-bold">⚠️ 注意事項:</p>
+        <p class="font-bold">注意事項</p>
         <p>• 削除されたデータはバックアップを含め、一切復元することができません。</p>
         <p>• カレンダーURL（{{ route('calendar.show', ['handle' => $bskyAccount->handle]) }}）も即時無効となり、アクセス不可になります。</p>
       </div>
 
       <form action="{{ route('calendar.settings.delete_account', ['handle' => $bskyAccount->handle]) }}" method="POST" class="js-confirm-form m-0"
             data-confirm-title="退会とカレンダーデータの完全削除"
-            data-confirm-message="本当に退会しますか？<br><br><span class='text-rose-400 font-bold'>この操作は取り消せません。</span>これまでに取り込んだすべてのポストやアバター画像、連携パスワードなどの情報は、即座にすべて消去され、元に戻すことはできません。"
+            data-confirm-message="本当に退会しますか？<br><br><span class='text-rose-400 font-bold'>この操作は取り消せません。</span>これまでに取り込んだすべてのポストやアバター画像、連携パスワードなどの情報は即座に消去され、元に戻すことはできません。"
             data-confirm-action="退会する（全データ削除）"
             data-confirm-btn-color="bg-rose-600 hover:bg-rose-500 shadow-lg shadow-rose-950/50">
         @csrf

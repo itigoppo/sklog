@@ -423,7 +423,7 @@ class CalendarController extends Controller
       $seconds = RateLimiter::availableIn($limiterKey);
       $minutes = ceil($seconds / 60);
 
-      return back()->with('error', "API制限保護のため、手動同期の回数上限を超えました。あと {$minutes} 分お待ちください。");
+      return back()->with('error', "手動同期の回数上限を超えました。API制限保護のため、あと {$minutes} 分お待ちください。");
     }
 
     try {
@@ -646,7 +646,7 @@ class CalendarController extends Controller
       $seconds = RateLimiter::availableIn($limiterKey);
       $minutes = ceil($seconds / 60);
 
-      return back()->with('error', "API制限保護のため、個別インポートの回数上限を超えました。あと {$minutes} 分お待ちください。");
+      return back()->with('error', "個別インポートの回数上限を超えました。API制限保護のため、あと {$minutes} 分お待ちください。");
     }
 
     $request->validate([

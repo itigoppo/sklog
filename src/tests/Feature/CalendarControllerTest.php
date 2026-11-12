@@ -1581,6 +1581,78 @@ class CalendarControllerTest extends TestCase
   }
 
   /**
+   * A → B → C → 自分 と続く会話で、自分の返信の「会話を表示」に
+   * 「C の投稿（↩ B への返信）」と、返信先の投稿が返信した相手（B）が出ることを検証。
+   */
+  public function test_reply_preview_shows_who_the_parent_post_replied_to(): void
+  {
+    $this->actingAs($this->user);
+
+    $this->createDeepReply(withGrandparent: true);
+
+    $response = $this->get('/profile/test.bsky.social');
+
+    $response->assertStatus(200);
+    $response->assertSee('Cさんの本文');
+    $response->assertSeeInOrder(['Cさん', 'の投稿', 'Bさん', 'への返信']);
+    $response->assertDontSee('Aさん');
+  }
+
+  /**
+   * grandparentAuthor が無い（URL から取り込んだ投稿など）ときは、スレッドを始めた人（A）で代わりに出すことを検証。
+   */
+  public function test_reply_preview_falls_back_to_thread_root_without_grandparent(): void
+  {
+    $this->actingAs($this->user);
+
+    $this->createDeepReply(withGrandparent: false);
+
+    $response = $this->get('/profile/test.bsky.social');
+
+    $response->assertStatus(200);
+    $response->assertSeeInOrder(['Cさん', 'の投稿', 'Aさん', 'への返信']);
+  }
+
+  /**
+   * A → B → C と続く会話の C に、自分が返信した投稿を作ります。
+   */
+  private function createDeepReply(bool $withGrandparent): Post
+  {
+    $uri = 'at://did:plc:test123456/app.bsky.feed.post/deep_reply';
+    $reply = [
+      'root' => [
+        'uri' => 'at://did:plc:aaaa/app.bsky.feed.post/root',
+        'author' => ['did' => 'did:plc:aaaa', 'handle' => 'a.bsky.social', 'displayName' => 'Aさん'],
+      ],
+      'parent' => [
+        'uri' => 'at://did:plc:cccc/app.bsky.feed.post/parent',
+        'author' => ['did' => 'did:plc:cccc', 'handle' => 'c.bsky.social', 'displayName' => 'Cさん'],
+        'record' => ['text' => 'Cさんの本文'],
+      ],
+    ];
+    if ($withGrandparent) {
+      $reply['grandparentAuthor'] = ['did' => 'did:plc:bbbb', 'handle' => 'b.bsky.social', 'displayName' => 'Bさん'];
+    }
+
+    return Post::create([
+      'user_id' => $this->user->id,
+      'uri' => $uri,
+      'cid' => 'ciddeepreply',
+      'text' => 'Cさんへの自分の返信',
+      'raw_data' => [
+        'post' => [
+          'uri' => $uri,
+          'cid' => 'ciddeepreply',
+          'author' => ['did' => 'did:plc:test123456', 'handle' => 'test.bsky.social'],
+          'record' => ['text' => 'Cさんへの自分の返信', 'createdAt' => Carbon::now()->toIso8601String()],
+        ],
+        'reply' => $reply,
+      ],
+      'posted_at' => Carbon::now(),
+    ]);
+  }
+
+  /**
    * ローカルで削除されたポストが、同期ジョブ実行時に再インポートされて復活しないことを検証。
    */
   public function test_deleted_post_is_not_reimported_on_sync(): void

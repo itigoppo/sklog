@@ -118,7 +118,7 @@
           </h1>
           <div class="flex flex-col md:flex-row md:items-center justify-center md:justify-start gap-2.5 md:gap-3 mb-2.5">
             <p class="text-sky-400 font-semibold text-sm md:text-base hover:text-sky-300 transition duration-300 leading-none text-center md:text-left">
-              <a href="https://bsky.app/profile/{{ $bskyAccount->handle }}" target="_blank" rel="noopener noreferrer" class="cursor-pointer inline-flex items-center gap-1" title="Blueskyプロフィールを開く ➔">
+              <a href="https://bsky.app/profile/{{ $bskyAccount->handle }}" target="_blank" rel="noopener noreferrer" class="cursor-pointer inline-flex items-center gap-1" title="Blueskyプロフィールを開く">
                 {{ '@' . $bskyAccount->handle }}
                 <x-icon name="link" class="h-3.5 w-3.5 opacity-60" />
               </a>
@@ -204,7 +204,7 @@
             @endforeach
             <button type="submit" class="px-2 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-500/30 text-emerald-300 hover:text-white text-xs font-extrabold tracking-wider transition duration-200 cursor-pointer active:scale-95 flex items-center gap-1">
               <x-icon name="sync" class="h-3 w-3" />
-              元に戻す (Undo)
+              元に戻す
             </button>
           </form>
         @endif
@@ -237,7 +237,7 @@
           @endforeach
           <div class="relative flex-1 min-w-0 flex items-center">
             <label for="mobileSearchInput" class="sr-only">投稿を検索</label>
-            <input type="search" id="mobileSearchInput" name="q" value="{{ request('q') }}" placeholder="投稿を検索…" enterkeyhint="search"
+            <input type="search" id="mobileSearchInput" name="q" value="{{ request('q') }}" placeholder="投稿を検索..." enterkeyhint="search"
                    class="w-full bg-slate-950/60 border border-slate-800/80 focus:border-sky-500/80 text-white rounded-xl py-2.5 pl-9 pr-3 text-sm placeholder-slate-500 focus:outline-hidden focus:ring-1 focus:ring-sky-500 transition">
             <span class="absolute left-3 text-slate-500 pointer-events-none">
               <x-icon name="search" class="h-4 w-4" stroke-width="2" />
