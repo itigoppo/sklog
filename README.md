@@ -128,7 +128,9 @@ cd src
 pnpm build
 ```
 
-サーバーでは `deploy.sh` を実行します。コードの最新化（`git pull --ff-only`）、依存関係のインストール（`composer install --no-dev`）、キャッシュの作り直し（`optimize`）、マイグレーション（`migrate --force`）を行います。pull で `deploy.sh` 自体が変わったときは、新しい中身で起動し直してから続けます。
+サーバーでは `deploy.sh` を実行します。コードの最新化（`git pull --ff-only`）、依存関係のインストール（`composer install --no-dev`）、キャッシュの作り直し（`optimize`）、マイグレーション（`migrate --force`）を行います。pull で `deploy.sh` 自体が変わったときは、新しい中身で起動し直してから続けます。依存関係のインストールからマイグレーションまでのあいだは `php artisan down` でメンテナンス中にし、終わったら（途中で失敗したときも）`php artisan up` で戻します。`src/.env` がまだないとき（初回のセットアップの途中）は、pull だけして終わります。
+
+マイグレーションは、更新前のコードでも動く形（空でもいい列を足すなど）にしてください。列を消す・名前を変えるときは、先にコードで使わなくしてから、次の回で消します。
 
 ```
 ./deploy.sh
