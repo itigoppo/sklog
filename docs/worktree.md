@@ -82,9 +82,12 @@ make dev        # アプリ + Vite をまとめて起動（Vite はフォアグ�
 
 ## Orca で使う場合
 
-Orca の repo 設定に次のスクリプトを登録してあり、ワークツリーの作成時と削除時に自動で実行されます（動作確認済み）。
+リポジトリ直下の `orca.yaml` でフックを指定しており、ワークツリーの作成時と削除時に自動で実行されます。Orca が読むのは `orca.yaml` だけで、`orca.yml` は読まないので、名前を変えないでください。
 
-- Setup script: `bash .orca/setup.sh`
-- Archive script: `bash .orca/archive.sh`
+- `scripts.setup`: `bash .orca/setup.sh`
+- `scripts.archive`: `bash .orca/archive.sh`
+- `setupAgentStartupPolicy: wait-for-setup`: セットアップが終わってからエージェントを始めます。先に始めると、`src/.env`・`vendor`・`node_modules`・ワークツリー専用の DB がまだ揃っていない状態で `make test` などを実行し、失敗の原因を取り違えるためです。
+
+Orca の repo 設定画面にもスクリプトを登録していると、そちらが優先されて `orca.yaml` のスクリプトは使われません。設定画面のスクリプトは空にしてください。
 
 ただし **`orca worktree rm` は `--run-hooks` を付けないと archive フックを実行しません**（`orca.yaml archive hook skipped ... pass --run-hooks to run it.` という警告が出ます）。フックが走らずに消えてしまった分は `make db-prune` で回収してください。

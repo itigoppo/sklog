@@ -1,0 +1,6 @@
+# Orca のワークツリー用フック（中身は .orca/ のスクリプト。docs/worktree.md の「Orca で使う場合」）
+scripts:
+  setup: bash .orca/setup.sh
+  archive: bash .orca/archive.sh
+# セットアップが終わってからエージェントを始める（理由は docs/worktree.md）
+setupAgentStartupPolicy: wait-for-setup
